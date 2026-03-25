@@ -26,6 +26,7 @@
 #include "YSFProtocol.h"
 #include "M17Protocol.h"
 #include "BMProtocol.h"
+#include "BMHomebrewProtocol.h"
 #include "P25Protocol.h"
 #include "NXDNProtocol.h"
 #include "USRPProtocol.h"
@@ -107,6 +108,16 @@ bool CProtocols::Init(void)
 			m_Protocols.emplace_back(std::unique_ptr<CG3Protocol>(new CG3Protocol));
 			if (! m_Protocols.back()->Initialize("XLX", EProtocol::g3, G3_DV_PORT, DMR_IPV4, DMR_IPV6))
 			return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))
+		{
+			uint16_t localport = 0;
+			if (g_Configure.Contains(g_Keys.bmhb.localport))
+				localport = uint16_t(g_Configure.GetUnsigned(g_Keys.bmhb.localport));
+			m_Protocols.emplace_back(std::unique_ptr<CBMHomebrewProtocol>(new CBMHomebrewProtocol));
+			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::bmhomebrew, localport, DMR_IPV4, false))
+				return false;
 		}
 
 	}

@@ -89,6 +89,7 @@
 #define JXMLPATH                 "XmlPath"
 #define JYSF                     "YSF"
 #define JYSFTXRXDB               "YSF TX/RX DB"
+#define JBMHOMEBREW              "BMHomebrew"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
 {
@@ -217,6 +218,7 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::nxdnid;
 			else if (0 == hname.compare(JYSFTXRXDB))
 				section = ESection::ysffreq;
+			else if (0 == hname.compare(JBMHOMEBREW))				section = ESection::bmhb;
 			else if (0 == hname.compare(JFILES))
 				section = ESection::files;
 			else
@@ -474,6 +476,49 @@ bool CConfigure::ReadData(const std::string &path)
 					data[pdb->refreshmin] = getUnsigned(value, JREFRESHMIN, 15, 14400, 180);
 				else if (0 == key.compare(JFILEPATH))
 					data[pdb->filepath] = value;
+				else
+					badParam(key);
+				break;
+			case ESection::bmhb:
+				if (0 == key.compare("Enable"))
+					data[g_Keys.bmhb.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare("MasterAddress"))
+					data[g_Keys.bmhb.address] = value;
+				else if (0 == key.compare("MasterPort"))
+					data[g_Keys.bmhb.port] = getUnsigned(value, "BMHomebrew MasterPort", 1024, 65535, 62031);
+				else if (0 == key.compare("LocalPort"))
+					data[g_Keys.bmhb.localport] = getUnsigned(value, "BMHomebrew LocalPort", 0, 65535, 0);
+				else if (0 == key.compare("DmrId"))
+					data[g_Keys.bmhb.dmrid] = getUnsigned(value, "BMHomebrew DmrId", 1, 999999999, 0);
+				else if (0 == key.compare("Password"))
+					data[g_Keys.bmhb.password] = value;
+				else if (0 == key.compare("Callsign"))
+					data[g_Keys.bmhb.callsign] = value;
+				else if (0 == key.compare("Latitude"))
+					data[g_Keys.bmhb.latitude] = value;
+				else if (0 == key.compare("Longitude"))
+					data[g_Keys.bmhb.longitude] = value;
+				else if (0 == key.compare("Location"))
+					data[g_Keys.bmhb.location] = value;
+				else if (0 == key.compare("Description"))
+					data[g_Keys.bmhb.description] = value;
+				else if (0 == key.compare("URL"))
+					data[g_Keys.bmhb.url] = value;
+				else if (0 == key.compare("RxFreq"))
+					data[g_Keys.bmhb.rxfreq] = getUnsigned(value, "BMHomebrew RxFreq", 40000000, 2600000000, 439000000);
+				else if (0 == key.compare("TxFreq"))
+					data[g_Keys.bmhb.txfreq] = getUnsigned(value, "BMHomebrew TxFreq", 40000000, 2600000000, 439000000);
+				else if (0 == key.compare("Software"))
+					data[g_Keys.bmhb.software] = value;
+				else if (0 == key.compare("Firmware"))
+					data[g_Keys.bmhb.firmware] = value;
+				else if (0 == key.compare(0, 2, "TG"))
+				{
+					// TG<number> = <Module>[,TS<1|2>]
+					// e.g. TG26363 = F,TS2 or TG26363 = F
+					std::string tgkey = "bmhbTG" + key.substr(2);
+					data[tgkey] = value;
+				}
 				else
 					badParam(key);
 				break;
