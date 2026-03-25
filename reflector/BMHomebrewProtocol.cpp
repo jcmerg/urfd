@@ -408,12 +408,30 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	rpt1.SetCSModule(module);
 	CCallsign rpt2(rpt1);
 
+	// Skip if this exact stream already exists (duplicate header from BM)
+	auto existing = m_IncomingStreams.find(streamId);
+	if (existing != m_IncomingStreams.end())
+	{
+		// Tickle the existing stream to keep it alive
+		auto stream = GetStream(existing->second);
+		if (stream)
+			stream->Tickle();
+		return;
+	}
+
+	// Generate a unique URFD stream ID
 	uint16_t urfStreamId = (uint16_t)(streamId & 0xFFFF);
 	if (urfStreamId == 0) urfStreamId = 1;
 
-	// Skip if stream already exists (duplicate header from BM)
-	if (m_IncomingStreams.find(streamId) != m_IncomingStreams.end())
-		return;
+	// Clean up stale entries (previous streams that were not properly terminated)
+	for (auto it = m_IncomingStreams.begin(); it != m_IncomingStreams.end(); )
+	{
+		auto stream = GetStream(it->second);
+		if (!stream)
+			it = m_IncomingStreams.erase(it);
+		else
+			++it;
+	}
 
 	m_IncomingStreams[streamId] = urfStreamId;
 
