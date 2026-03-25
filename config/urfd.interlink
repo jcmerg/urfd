@@ -6,15 +6,22 @@
 #  If no Port is specified, 10017 will be used.
 #  If DHT is enabled and the target is also DHT-enabled, then you only
 #  need to specify the URF-Callsign and the Shared-Modules.
+#
+#  NOTE: IP-Address must be a numeric IPv4 or IPv6 address.
+#        DNS hostnames are NOT supported in this file.
+#
 #  Format:
-#    <URF-Callsign> <IP-Address> <Shared-Mdoules> <Port>
+#    <URF-Callsign> <IP-Address> <Shared-Modules> <Port>
 #  Examples:
 #    URF270 158.64.26.132 EF
 #    URF280 ABC
 #
-#  Brandmeister links use three params, no port is specified. Example:
+#  Brandmeister XLX interlinks use three params, no port is specified:
 #    BM3104 162.248.88.117 E
 #
-#  note: Remote URFD must list this in its interlink file
+#  For Brandmeister Homebrew/MMDVM connections (without interlink file),
+#  see the [BMHomebrew] section in urfd.ini which supports DNS hostnames.
+#
+#  Note: Remote URFD must list this in its interlink file
 #        for the link to be established.
 #############################################################################
