@@ -83,6 +83,7 @@
 #define JTRANSCODER              "Transcoder"
 #define JTXPORT                  "TxPort"
 #define JURF                     "URF"
+#define JENABLEDGID              "EnableDGID"
 #define JURL                     "URL"
 #define JUSRP                    "USRP"
 #define JWHITELISTPATH           "WhitelistPath"
@@ -430,6 +431,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.ysf.port] = getUnsigned(value, "YSF Port", 1024, 65535, 42000);
 				else if (0 == key.compare(JAUTOLINKMODULE))
 					setAutolink(JYSF, g_Keys.ysf.autolinkmod, value);
+				else if (0 == key.compare(JENABLEDGID))
+					data[g_Keys.ysf.enabledgid] = IS_TRUE(value[0]);
 				else if (0 == key.compare(JDEFAULTTXFREQ))
 					data[g_Keys.ysf.defaulttxfreq] = getUnsigned(value, "YSF DefaultTxFreq", 40000000, 2600000000, 439000000);
 				else if (0 == key.compare(JDEFAULTRXFREQ))
@@ -798,6 +801,7 @@ bool CConfigure::ReadData(const std::string &path)
 
 	// YSF
 	isDefined(ErrorLevel::fatal, JYSF, JPORT, g_Keys.ysf.port, rval);
+	isDefined(ErrorLevel::mild, JYSF, JENABLEDGID, g_Keys.ysf.enabledgid, rval);
 	checkAutoLink(JYSF, JAUTOLINKMODULE, g_Keys.ysf.autolinkmod, rval);
 	isDefined(ErrorLevel::fatal, JYSF, JDEFAULTRXFREQ, g_Keys.ysf.defaultrxfreq, rval);
 	isDefined(ErrorLevel::fatal, JYSF, JDEFAULTTXFREQ, g_Keys.ysf.defaulttxfreq, rval);
@@ -1023,8 +1027,8 @@ unsigned CConfigure::GetUnsigned(const std::string &key) const
 
 bool CConfigure::GetBoolean(const std::string &key) const
 {
-	if (data[key].is_boolean())
-		return data[key];
+	if (data.contains(key) && data[key].is_boolean())
+		return data[key].get<bool>();
 	else
 		return false;
 }
