@@ -442,10 +442,10 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 
 	OnDvHeaderPacketIn(header, m_MasterIp);
 
-	// If stream failed to open (module busy), remove tracking to suppress orphaned frames
+	// If stream failed to open (module busy), mark with streamId=0 to suppress retries
 	if (!GetStream(urfStreamId))
 	{
-		m_IncomingStreams.erase(streamId);
+		m_IncomingStreams[streamId] = 0;
 	}
 }
 
@@ -454,6 +454,7 @@ void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t src
 	auto it = m_IncomingStreams.find(streamId);
 	if (it == m_IncomingStreams.end())
 	{
+		// Late entry: try to create header
 		OnDMRDVoiceHeaderIn(Buffer, srcId, dstId, streamId);
 		it = m_IncomingStreams.find(streamId);
 		if (it == m_IncomingStreams.end())
@@ -461,6 +462,9 @@ void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t src
 	}
 
 	uint16_t urfStreamId = it->second;
+	// streamId=0 means stream open failed (module busy), silently discard
+	if (urfStreamId == 0)
+		return;
 	const uint8_t *dmrframe = Buffer.data() + 20;
 
 	// Extract 3 x 9-byte AMBE2+ from interleaved DMR frame
