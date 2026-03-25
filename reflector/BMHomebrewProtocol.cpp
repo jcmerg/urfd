@@ -408,30 +408,33 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	rpt1.SetCSModule(module);
 	CCallsign rpt2(rpt1);
 
-	// Skip if this exact stream already exists (duplicate header from BM)
-	auto existing = m_IncomingStreams.find(streamId);
-	if (existing != m_IncomingStreams.end())
-	{
-		// Tickle the existing stream to keep it alive
-		auto stream = GetStream(existing->second);
-		if (stream)
-			stream->Tickle();
-		return;
-	}
-
-	// Generate a unique URFD stream ID
-	uint16_t urfStreamId = (uint16_t)(streamId & 0xFFFF);
-	if (urfStreamId == 0) urfStreamId = 1;
-
-	// Clean up stale entries (previous streams that were not properly terminated)
+	// Clean up stale entries first
 	for (auto it = m_IncomingStreams.begin(); it != m_IncomingStreams.end(); )
 	{
-		auto stream = GetStream(it->second);
-		if (!stream)
+		if (it->second == 0 || !GetStream(it->second))
 			it = m_IncomingStreams.erase(it);
 		else
 			++it;
 	}
+
+	// If this stream is still active (true duplicate header), just tickle
+	auto existing = m_IncomingStreams.find(streamId);
+	if (existing != m_IncomingStreams.end())
+	{
+		auto stream = GetStream(existing->second);
+		if (stream)
+		{
+			stream->Tickle();
+			return;
+		}
+		m_IncomingStreams.erase(existing);
+	}
+
+	// Generate a unique URFD stream ID using a counter to avoid collisions
+	static uint16_t s_nextStreamId = 0x100;
+	uint16_t urfStreamId = s_nextStreamId;
+	s_nextStreamId += 0x100;
+	if (s_nextStreamId == 0) s_nextStreamId = 0x100;
 
 	m_IncomingStreams[streamId] = urfStreamId;
 
