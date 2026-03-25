@@ -411,6 +411,10 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	uint16_t urfStreamId = (uint16_t)(streamId & 0xFFFF);
 	if (urfStreamId == 0) urfStreamId = 1;
 
+	// Skip if stream already exists (duplicate header from BM)
+	if (m_IncomingStreams.find(streamId) != m_IncomingStreams.end())
+		return;
+
 	m_IncomingStreams[streamId] = urfStreamId;
 
 	auto header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(srcId, CCallsign("CQCQCQ"), rpt1, rpt2, urfStreamId, 0, 0));
