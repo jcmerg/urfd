@@ -441,6 +441,12 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	std::cout << "BMHomebrew: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
 
 	OnDvHeaderPacketIn(header, m_MasterIp);
+
+	// If stream failed to open (module busy), remove tracking to suppress orphaned frames
+	if (!GetStream(urfStreamId))
+	{
+		m_IncomingStreams.erase(streamId);
+	}
 }
 
 void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
