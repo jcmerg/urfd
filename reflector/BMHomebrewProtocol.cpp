@@ -148,6 +148,9 @@ void CBMHomebrewProtocol::HandleStateMachine(void)
 
 void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 {
+	// Update master IP with actual source address (port may differ from config)
+	m_MasterIp = Ip;
+
 	// RPTACK
 	if (Buffer.size() >= 6 && 0 == Buffer.Compare((uint8_t *)"RPTACK", 6))
 	{
@@ -408,48 +411,21 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	rpt1.SetCSModule(module);
 	CCallsign rpt2(rpt1);
 
-	// Clean up stale entries first
-	for (auto it = m_IncomingStreams.begin(); it != m_IncomingStreams.end(); )
-	{
-		if (it->second == 0 || !GetStream(it->second))
-			it = m_IncomingStreams.erase(it);
-		else
-			++it;
-	}
+	uint16_t urfStreamId = (uint16_t)(streamId & 0xFFFF);
+	if (urfStreamId == 0) urfStreamId = 1;
 
-	// If this stream is still active (true duplicate header), just tickle
-	auto existing = m_IncomingStreams.find(streamId);
-	if (existing != m_IncomingStreams.end())
+	// Only log for new streams, not duplicate headers
+	if (m_IncomingStreams.find(streamId) == m_IncomingStreams.end())
 	{
-		auto stream = GetStream(existing->second);
-		if (stream)
-		{
-			stream->Tickle();
-			return;
-		}
-		m_IncomingStreams.erase(existing);
+		CCallsign my = DmrIdToCallsign(srcId);
+		std::cout << "BMHomebrew: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
 	}
-
-	// Generate a unique URFD stream ID using a counter to avoid collisions
-	static uint16_t s_nextStreamId = 0x100;
-	uint16_t urfStreamId = s_nextStreamId;
-	s_nextStreamId += 0x100;
-	if (s_nextStreamId == 0) s_nextStreamId = 0x100;
 
 	m_IncomingStreams[streamId] = urfStreamId;
 
 	auto header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(srcId, CCallsign("CQCQCQ"), rpt1, rpt2, urfStreamId, 0, 0));
 
-	CCallsign my = DmrIdToCallsign(srcId);
-	std::cout << "BMHomebrew: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
-
 	OnDvHeaderPacketIn(header, m_MasterIp);
-
-	// If stream failed to open (module busy), mark with streamId=0 to suppress retries
-	if (!GetStream(urfStreamId))
-	{
-		m_IncomingStreams[streamId] = 0;
-	}
 }
 
 void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
@@ -457,7 +433,6 @@ void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t src
 	auto it = m_IncomingStreams.find(streamId);
 	if (it == m_IncomingStreams.end())
 	{
-		// Late entry: try to create header
 		OnDMRDVoiceHeaderIn(Buffer, srcId, dstId, streamId);
 		it = m_IncomingStreams.find(streamId);
 		if (it == m_IncomingStreams.end())
@@ -465,9 +440,6 @@ void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t src
 	}
 
 	uint16_t urfStreamId = it->second;
-	// streamId=0 means stream open failed (module busy), silently discard
-	if (urfStreamId == 0)
-		return;
 	const uint8_t *dmrframe = Buffer.data() + 20;
 
 	// Extract 3 x 9-byte AMBE2+ from interleaved DMR frame
@@ -501,18 +473,13 @@ void CBMHomebrewProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t src
 	if (it == m_IncomingStreams.end())
 		return;
 
-	uint16_t urfStreamId = it->second;
-	m_IncomingStreams.erase(it);
-
-	// Don't send terminator for failed streams
-	if (urfStreamId == 0)
-		return;
-
 	uint8_t silence[9] = { 0xB9, 0xE8, 0x81, 0x52, 0x61, 0x73, 0x00, 0x2A, 0x6B };
 	uint8_t sync[7] = { 0 };
 	auto frame = std::unique_ptr<CDvFramePacket>(new CDvFramePacket(
-		silence, sync, urfStreamId, 0, 0, true));
+		silence, sync, it->second, 0, 0, true));
 	OnDvFramePacketIn(frame, &m_MasterIp);
+
+	m_IncomingStreams.erase(it);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
