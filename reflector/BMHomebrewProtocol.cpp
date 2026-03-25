@@ -411,17 +411,31 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	rpt1.SetCSModule(module);
 	CCallsign rpt2(rpt1);
 
-	uint16_t urfStreamId = (uint16_t)(streamId & 0xFFFF);
-	if (urfStreamId == 0) urfStreamId = 1;
-
-	// Only log for new streams, not duplicate headers
-	if (m_IncomingStreams.find(streamId) == m_IncomingStreams.end())
+	// Check if this BM streamId is already mapped to a valid URFD stream
+	auto existing = m_IncomingStreams.find(streamId);
+	if (existing != m_IncomingStreams.end())
 	{
-		CCallsign my = DmrIdToCallsign(srcId);
-		std::cout << "BMHomebrew: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
+		// Already mapped - tickle the stream if it still exists
+		auto stream = GetStream(existing->second, &m_MasterIp);
+		if (stream)
+		{
+			stream->Tickle();
+			return;
+		}
+		// Stream closed - remove stale mapping so we can re-open
+		m_IncomingStreams.erase(existing);
 	}
 
+	// Generate unique URFD stream ID
+	static uint16_t s_nextId = 0x100;
+	uint16_t urfStreamId = s_nextId;
+	s_nextId += 0x100;
+	if (s_nextId == 0) s_nextId = 0x100;
+
 	m_IncomingStreams[streamId] = urfStreamId;
+
+	CCallsign my = DmrIdToCallsign(srcId);
+	std::cout << "BMHomebrew: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
 
 	auto header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(srcId, CCallsign("CQCQCQ"), rpt1, rpt2, urfStreamId, 0, 0));
 
@@ -458,12 +472,18 @@ void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t src
 	if (flags & BMHB_FLAG_VOICE_SYNC)
 		pid = 0;
 
+	// Push frames directly to the stream
+	auto stream = GetStream(urfStreamId, &m_MasterIp);
+	if (!stream)
+		return;
+
 	for (int i = 0; i < 3; i++)
 	{
 		auto frame = std::unique_ptr<CDvFramePacket>(new CDvFramePacket(
 			&dmr3ambe[i * 9], dmrsync,
 			urfStreamId, (uint8_t)(pid * 3 + i), (uint8_t)i, false));
-		OnDvFramePacketIn(frame, &m_MasterIp);
+		frame->SetPacketModule(stream->GetOwnerClient()->GetReflectorModule());
+		stream->Push(std::move(frame));
 	}
 }
 
@@ -473,13 +493,19 @@ void CBMHomebrewProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t src
 	if (it == m_IncomingStreams.end())
 		return;
 
+	uint16_t urfStreamId = it->second;
+	m_IncomingStreams.erase(it);
+
+	auto stream = GetStream(urfStreamId, &m_MasterIp);
+	if (!stream)
+		return;
+
 	uint8_t silence[9] = { 0xB9, 0xE8, 0x81, 0x52, 0x61, 0x73, 0x00, 0x2A, 0x6B };
 	uint8_t sync[7] = { 0 };
 	auto frame = std::unique_ptr<CDvFramePacket>(new CDvFramePacket(
-		silence, sync, it->second, 0, 0, true));
-	OnDvFramePacketIn(frame, &m_MasterIp);
-
-	m_IncomingStreams.erase(it);
+		silence, sync, urfStreamId, 0, 0, true));
+	frame->SetPacketModule(stream->GetOwnerClient()->GetReflectorModule());
+	stream->Push(std::move(frame));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -487,7 +513,7 @@ void CBMHomebrewProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t src
 
 void CBMHomebrewProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
 {
-	auto stream = GetStream(Header->GetStreamId());
+	auto stream = GetStream(Header->GetStreamId(), &m_MasterIp);
 	if (stream)
 	{
 		stream->Tickle();
