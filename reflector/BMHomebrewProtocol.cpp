@@ -498,13 +498,18 @@ void CBMHomebrewProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t src
 	if (it == m_IncomingStreams.end())
 		return;
 
+	uint16_t urfStreamId = it->second;
+	m_IncomingStreams.erase(it);
+
+	// Don't send terminator for failed streams
+	if (urfStreamId == 0)
+		return;
+
 	uint8_t silence[9] = { 0xB9, 0xE8, 0x81, 0x52, 0x61, 0x73, 0x00, 0x2A, 0x6B };
 	uint8_t sync[7] = { 0 };
 	auto frame = std::unique_ptr<CDvFramePacket>(new CDvFramePacket(
-		silence, sync, it->second, 0, 0, true));
+		silence, sync, urfStreamId, 0, 0, true));
 	OnDvFramePacketIn(frame, &m_MasterIp);
-
-	m_IncomingStreams.erase(it);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
