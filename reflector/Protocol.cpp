@@ -138,14 +138,19 @@ void CProtocol::OnDvFramePacketIn(std::unique_ptr<CDvFramePacket> &Frame, const 
 		// and push
 		stream->Push(std::move(Frame));
 	}
-//#ifdef DEBUG
 	else
 	{
-		std::cout << std::showbase << std::hex;
-		std::cout << "Orphaned Frame with ID " << ntohs(Frame->GetStreamId()) << std::noshowbase << std::dec << " on " << *Ip << std::endl;
+		// Rate-limit: only log once per stream ID to avoid flooding
+		static uint16_t lastOrphanId = 0;
+		uint16_t thisId = Frame->GetStreamId();
+		if (thisId != lastOrphanId)
+		{
+			lastOrphanId = thisId;
+			std::cout << std::showbase << std::hex;
+			std::cout << "Orphaned Frame with ID " << ntohs(thisId) << std::noshowbase << std::dec << " on " << *Ip << std::endl;
+		}
 		Frame.reset();
 	}
-//#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
