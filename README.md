@@ -14,7 +14,7 @@ Direct Brandmeister connection via the MMDVM protocol. Maps BM talkgroups to ref
 Enable = true
 MasterAddress = 2622.master.brandmeister.network
 MasterPort = 62031
-DmrId = 263135305
+DmrId = 123456701
 Password = yourpassword
 Callsign = YOURCALL
 TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
