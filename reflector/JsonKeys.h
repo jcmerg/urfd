@@ -69,8 +69,8 @@ struct SJsonKeys {
 	nxdniddb  { "nxdnIdDbUrl", "nxdnIdDbMode", "nxdnIdDbRefresh", "nxdnIdDbFilePath" },
 	ysftxrxdb {  "ysfIdDbUrl",  "ysfIdDbMode",  "ysfIdDbRefresh",  "ysfIdDbFilePath" };
 
-	struct ECHO { const std::string module; }
-	echo { "EchoModule" };
+	struct ECHO { const std::string enable, module; }
+	echo { "EchoEnable", "EchoModule" };
 
 	struct FILES { const std::string pid, xml, json, white, black, interlink, terminal; }
 	files { "pidFilePath", "xmlFilePath", "jsonFilePath", "whitelistFilePath", "blacklistFilePath", "interlinkFilePath", "g3TerminalFilePath" };

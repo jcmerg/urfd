@@ -548,7 +548,9 @@ bool CConfigure::ReadData(const std::string &path)
 					badParam(key);
 				break;
 			case ESection::echo:
-				if (0 == key.compare("Module"))
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.echo.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare("Module"))
 				{
 					if (value.size() >= 1 && value[0] >= 'A' && value[0] <= 'Z')
 						data[g_Keys.echo.module] = std::string(1, value[0]);

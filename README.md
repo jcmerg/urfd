@@ -30,10 +30,11 @@ Built-in echo/parrot function. Assign it to any module - audio is recorded and p
 Modules = AFSZ
 
 [Echo]
+Enable = true
 Module = Z
 ```
 
-The echo module is automatically labeled "Echo" in the dashboard and hidden from protocol listings.
+The echo module is automatically labeled "Echo" in the dashboard. Set `Enable = false` to disable without removing the configuration.
 
 ### Protocol Enable Flags
 All protocols can now be individually enabled/disabled. Default is `true` (backwards-compatible). Previously only BM, USRP, G3 and BMHomebrew had enable flags.
@@ -178,4 +179,4 @@ Required ports (only open ports for enabled protocols):
 - Copyright (c) 2016 Jean-Luc Deltombe LX3JL and Luc Engelmann LX1IQ
 - Copyright (c) 2022 Doug McLain AD8DP and Thomas A. Early N7TAE
 - Copyright (c) 2024 Thomas A. Early N7TAE
-- Copyright (c) 2025-2026 JC Merg DL4JC (URF363 fork extensions)
+- Copyright (c) 2025-2026 Jens-Christian Merg DL4JC (URF363 fork extensions)

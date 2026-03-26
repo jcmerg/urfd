@@ -98,7 +98,8 @@ bool CReflector::Start(void)
 	}
 
 	// echo module
-	if (g_Configure.Contains(g_Keys.echo.module))
+	if (g_Configure.Contains(g_Keys.echo.module)
+		&& (!g_Configure.Contains(g_Keys.echo.enable) || g_Configure.GetBoolean(g_Keys.echo.enable)))
 	{
 		m_EchoModule = g_Configure.GetString(g_Keys.echo.module)[0];
 		std::cout << "Echo module: " << m_EchoModule << std::endl;

@@ -1,0 +1,26 @@
+services:
+  urfd:
+    build:
+      context: /opt/urfd/src
+      dockerfile: /opt/urfd/Dockerfile
+    image: urfd:latest
+    container_name: urfd
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      # urfd config (urfd.ini, blacklist, whitelist, interlink, terminal + downloaded .dat files)
+      - /opt/urfd/config:/usr/local/etc/urfd
+      # Dashboard config (persistent, editable)
+      - /opt/urfd/dashboard/config.inc.php:/var/www/urfd-dashboard/pgs/config.inc.php
+      # Call Home state
+      - /opt/urfd/xlxd-ch:/var/lib/xlxd-ch
+      # XML file shared between urfd and dashboard
+      - urfd-xml:/var/log
+    healthcheck:
+      test: ["CMD", "pgrep", "urfd"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  urfd-xml:
