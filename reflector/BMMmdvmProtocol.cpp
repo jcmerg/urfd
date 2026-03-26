@@ -409,7 +409,8 @@ void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId
 	CCallsign rpt1;
 	rpt1.SetCallsign(m_Callsign, false);
 	rpt1.SetCSModule(module);
-	CCallsign rpt2(rpt1);
+	CCallsign rpt2(g_Reflector.GetCallsign());
+	rpt2.SetCSModule(module);
 
 	// Check if this BM streamId is already mapped to a valid URFD stream
 	auto existing = m_IncomingStreams.find(streamId);
