@@ -1,74 +1,94 @@
 <?php
-/*
-Possible values for IPModus
-
-HideIP
-ShowFullIP
-ShowLast1ByteOfIP
-ShowLast2ByteOfIP
-ShowLast3ByteOfIP
-
-*/
+//############################################################################
+//  URFD Dashboard Configuration
+//############################################################################
 
 $Service     = array();
 $CallingHome = array();
 $PageOptions = array();
 
-$PageOptions['ContactEmail']                         = 'your_email';		    // Support E-Mail address
+//############################################################################
+//  Dashboard Settings
+//############################################################################
 
-$PageOptions['DashboardVersion']                     = '2.6.0';       			// Dashboard Version
+$PageOptions['DashboardVersion'] = '2.6.0';
 
-$PageOptions['PageRefreshActive']                    = true;          			// Activate automatic refresh
-$PageOptions['PageRefreshDelay']                     = '10000';       			// Page refresh time in miliseconds
+$PageOptions['ContactEmail']     = 'your_email@example.com';
 
+// Maintenance banner (comment out or leave empty to hide)
+// $PageOptions['MOTD']          = 'Scheduled maintenance on Sunday 12:00-14:00 UTC';
+
+//############################################################################
+//  Page Refresh
+//############################################################################
+
+$PageOptions['PageRefreshActive'] = true;
+$PageOptions['PageRefreshDelay']  = '10000';  // milliseconds
+
+//############################################################################
+//  Last Heard Page
+//############################################################################
+
+$PageOptions['LastHeardPage']['LimitTo']  = 39;
+$PageOptions['UserPage']['ShowFilter']    = true;
+
+//############################################################################
+//  Repeaters / Links Page
+//  IPModus: HideIP, ShowFullIP, ShowLast1ByteOfIP, ShowLast2ByteOfIP, ShowLast3ByteOfIP
+//############################################################################
 
 $PageOptions['RepeatersPage'] = array();
-$PageOptions['RepeatersPage']['LimitTo']             = 99;            			// Number of Repeaters to show
-$PageOptions['RepeatersPage']['IPModus']             = 'ShowLast2ByteOfIP'; 	// See possible options above
-$PageOptions['RepeatersPage']['MasqueradeCharacter'] = '*';	        			// Character used for  masquerade
+$PageOptions['RepeatersPage']['LimitTo']             = 99;
+$PageOptions['RepeatersPage']['IPModus']             = 'ShowLast2ByteOfIP';
+$PageOptions['RepeatersPage']['MasqueradeCharacter'] = '*';
 
+//############################################################################
+//  Peers Page
+//############################################################################
 
 $PageOptions['PeerPage'] = array();
-$PageOptions['PeerPage']['LimitTo']                  = 99;            			// Number of peers to show
-$PageOptions['PeerPage']['IPModus']                  = 'ShowLast2ByteOfIP';  	// See possible options above
-$PageOptions['PeerPage']['MasqueradeCharacter']      = '*';           			// Character used for  masquerade
+$PageOptions['PeerPage']['LimitTo']             = 99;
+$PageOptions['PeerPage']['IPModus']             = 'ShowLast2ByteOfIP';
+$PageOptions['PeerPage']['MasqueradeCharacter'] = '*';
 
-$PageOptions['LastHeardPage']['LimitTo']             = 39;                      // Number of stations to show
+//############################################################################
+//  SEO Meta Tags
+//############################################################################
 
-$PageOptions['ModuleNames'] = array();                                			// Module nomination
-$PageOptions['ModuleNames']['A']                     = 'Int.';
-$PageOptions['ModuleNames']['B']                     = 'Regional';
-$PageOptions['ModuleNames']['C']                     = 'National';
-$PageOptions['ModuleNames']['D']                     = '';
+$PageOptions['MetaDescription'] = 'URF Universal Digital Voice Reflector for Ham Radio';
+$PageOptions['MetaKeywords']    = 'Ham Radio, D-Star, DMR, YSF, M17, P25, NXDN, URF, XLX';
+$PageOptions['MetaAuthor']      = 'URFD Dashboard';
+$PageOptions['MetaRevisit']     = 'After 30 Days';
+$PageOptions['MetaRobots']      = 'index,follow';
 
+//############################################################################
+//  Service Paths
+//############################################################################
 
-$PageOptions['MetaDescription']                      = 'URF is a D-Star Reflector System for Ham Radio Operators.';  // Meta Tag Values, usefull for Search Engine
-$PageOptions['MetaKeywords']                         = 'Ham Radio, D-Star, XReflector, XLX, XRF, DCS, REF, M17,';    // Meta Tag Values, usefull forSearch Engine
-$PageOptions['MetaAuthor']                           = 'LX1IQ';                                                      // Meta Tag Values, usefull for Search Engine
-$PageOptions['MetaRevisit']                          = 'After 30 Days';                                              // Meta Tag Values, usefull for Search Engine
-$PageOptions['MetaRobots']                           = 'index,follow';                                               // Meta Tag Values, usefull for Search Engine
+$Service['PIDFile'] = '/var/run/xlxd.pid';
+$Service['XMLFile'] = '/var/log/xlxd.xml';
 
-$PageOptions['UserPage']['ShowFilter']               = true;                                                         // Show Filter on Users page
-// $PageOptions['MOTD']                              = 'Scheduled maintenance on Sunday 12:00-14:00 UTC';            // Banner message (leave commented out or empty to hide)
+//############################################################################
+//  CallingHome (XLX Directory Registration)
+//  Registers reflector at xlxapi.rlx.lu. Runs automatically via supervisor.
+//  Set Active to false to disable.
+//############################################################################
 
-$Service['PIDFile']                                  = '/var/run/xlxd.pid';
-$Service['XMLFile']                                  = '/var/log/xlxd.xml';
+$CallingHome['Active']            = false;
+$CallingHome['MyDashBoardURL']    = 'http://your-dashboard.example.com';
+$CallingHome['ServerURL']         = 'http://xlxapi.rlx.lu/api.php';  // Do not change
+$CallingHome['PushDelay']         = 10;                               // seconds
+$CallingHome['Country']           = 'Germany';
+$CallingHome['Comment']           = 'URF Reflector';                  // max 100 chars
+$CallingHome['HashFile']          = '/var/lib/xlxd-ch/callinghome.php';
+$CallingHome['LastCallHomefile']  = '/var/lib/xlxd-ch/lastcallhome.php';
+$CallingHome['OverrideIPAddress'] = '';                                // blank = auto-detect
+$CallingHome['InterlinkFile']     = '/usr/local/etc/urfd/urfd.interlink';
 
-$CallingHome['Active']                               = false;					               // xlx phone home, true or false
-$CallingHome['MyDashBoardURL']                       = 'http://your_dashboard';			       // dashboard url
-$CallingHome['ServerURL']                            = 'http://xlxapi.rlx.lu/api.php';         // database server, do not change !!!!
-$CallingHome['PushDelay']                            = 10;  	                               // push delay in seconds
-$CallingHome['Country']                              = "your_country";                         // Country
-$CallingHome['Comment']                              = "your_comment"; 				           // Comment. Max 100 character
-$CallingHome['HashFile']                             = "/xlxd-ch/callinghome.php";             // Make sure the apache user has read and write permissions in this folder.
-$CallingHome['LastCallHomefile']                     = "/xlxd-ch/lastcallhome.php";            // lastcallhome.php can remain in the tmp folder
-$CallingHome['OverrideIPAddress']                    = "";                                     // Insert your IP address here. Leave blank for autodetection. No need to enter a fake address.
-$CallingHome['InterlinkFile']                        = "/usr/local/etc/xlxd.interlink";        // Path to interlink file
-
-/*
-  include an extra config file for people who dont like to mess with shipped config.ing.php
-  this makes updating dashboard from git a little bit easier
-*/
+//############################################################################
+//  External config override (mounted volume in Docker)
+//  Allows local overrides without modifying this file.
+//############################################################################
 
 if (file_exists("../config.inc.php")) {
   include ("../config.inc.php");
