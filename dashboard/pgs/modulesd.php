@@ -209,7 +209,7 @@ if (count($Modules) == 0) {
 <?php
     $protoTypes = array(
         'DExtra' => 'D-Star', 'DPlus' => 'D-Star', 'DCS' => 'D-Star',
-        'MMDVM' => 'DMR', 'DMRPlus' => 'DMR', 'BM' => 'DMR', 'BMMmdvm' => 'DMR',
+        'MMDVM' => 'DMR', 'DMRPlus' => 'DMR', 'XLXPeer' => 'XLX/BM Peering', 'BMMmdvm' => 'DMR',
         'M17' => 'M17', 'YSF' => 'YSF/C4FM', 'P25' => 'P25', 'NXDN' => 'NXDN',
         'URF' => 'URF Interlink', 'G3' => 'D-Star (G3)', 'USRP' => 'AllStar/USRP',
     );

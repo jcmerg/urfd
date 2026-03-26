@@ -35,7 +35,8 @@
 #define JBINDINGADDRESS          "BindingAddress"
 #define JBLACKLISTPATH           "BlacklistPath"
 #define JBOOTSTRAP               "Bootstrap"
-#define JBRANDMEISTER            "Brandmeister"
+#define JXLXPEER                 "XLXPeer"
+#define JBRANDMEISTER            "Brandmeister"  // legacy
 #define JCALLSIGN                "Callsign"
 #define JCOUNTRY                 "Country"
 #define JDASHBOARDURL            "DashboardUrl"
@@ -199,7 +200,7 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::mmdvm;
 			else if (0 == hname.compare(JNXDN))
 				section = ESection::nxdn;
-			else if (0 == hname.compare(JBRANDMEISTER))
+			else if (0 == hname.compare(JXLXPEER) || 0 == hname.compare(JBRANDMEISTER))
 				section = ESection::bm;
 			else if (0 == hname.compare(JYSF))
 				section = ESection::ysf;
@@ -335,7 +336,7 @@ bool CConfigure::ReadData(const std::string &path)
 				break;
 			case ESection::bm:
 				if (0 == key.compare(JPORT))
-					data[g_Keys.bm.port] = getUnsigned(value, "Brandmeister Port", 1024, 65535, 10002);
+					data[g_Keys.bm.port] = getUnsigned(value, "XLXPeer Port", 1024, 65535, 10002);
 				else if (0 == key.compare(JENABLE))
 					data[g_Keys.bm.enable] = IS_TRUE(value[0]);
 				else
@@ -768,12 +769,12 @@ bool CConfigure::ReadData(const std::string &path)
 	isDefined(ErrorLevel::fatal, JM17, JPORT, g_Keys.m17.port, rval);
 	isDefined(ErrorLevel::fatal, JURF, JPORT, g_Keys.urf.port, rval);
 
-	// BM
-	if (isDefined(ErrorLevel::fatal, JBRANDMEISTER, JENABLE, g_Keys.bm.enable, rval))
+	// XLXPeer (legacy: Brandmeister)
+	if (isDefined(ErrorLevel::fatal, JXLXPEER, JENABLE, g_Keys.bm.enable, rval))
 	{
 		if (GetBoolean(g_Keys.bm.enable))
 		{
-			isDefined(ErrorLevel::fatal, JBRANDMEISTER, JPORT, g_Keys.bm.port, rval);
+			isDefined(ErrorLevel::fatal, JXLXPEER, JPORT, g_Keys.bm.port, rval);
 		}
 	}
 
