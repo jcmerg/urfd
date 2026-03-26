@@ -237,10 +237,22 @@ if ($CallingHome['Active']) {
 
 <footer class="footer">
     <div class="container">
-        <p><a href="mailto:<?php echo $PageOptions['ContactEmail']; ?>"><?php echo $PageOptions['ContactEmail']; ?></a>
-        </p>
+        <p><?php
+            // Obfuscate email against bots
+            $email = $PageOptions['ContactEmail'];
+            $parts = explode('@', $email);
+            if (count($parts) == 2) {
+                echo '<span class="email-protect" data-u="' . htmlspecialchars($parts[0]) . '" data-d="' . htmlspecialchars($parts[1]) . '">[javascript required]</span>';
+            }
+        ?></p>
     </div>
 </footer>
+<script>
+document.querySelectorAll('.email-protect').forEach(function(el){
+    var a=el.dataset.u+'@'+el.dataset.d;
+    el.innerHTML='<a href="mai'+'lto:'+a+'">'+a+'</a>';
+});
+</script>
 
 <!-- Bootstrap core JavaScript
  ================================================== -->
