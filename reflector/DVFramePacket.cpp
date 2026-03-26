@@ -190,7 +190,7 @@ CDvFramePacket::CDvFramePacket(const CBuffer &buf) : CPacket(buf)
 		memcpy(m_TCPack.m17,   data+off, sizeof(m_TCPack.m17));   off += sizeof(m_TCPack.m17);
 		memcpy(m_TCPack.p25,   data+off, sizeof(m_TCPack.p25));   off += sizeof(m_TCPack.p25);
 		memcpy(m_TCPack.usrp,  data+off, sizeof(m_TCPack.usrp));
-		SetTCParams(seq);
+		SetTCParams(seq, m_cModule);
 	}
 	else
 		std::cerr << "CBuffer is too small to initialize a CDvFramePacket" << std::endl;
@@ -252,10 +252,11 @@ void CDvFramePacket::SetCodecData(const STCPacket *pack)
 	memcpy(&m_TCPack, pack, sizeof(STCPacket));
 }
 
-void CDvFramePacket::SetTCParams(uint32_t seq)
+void CDvFramePacket::SetTCParams(uint32_t seq, char module)
 {
 	m_TCPack.sequence = seq;
 	m_TCPack.streamid = m_uiStreamId;
 	m_TCPack.is_last = m_bLastPacket;
-	m_TCPack.module = m_cModule;
+	m_TCPack.module = module;
+    m_cModule = module;
 }

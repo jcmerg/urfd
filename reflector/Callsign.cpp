@@ -182,8 +182,29 @@ bool CCallsign::HasSuffix(void) const
 ////////////////////////////////////////////////////////////////////////////////////////
 // set
 
-void CCallsign::SetCallsign(const std::string &s, bool updateids)
+void CCallsign::SetCallsign(const std::string &s_in, bool updateids)
 {
+	std::string s = s_in;
+	
+	// Heuristic: Truncate suffix if > 3 chars after last digit (e.g. KK7MFEP -> KK7MFE)
+	// We only apply this if there is no explicit separator like '/'
+	if (s.find('/') == std::string::npos) {
+		long lastDigitIdx = -1;
+		for (long i = (long)s.size() - 1; i >= 0; i--) {
+			if (isdigit(s[i])) {
+				lastDigitIdx = i;
+				break;
+			}
+		}
+
+		if (lastDigitIdx != -1) {
+			long suffixLen = (long)s.size() - 1 - lastDigitIdx;
+			if (suffixLen > 3) {
+				s = s.substr(0, lastDigitIdx + 1 + 3);
+			}
+		}
+	}
+
 	// set callsign
 	memset(m_Callsign.c, ' ', CALLSIGN_LEN);
 	m_Module = ' ';

@@ -84,7 +84,7 @@ public:
 	// set
 	void SetDvData(const uint8_t *);
 	void SetCodecData(const STCPacket *pack);
-	void SetTCParams(uint32_t seq);
+	void SetTCParams(uint32_t seq, char module);
 
 	// the round-trip timer
 	CTimer m_rtTimer;

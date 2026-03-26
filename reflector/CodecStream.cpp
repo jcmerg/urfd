@@ -178,7 +178,7 @@ void CCodecStream::Task(void)
 		{
 			// update important stuff in Frame->m_TCPack for the transcoder
 			// sets the packet counter, stream id, last_packet, module and start the trip timer
-			Frame->SetTCParams(m_uiTotalPackets++);
+			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);
 
 			// now send to transcoder
 			int fd = g_TCServer.GetFD(Frame->GetCodecPacket()->module);
