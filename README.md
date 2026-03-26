@@ -22,6 +22,26 @@ TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
 
 Each TG must also be configured as a static talkgroup in the BM Selfcare portal.
 
+### XLX Interlink Support
+Peer with XLX reflectors using the native XLX protocol (port 10002). DNS hostnames are supported in interlink entries.
+
+```ini
+# urfd.ini
+[XLXPeer]
+Enable = true
+Port = 10002
+```
+
+```
+# urfd.interlink - supports DNS hostnames
+XLX269 xlx269.example.com A
+XLX100 44.10.20.30 AFS
+BM3104 bm3104.example.com E
+URF270 urf270.example.com EF
+```
+
+The XLX interlink protocol has been verified compatible with [LX3JL/xlxd](https://github.com/LX3JL/xlxd). URF peers use port 10017, XLX/BM peers use port 10002 (auto-detected by callsign prefix).
+
 ### Echo Module
 Built-in echo/parrot function. Assign it to any module - audio is recorded and played back after 3 seconds of silence.
 
@@ -34,10 +54,13 @@ Enable = true
 Module = Z
 ```
 
-The echo module is automatically labeled "Echo" in the dashboard. Set `Enable = false` to disable without removing the configuration.
+Set `Enable = false` to disable without removing the configuration.
+
+### M17 LSTN Support
+M17 listen-only clients (LSTN packets) are accepted and registered as normal clients. This enables monitoring services like dvref.com to check reflector availability.
 
 ### Protocol Enable Flags
-All protocols can now be individually enabled/disabled. Default is `true` (backwards-compatible). Previously only BM, USRP, G3 and BMHomebrew had enable flags.
+All protocols can now be individually enabled/disabled. Default is `true` (backwards-compatible).
 
 ```ini
 [DPlus]
@@ -58,7 +81,7 @@ The XML status file now includes:
 - **Enabled protocols**: name and port for each active protocol
 - **Per-station protocol**: which protocol a user was heard on (DCS, BMMmdvm, YSF, etc.)
 
-Module names are configured once in `urfd.ini` and automatically available in the dashboard - no need for redundant PHP configuration.
+Module names are configured once in `urfd.ini` and automatically available in the dashboard.
 
 ### Dashboard v2.6.0
 Complete redesign with dark mode theme.
@@ -68,12 +91,23 @@ Complete redesign with dark mode theme.
 - **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, mappings, transcoder status, connected nodes (collapsible for large lists)
 - **Enabled Protocols** - All active protocols with ports and type classification
 
-**Improvements:**
+**Features:**
 - Dark mode with CSS custom properties
-- Last Heard table with protocol column and pulsing TX indicator
+- Last Heard table with protocol column, pulsing TX indicator, module display
+- MOTD/maintenance banner via `$PageOptions['MOTD']` in config.inc.php
 - Module names read from urfd XML (single source of truth)
-- Unicode emoji icons replacing black PNG images
-- Via column with nowrap, clean layout
+- Contact email obfuscated against bots
+- CallingHome runs automatically via supervisor (every 5 min)
+- QuadNet Live iframe with light background wrapper
+
+### Bug Fixes
+- Fix BM options string per-timeslot indexing for multi-TG configs
+- Fix `Mode=both` DB loader failbit when file is empty
+- Fix Via/Peer display matching both XLX and URF reflector name variants
+- Fix callsign sanitization for malformed NXDN/DMR gateway callsigns (cherry-picked from dbehnke/urfd)
+- Fix YSF CONN_REQ radio ID collision causing phantom module switches (cherry-picked from dbehnke/urfd)
+- Fix transcoder module ID enforcement to prevent audio cross-contamination (cherry-picked from dbehnke/urfd)
+- Remove spurious getsockname warning on ephemeral ports
 
 ## Introduction
 
@@ -85,7 +119,7 @@ This build supports dual-stack operation (IPv4 + IPv6).
 
 ## Docker Deployment
 
-This fork includes Docker support for easy deployment.
+This fork includes Docker support for easy deployment. See the `docker/` directory for all deployment files.
 
 ### Build and run
 
@@ -96,15 +130,25 @@ bash build.sh
 
 The `build.sh` script builds the Docker image and restarts the container. It uses `docker-compose.yml` with `network_mode: host`.
 
+### Container architecture
+
+The container runs three services via supervisord:
+- **urfd** - The reflector daemon
+- **nginx + php-fpm** - Dashboard on port 8363
+- **callhome** - Automatic CallingHome every 5 minutes
+
 ### Configuration files
 
-All configuration is in `/opt/urfd/config/`:
+All configuration is in `/opt/urfd/config/` (mounted as volume):
 - `urfd.ini` - Main reflector configuration
-- `urfd.interlink` - Peer linking configuration
+- `urfd.interlink` - Peer linking (URF, XLX, BM peers with DNS support)
 - `urfd.blacklist` / `urfd.whitelist` - Access control
 - `urfd.terminal` - G3 terminal configuration
 
-The dashboard config is at `/opt/urfd/dashboard/config.inc.php` (mounted into the container).
+Dashboard config at `/opt/urfd/dashboard/config.inc.php` (mounted into container):
+- `$PageOptions['MOTD']` - Maintenance banner (shown on all pages)
+- `$PageOptions['ContactEmail']` - Footer contact (obfuscated)
+- `$CallingHome['Active']` - Enable/disable XLX directory registration
 
 ## Installation (Bare Metal)
 
@@ -141,6 +185,8 @@ Edit `urfd.ini` to set:
 - Modules (A-Z, non-contiguous allowed)
 - Transcoder port and modules (set port to 0 if no transcoder)
 - Protocol-specific settings (ports, enable flags, autolink modules)
+- Echo module assignment
+- BMMmdvm TG mappings
 - Database URLs for DMR ID, NXDN ID, YSF TX/RX lookups
 
 ### Dashboard
@@ -149,7 +195,19 @@ Edit `urfd.ini` to set:
 sudo cp -r ~/urfd/dashboard /var/www/urf
 ```
 
-Edit `pgs/config.inc.php` for email, country, and CallingHome settings. Module names are now read from the urfd XML output.
+Edit `pgs/config.inc.php` for email, country, and CallingHome settings. Module names are read from the urfd XML output - no need for redundant `$PageOptions['ModuleNames']` configuration.
+
+## Interlink / Peering
+
+Three types of peering are supported in `urfd.interlink`:
+
+| Type | Prefix | Default Port | Protocol | Requires |
+|------|--------|-------------|----------|----------|
+| URF Peer | `URF` | 10017 | URF native | - |
+| XLX Peer | `XLX` | 10002 | XLX/BM | `[XLXPeer] Enable = true` |
+| BM Peer | `BM` | 10002 | XLX/BM | `[XLXPeer] Enable = true` |
+
+DNS hostnames are resolved via `getaddrinfo()` at load time. Both sides must list each other in their interlink files. DHT-based peering (no IP needed) is supported for URF peers when OpenDHT is enabled.
 
 ## Firewall
 
@@ -158,9 +216,10 @@ Required ports (only open ports for enabled protocols):
 | Port | Protocol | Service |
 |------|----------|---------|
 | 80/tcp | HTTP | Dashboard |
+| 8363/tcp | HTTP | Dashboard (Docker) |
 | 8880/udp | DMR+ | DMO mode |
-| 10002/udp | BM | Brandmeister peering |
-| 10017/udp | URF | Reflector interlinking |
+| 10002/udp | XLXPeer | XLX/BM peering |
+| 10017/udp | URF | URF interlinking |
 | 10100/tcp | TC | Transcoder |
 | 12345-12346/udp | G3 | Icom Terminal |
 | 17000/udp | M17 | M17 protocol |
@@ -173,6 +232,10 @@ Required ports (only open ports for enabled protocols):
 | 41400/udp | NXDN | NXDN protocol |
 | 42000/udp | YSF | YSF/C4FM protocol |
 | 62030/udp | MMDVM | DMR MMDVM |
+
+## YSF
+
+URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users connect via hotspot software (Pi-Star/WPSD) which discovers URF reflectors through the XLX API. No registration at ysfreflector.de is needed. If `EnableDGID = true`, users can switch modules via DG-ID values (10=A, 11=B, ... 35=Z).
 
 ## Copyright
 
