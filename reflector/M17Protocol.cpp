@@ -85,9 +85,10 @@ void CM17Protocol::Task(void)
 				OnDvFramePacketIn(secondFrame, &Ip); // push two packet because we need a packet every 20 ms
 			}
 		}
-		else if ( IsValidConnectPacket(Buffer, Callsign, ToLinkModule) )
+		else if ( IsValidConnectPacket(Buffer, Callsign, ToLinkModule) || IsValidListenPacket(Buffer, Callsign, ToLinkModule) )
 		{
-			std::cout << "M17 connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << std::endl;
+			bool isListen = (0 == Buffer.Compare((uint8_t *)"LSTN", 4));
+			std::cout << "M17 " << (isListen ? "listen " : "") << "connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << std::endl;
 
 			// callsign authorized?
 			if ( g_GateKeeper.MayLink(Callsign, Ip, EProtocol::m17) && g_Reflector.IsValidModule(ToLinkModule) )
@@ -316,6 +317,19 @@ void CM17Protocol::HandleKeepalives(void)
 bool CM17Protocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign &callsign, char &mod)
 {
 	uint8_t tag[] = { 'C', 'O', 'N', 'N' };
+	bool valid = false;
+	if (11 == Buffer.size() && 0 == Buffer.Compare(tag, 4))
+	{
+		callsign.CodeIn(Buffer.data() + 4);
+		mod = Buffer.data()[10];
+		valid = (callsign.IsValid() && IsLetter(mod));
+	}
+	return valid;
+}
+
+bool CM17Protocol::IsValidListenPacket(const CBuffer &Buffer, CCallsign &callsign, char &mod)
+{
+	uint8_t tag[] = { 'L', 'S', 'T', 'N' };
 	bool valid = false;
 	if (11 == Buffer.size() && 0 == Buffer.Compare(tag, 4))
 	{
