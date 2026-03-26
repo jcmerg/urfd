@@ -1,27 +1,27 @@
 ##############################################################################
 #  URFD interlink file
 #
-#  One line per entry.
-#  Each entry specifies a remote URF to peer with.
-#  If no Port is specified, 10017 will be used.
-#  If DHT is enabled and the target is also DHT-enabled, then you only
-#  need to specify the URF-Callsign and the Shared-Modules.
+#  One line per entry. Each entry specifies a remote reflector to peer with.
+#  DNS hostnames and IP addresses are both supported.
+#  Remote reflector must also list this reflector in its interlink file.
 #
-#  NOTE: IP-Address must be a numeric IPv4 or IPv6 address.
-#        DNS hostnames are NOT supported in this file.
+#  URF Peering (port 10017 default):
+#    <URF-Callsign> <Address> <Shared-Modules> [Port]
+#    URF270 urf270.example.com EF
+#    URF280 192.168.1.100 ABC
+#    URF290 ABC                       # DHT only (no address needed)
 #
-#  Format:
-#    <URF-Callsign> <IP-Address> <Shared-Modules> <Port>
-#  Examples:
-#    URF270 158.64.26.132 EF
-#    URF280 ABC
+#  XLX Peering (port 10002 default, XLX interlink protocol):
+#    <XLX-Callsign> <Address> <Shared-Modules> [Port]
+#    XLX269 xlx269.example.com A
+#    XLX100 44.10.20.30 AFS
 #
-#  Brandmeister XLX interlinks use three params, no port is specified:
-#    BM3104 162.248.88.117 E
+#  BM Peering (port 10002 default, same protocol as XLX):
+#    <BM-Callsign> <Address> <Shared-Modules>
+#    BM3104 bm3104.example.com E
 #
-#  For Brandmeister Homebrew/MMDVM connections (without interlink file),
-#  see the [BMHomebrew] section in urfd.ini which supports DNS hostnames.
+#  NOTE: XLX and BM entries use the same protocol on port 10002.
+#        This requires [XLXPeer] Enable = true in urfd.ini.
+#        For direct Brandmeister TG mapping, use [BMMmdvm] in urfd.ini.
 #
-#  Note: Remote URFD must list this in its interlink file
-#        for the link to be established.
 #############################################################################
