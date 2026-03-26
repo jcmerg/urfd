@@ -1,11 +1,11 @@
 [Unit]
-Description=urfd
+Description=URFD Universal Digital Voice Reflector
 Requires=network.target
 After=systemd-user-session.service network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/urfd /PATH_TO_INI_FILE
+ExecStart=/usr/local/bin/urfd /usr/local/etc/urfd/urfd.ini
 Restart=always
 
 [Install]

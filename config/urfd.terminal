@@ -1,17 +1,20 @@
-#########################################################################################
-#  URFD terminal option file
+##############################################################################
+#  URFD G3 Terminal Options
 #
-#  one line per entry
-#  each entry specifies a terminal option
+#  Configures Icom Terminal/Access Point mode (G3 protocol).
+#  One option per line.
 #
-#  Valid option:
-#  address <ip>      - Ip address to be used by the terminal route responder
-#                      By default, the request destination address is used.
-#                      If the system is behind a router, set it to the public IP
-#                      If the system runs on the public IP, leave unset.
-#  modules <modules> - a string with all modules to accept a terminal connection
-#                      Default value is "*", meaning accept all
+#  Options:
+#    address <ip>       Public IP for terminal route responder.
+#                        Leave unset if running on a public IP.
+#                        Set to public IP if behind NAT/router.
+#    modules <modules>  Modules that accept terminal connections.
+#                        Default: * (all modules)
 #
-#########################################################################################
-#address 193.1.2.3
+#  Examples:
+#    address 203.0.113.1
+#    modules BCD
+#
+##############################################################################
+#address 203.0.113.1
 #modules BCD

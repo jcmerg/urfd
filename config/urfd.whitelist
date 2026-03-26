@@ -1,12 +1,12 @@
 ##############################################################################
-#  URFD whitelist file
+#  URFD Whitelist
 #
-#  one line per entry
-#  each entry is explicitely authorised (whitelisted)
-#  you can use * as last wildcard character
-#  no definitions means everyone is authorized
-#  example:
-#    LX*   -> authorize all callsign starting with LX
-#    LX3JL -> authorize LX3JL exactly
+#  One callsign per line. Whitelisted callsigns are explicitly authorized.
+#  Supports wildcard (*) as the last character.
+#  An empty file means everyone is authorized (default).
 #
-#############################################################################
+#  Examples:
+#    DL*     authorize all callsigns starting with DL
+#    DL4JC   authorize DL4JC exactly
+#
+##############################################################################

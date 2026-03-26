@@ -1,9 +1,12 @@
-# this is where the binary will be installed
+##############################################################################
+#  URFD Build Options
+##############################################################################
+
+# Installation directory for the urfd binary
 BINDIR = /usr/local/bin
 
-# besides making an executable that gdb can use,
-# this will also provide some additional log messsage
+# Enable debug build (adds -ggdb3 and extra log messages)
 debug = false
 
-# To disable DHT support, set DHT to false.
+# Enable OpenDHT support for peer discovery without IP addresses
 DHT = true
