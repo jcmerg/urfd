@@ -51,6 +51,14 @@ bool CTGModuleMap::LoadFromConfig(void)
 
 				if (mod >= 'A' && mod <= 'Z')
 				{
+					// Reject duplicate module assignments
+					auto existing = m_ModuleToTG.find(mod);
+					if (existing != m_ModuleToTG.end())
+					{
+						std::cerr << "BMHomebrew: module " << mod << " already mapped to TG" << existing->second
+						          << ", cannot also map TG" << tg << " — each module may only have one TG" << std::endl;
+						continue;
+					}
 					m_TGtoEntry[tg] = { mod, ts };
 					m_ModuleToTG[mod] = tg;
 					std::cout << "BMHomebrew TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << std::endl;
@@ -116,15 +124,17 @@ bool CTGModuleMap::IsTGMapped(uint32_t tg) const
 std::string CTGModuleMap::GetOptionsString(void) const
 {
 	// Generate BM-compatible static TG subscription options
-	// Format: "TS<slot>_<idx>=<tg>;..."
+	// Format: "TS<slot>_<idx>=<tg>;..." with per-timeslot indexing
 	std::ostringstream oss;
-	int idx = 1;
+	int idxTS1 = 0, idxTS2 = 0;
+	bool first = true;
 	for (const auto &pair : m_TGtoEntry)
 	{
-		if (idx > 1)
+		if (!first)
 			oss << ";";
+		first = false;
+		int idx = (pair.second.timeslot == 1) ? ++idxTS1 : ++idxTS2;
 		oss << "TS" << (int)pair.second.timeslot << "_" << idx << "=" << pair.first;
-		idx++;
 	}
 	return oss.str();
 }

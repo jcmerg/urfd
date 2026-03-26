@@ -86,9 +86,6 @@ bool CUdpSocket::Open(const CIp &Ip)
 			Close();
 			return false;
 		}
-		if (a != m_addr)
-			std::cout << "getsockname didn't return the same address as set: returned " << a << ", should have been " << m_addr << std::endl;
-
 		m_addr.SetPort(a.GetPort());
 	}
 
