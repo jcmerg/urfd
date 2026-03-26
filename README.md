@@ -7,7 +7,7 @@ Fork of [urfd](https://github.com/nostar/urfd) with extended features for the UR
 ## What's New in This Fork
 
 ### BMMmdvm Connector
-Direct Brandmeister connection via the Homebrew/MMDVM protocol. Maps BM talkgroups to reflector modules with per-timeslot support.
+Direct Brandmeister connection via the MMDVM protocol. Maps BM talkgroups to reflector modules with per-timeslot support.
 
 ```ini
 [BMMmdvm]

@@ -1,7 +1,7 @@
 #pragma once
 
-// BMMmdvmProtocol -- Connects to Brandmeister via the Homebrew/MMDVM protocol
-// URFD acts as an MMDVM simplex repeater client to a BM master server.
+// BMMmdvmProtocol -- Connects to Brandmeister via the MMDVM protocol
+// URFD acts as an MMDVM repeater client to a BM master server.
 //
 // Copyright (C) 2024-2026
 // Licensed under the GNU General Public License v3 or later
@@ -15,16 +15,16 @@
 #include "TGModuleMap.h"
 #include "BPTC19696.h"
 
-// Homebrew protocol constants
+// MMDVM protocol constants
 #define BMHB_RETRY_PERIOD       10  // seconds between retransmissions
 #define BMHB_TIMEOUT_PERIOD     60  // seconds before connection is considered dead
 #define BMHB_PING_PERIOD        10  // seconds between keepalive pings
 
-// Homebrew data packet size
+// MMDVM data packet size
 #define HOMEBREW_DATA_PACKET_LENGTH 55
 
-// Homebrew-specific byte 15 flags (NOT the same as DMR_DT_* values from Protocol.h)
-// These are the flag bits in the Homebrew wire format
+// MMDVM byte 15 flags (NOT the same as DMR_DT_* values from Protocol.h)
+// These are the flag bits in the MMDVM wire format
 #define BMHB_FLAG_SLOT1         0x00
 #define BMHB_FLAG_SLOT2         0x80
 #define BMHB_FLAG_DATA_SYNC     0x20
@@ -54,7 +54,7 @@ public:
 	void Task(void);
 
 protected:
-	// Homebrew state machine
+	// MMDVM state machine
 	enum class EHBState
 	{
 		DISCONNECTED,

@@ -1,4 +1,4 @@
-// BMMmdvmProtocol -- Connects to Brandmeister via the Homebrew/MMDVM protocol
+// BMMmdvmProtocol -- Connects to Brandmeister via the MMDVM protocol
 // URFD acts as a virtual MMDVM repeater client to a BM master server.
 //
 // Copyright (C) 2024-2026

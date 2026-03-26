@@ -424,7 +424,7 @@ void CDmrmmdvmProtocol::HandleQueue(void)
 
 void CDmrmmdvmProtocol::HandleKeepalives(void)
 {
-	// DMRhomebrew protocol keepalive request is client tasks
+	// DMR MMDVM protocol keepalive request is client tasks
 	// here, just check that all clients are still alive
 	// and disconnect them if not
 
