@@ -221,6 +221,14 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	else if (Buffer.size() >= 7 && 0 == Buffer.Compare((uint8_t *)"MSTPONG", 7))
 	{
 		m_TimeoutTimer.start();
+		// keep all BMMmdvm clients alive
+		CClients *clients = g_Reflector.GetClients();
+		for (auto it = clients->begin(); it != clients->end(); it++)
+		{
+			if ((*it)->GetProtocol() == EProtocol::bmhomebrew)
+				(*it)->Alive();
+		}
+		g_Reflector.ReleaseClients();
 	}
 	// MSTNAK
 	else if (Buffer.size() >= 6 && 0 == Buffer.Compare((uint8_t *)"MSTNAK", 6))
@@ -526,18 +534,20 @@ void CBMMmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Head
 	CCallsign rpt2(Header->GetRpt2Callsign());
 
 	CClients *clients = g_Reflector.GetClients();
-	std::shared_ptr<CClient> client = clients->FindClient(Ip, EProtocol::bmhomebrew);
+	char module = Header->GetRpt2Module();
+	CCallsign cs;
+	cs.SetCallsign(m_Callsign, false);
+	cs.SetCSModule(module);
+	std::shared_ptr<CClient> client = clients->FindClient(cs, module, Ip, EProtocol::bmhomebrew);
 	if (client == nullptr)
 	{
-		CCallsign cs;
-		cs.SetCallsign(m_Callsign, false);
-		cs.SetCSModule(Header->GetRpt2Module());
-		clients->AddClient(std::make_shared<CBMMmdvmClient>(cs, Ip, Header->GetRpt2Module()));
-		client = clients->FindClient(Ip, EProtocol::bmhomebrew);
+		clients->AddClient(std::make_shared<CBMMmdvmClient>(cs, Ip, module));
+		client = clients->FindClient(cs, module, Ip, EProtocol::bmhomebrew);
 	}
 
 	if (client)
 	{
+		client->Alive();
 		client->SetReflectorModule(Header->GetRpt2Module());
 		if ((stream = g_Reflector.OpenStream(Header, client)) != nullptr)
 		{
