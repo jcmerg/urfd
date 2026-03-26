@@ -140,8 +140,11 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
    <td>' . $Reflector->Stations[$i]->GetSuffix() . '</td>
    <td><a href="http://www.aprs.fi/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank">&#x1F6F0;&#xFE0F;</a></td>
    <td style="white-space:nowrap;">' . $Reflector->Stations[$i]->GetVia();
-        if ($Reflector->Stations[$i]->GetPeer() != $Reflector->GetReflectorName()) {
-            echo ' / ' . $Reflector->Stations[$i]->GetPeer();
+        $peerName = trim($Reflector->Stations[$i]->GetPeer());
+        $reflName = trim($Reflector->GetReflectorName());
+        $reflNameURF = str_replace("XLX", "URF", $reflName);
+        if ($peerName != $reflName && $peerName != $reflNameURF && $peerName != '') {
+            echo ' / ' . $peerName;
         }
         echo '</td>
    <td>' . htmlspecialchars($Reflector->Stations[$i]->GetProtocol()) . '</td>
