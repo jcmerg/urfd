@@ -313,7 +313,7 @@ void CBMProtocol::HandlePeerLinks(void)
 	for ( auto it=ilmap->begin(); it!=ilmap->end(); it++ )
 	{
 		const auto cs = it->first;
-		if (0 == cs.substr(0, 2).compare("BM") && (nullptr==peers->FindPeer(CCallsign(cs), EProtocol::bm)))
+		if ((0 == cs.substr(0, 2).compare("BM") || 0 == cs.substr(0, 3).compare("XLX")) && (nullptr==peers->FindPeer(CCallsign(cs), EProtocol::bm)))
 		{
 			// send connect packet to re-initiate peer link
 			EncodeConnectPacket(&buffer, it->second.GetModules().c_str());

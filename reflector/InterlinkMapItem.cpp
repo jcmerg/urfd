@@ -24,6 +24,9 @@
 // ----------------------------------------------------------------------------
 
 #include <string.h>
+#include <iostream>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #include "Configure.h"
 #include "InterlinkMapItem.h"
@@ -56,7 +59,34 @@ CInterlinkMapItem::CInterlinkMapItem(const char *mods)
 CInterlinkMapItem::CInterlinkMapItem(const char *addr, const char *mods, uint16_t port) : CInterlinkMapItem()
 {
 	m_Mods.assign(mods);
-	m_Ip.Initialize(strchr(addr, ':') ? AF_INET6 : AF_INET, port, addr);
+
+	// Try DNS resolution if addr is not a raw IP address
+	struct addrinfo hints, *result = nullptr;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+
+	if (0 == getaddrinfo(addr, nullptr, &hints, &result) && result)
+	{
+		char resolved[INET6_ADDRSTRLEN];
+		if (result->ai_family == AF_INET)
+		{
+			inet_ntop(AF_INET, &((struct sockaddr_in *)result->ai_addr)->sin_addr, resolved, sizeof(resolved));
+			m_Ip.Initialize(AF_INET, port, resolved);
+		}
+		else if (result->ai_family == AF_INET6)
+		{
+			inet_ntop(AF_INET6, &((struct sockaddr_in6 *)result->ai_addr)->sin6_addr, resolved, sizeof(resolved));
+			m_Ip.Initialize(AF_INET6, port, resolved);
+		}
+		freeaddrinfo(result);
+		std::cout << "Interlink: resolved " << addr << " -> " << m_Ip << std::endl;
+	}
+	else
+	{
+		// Fallback to direct IP
+		m_Ip.Initialize(strchr(addr, ':') ? AF_INET6 : AF_INET, port, addr);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
