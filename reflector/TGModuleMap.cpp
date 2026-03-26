@@ -1,5 +1,5 @@
 // TGModuleMap -- Maps DMR Talkgroups to URFD Modules and vice versa
-// Part of the BMHomebrew protocol extension for urfd
+// Part of the BMMmdvm protocol extension for urfd
 
 #include <iostream>
 #include <sstream>
@@ -55,29 +55,29 @@ bool CTGModuleMap::LoadFromConfig(void)
 					auto existing = m_ModuleToTG.find(mod);
 					if (existing != m_ModuleToTG.end())
 					{
-						std::cerr << "BMHomebrew: module " << mod << " already mapped to TG" << existing->second
+						std::cerr << "BMMmdvm: module " << mod << " already mapped to TG" << existing->second
 						          << ", cannot also map TG" << tg << " — each module may only have one TG" << std::endl;
 						continue;
 					}
 					m_TGtoEntry[tg] = { mod, ts };
 					m_ModuleToTG[mod] = tg;
-					std::cout << "BMHomebrew TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << std::endl;
+					std::cout << "BMMmdvm TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << std::endl;
 				}
 				else
 				{
-					std::cerr << "BMHomebrew: invalid module '" << val << "' for TG" << tg << std::endl;
+					std::cerr << "BMMmdvm: invalid module '" << val << "' for TG" << tg << std::endl;
 				}
 			}
 			catch (const std::exception &e)
 			{
-				std::cerr << "BMHomebrew: failed to parse TG mapping key '" << key << "': " << e.what() << std::endl;
+				std::cerr << "BMMmdvm: failed to parse TG mapping key '" << key << "': " << e.what() << std::endl;
 			}
 		}
 	}
 
 	if (m_TGtoEntry.empty())
 	{
-		std::cerr << "BMHomebrew: no TG mappings configured!" << std::endl;
+		std::cerr << "BMMmdvm: no TG mappings configured!" << std::endl;
 		return false;
 	}
 

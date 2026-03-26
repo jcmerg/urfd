@@ -1,4 +1,4 @@
-// BMHomebrewProtocol -- Connects to Brandmeister via the Homebrew/MMDVM protocol
+// BMMmdvmProtocol -- Connects to Brandmeister via the Homebrew/MMDVM protocol
 // URFD acts as a virtual MMDVM repeater client to a BM master server.
 //
 // Copyright (C) 2024-2026
@@ -8,8 +8,8 @@
 #include <cstdlib>
 
 #include "Global.h"
-#include "BMHomebrewClient.h"
-#include "BMHomebrewProtocol.h"
+#include "BMMmdvmClient.h"
+#include "BMMmdvmProtocol.h"
 #include "BPTC19696.h"
 #include "RS129.h"
 #include "Golay2087.h"
@@ -25,7 +25,7 @@ static uint8_t g_DmrSyncBSData[]  = { 0x0D,0xFF,0x57,0xD7,0x5D,0xF5,0xD0 };
 ////////////////////////////////////////////////////////////////////////////////////////
 // initialization
 
-bool CBMHomebrewProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
+bool CBMMmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
 {
 	m_uiDmrId = g_Configure.GetUnsigned(g_Keys.bmhb.dmrid);
 	m_Password = g_Configure.GetString(g_Keys.bmhb.password);
@@ -45,7 +45,7 @@ bool CBMHomebrewProtocol::Initialize(const char *type, const EProtocol ptype, co
 	// Load TG mappings
 	if (!m_TGMap.LoadFromConfig())
 	{
-		std::cerr << "BMHomebrew: failed to load TG mappings" << std::endl;
+		std::cerr << "BMMmdvm: failed to load TG mappings" << std::endl;
 		return false;
 	}
 
@@ -58,7 +58,7 @@ bool CBMHomebrewProtocol::Initialize(const char *type, const EProtocol ptype, co
 	m_TimeoutTimer.start();
 	m_PingTimer.start();
 
-	std::cout << "BMHomebrew: initialized, DMR ID " << m_uiDmrId
+	std::cout << "BMMmdvm: initialized, DMR ID " << m_uiDmrId
 	          << ", master " << addr << ":" << m_MasterPort << std::endl;
 
 	return true;
@@ -67,7 +67,7 @@ bool CBMHomebrewProtocol::Initialize(const char *type, const EProtocol ptype, co
 ////////////////////////////////////////////////////////////////////////////////////////
 // task
 
-void CBMHomebrewProtocol::Task(void)
+void CBMMmdvmProtocol::Task(void)
 {
 	CBuffer Buffer;
 	CIp     Ip;
@@ -89,7 +89,7 @@ void CBMHomebrewProtocol::Task(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // state machine
 
-void CBMHomebrewProtocol::HandleStateMachine(void)
+void CBMMmdvmProtocol::HandleStateMachine(void)
 {
 	switch (m_State)
 	{
@@ -121,7 +121,7 @@ void CBMHomebrewProtocol::HandleStateMachine(void)
 		}
 		if (m_TimeoutTimer.time() > BMHB_TIMEOUT_PERIOD)
 		{
-			std::cout << "BMHomebrew: handshake timeout, reconnecting" << std::endl;
+			std::cout << "BMMmdvm: handshake timeout, reconnecting" << std::endl;
 			m_State = EHBState::DISCONNECTED;
 			m_RetryTimer.start();
 		}
@@ -135,7 +135,7 @@ void CBMHomebrewProtocol::HandleStateMachine(void)
 		}
 		if (m_TimeoutTimer.time() > BMHB_TIMEOUT_PERIOD)
 		{
-			std::cout << "BMHomebrew: keepalive timeout, reconnecting" << std::endl;
+			std::cout << "BMMmdvm: keepalive timeout, reconnecting" << std::endl;
 			m_State = EHBState::DISCONNECTED;
 			m_RetryTimer.start();
 		}
@@ -146,7 +146,7 @@ void CBMHomebrewProtocol::HandleStateMachine(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // incoming packet handler
 
-void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
+void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 {
 	// Update master IP with actual source address (port may differ from config)
 	m_MasterIp = Ip;
@@ -168,7 +168,7 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 			break;
 
 		case EHBState::WAITING_AUTH:
-			std::cout << "BMHomebrew: authentication successful" << std::endl;
+			std::cout << "BMMmdvm: authentication successful" << std::endl;
 			SendConfig();
 			m_State = EHBState::WAITING_CONFIG;
 			m_TimeoutTimer.start();
@@ -180,13 +180,13 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 			std::string opts = m_TGMap.GetOptionsString();
 			if (!opts.empty())
 			{
-				std::cout << "BMHomebrew: config accepted, sending options: " << opts << std::endl;
+				std::cout << "BMMmdvm: config accepted, sending options: " << opts << std::endl;
 				SendOptions();
 				m_State = EHBState::WAITING_OPTIONS;
 			}
 			else
 			{
-				std::cout << "BMHomebrew: connected" << std::endl;
+				std::cout << "BMMmdvm: connected" << std::endl;
 				m_State = EHBState::RUNNING;
 			}
 			m_TimeoutTimer.start();
@@ -196,7 +196,7 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 		}
 
 		case EHBState::WAITING_OPTIONS:
-			std::cout << "BMHomebrew: connected" << std::endl;
+			std::cout << "BMMmdvm: connected" << std::endl;
 			m_State = EHBState::RUNNING;
 			m_TimeoutTimer.start();
 			m_PingTimer.start();
@@ -211,7 +211,7 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	{
 		if (m_State == EHBState::WAITING_OPTIONS || m_State == EHBState::WAITING_CONFIG)
 		{
-			std::cout << "BMHomebrew: connected (beacon)" << std::endl;
+			std::cout << "BMMmdvm: connected (beacon)" << std::endl;
 			m_State = EHBState::RUNNING;
 			m_TimeoutTimer.start();
 			m_PingTimer.start();
@@ -225,7 +225,7 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	// MSTNAK
 	else if (Buffer.size() >= 6 && 0 == Buffer.Compare((uint8_t *)"MSTNAK", 6))
 	{
-		std::cout << "BMHomebrew: NAK in state " << (int)m_State << std::endl;
+		std::cout << "BMMmdvm: NAK in state " << (int)m_State << std::endl;
 		if (m_State == EHBState::RUNNING)
 		{
 			m_State = EHBState::WAITING_LOGIN;
@@ -242,7 +242,7 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	// MSTCL
 	else if (Buffer.size() >= 5 && 0 == Buffer.Compare((uint8_t *)"MSTCL", 5))
 	{
-		std::cout << "BMHomebrew: master closed connection" << std::endl;
+		std::cout << "BMMmdvm: master closed connection" << std::endl;
 		m_State = EHBState::DISCONNECTED;
 		m_RetryTimer.start();
 	}
@@ -265,7 +265,7 @@ void CBMHomebrewProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 ////////////////////////////////////////////////////////////////////////////////////////
 // auth packet helpers
 
-void CBMHomebrewProtocol::SendLogin(void)
+void CBMMmdvmProtocol::SendLogin(void)
 {
 	CBuffer buf;
 	buf.Set((uint8_t *)"RPTL", 4);
@@ -273,7 +273,7 @@ void CBMHomebrewProtocol::SendLogin(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMHomebrewProtocol::SendAuth(void)
+void CBMMmdvmProtocol::SendAuth(void)
 {
 	size_t pwlen = m_Password.size();
 	std::vector<uint8_t> input(4 + pwlen);
@@ -290,7 +290,7 @@ void CBMHomebrewProtocol::SendAuth(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMHomebrewProtocol::SendConfig(void)
+void CBMMmdvmProtocol::SendConfig(void)
 {
 	// Read config values with defaults
 	double lat = 0.0, lon = 0.0;
@@ -335,7 +335,7 @@ void CBMHomebrewProtocol::SendConfig(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMHomebrewProtocol::SendOptions(void)
+void CBMMmdvmProtocol::SendOptions(void)
 {
 	std::string opts = m_TGMap.GetOptionsString();
 	if (opts.empty())
@@ -348,7 +348,7 @@ void CBMHomebrewProtocol::SendOptions(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMHomebrewProtocol::SendPing(void)
+void CBMMmdvmProtocol::SendPing(void)
 {
 	CBuffer buf;
 	buf.Set((uint8_t *)"RPTPING", 7);
@@ -356,7 +356,7 @@ void CBMHomebrewProtocol::SendPing(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMHomebrewProtocol::SendClose(void)
+void CBMMmdvmProtocol::SendClose(void)
 {
 	CBuffer buf;
 	buf.Set((uint8_t *)"RPTCL", 5);
@@ -367,7 +367,7 @@ void CBMHomebrewProtocol::SendClose(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMRD incoming: BM -> Reflector
 
-void CBMHomebrewProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
+void CBMMmdvmProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 {
 	uint32_t srcId = ((uint32_t)Buffer.data()[5] << 16) |
 	                 ((uint32_t)Buffer.data()[6] << 8) |
@@ -400,7 +400,7 @@ void CBMHomebrewProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 	}
 }
 
-void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
+void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
 {
 	char module = m_TGMap.TGToModule(dstId);
 	if (module == ' ')
@@ -435,14 +435,14 @@ void CBMHomebrewProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t sr
 	m_IncomingStreams[streamId] = urfStreamId;
 
 	CCallsign my = DmrIdToCallsign(srcId);
-	std::cout << "BMHomebrew: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
+	std::cout << "BMMmdvm: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
 
 	auto header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(srcId, CCallsign("CQCQCQ"), rpt1, rpt2, urfStreamId, 0, 0));
 
 	OnDvHeaderPacketIn(header, m_MasterIp);
 }
 
-void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
+void CBMMmdvmProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
 {
 	auto it = m_IncomingStreams.find(streamId);
 	if (it == m_IncomingStreams.end())
@@ -487,7 +487,7 @@ void CBMHomebrewProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t src
 	}
 }
 
-void CBMHomebrewProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
+void CBMMmdvmProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
 {
 	auto it = m_IncomingStreams.find(streamId);
 	if (it == m_IncomingStreams.end())
@@ -511,7 +511,7 @@ void CBMHomebrewProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t src
 ////////////////////////////////////////////////////////////////////////////////////////
 // stream helper for incoming
 
-void CBMHomebrewProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
+void CBMMmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
 {
 	auto stream = GetStream(Header->GetStreamId(), &m_MasterIp);
 	if (stream)
@@ -531,7 +531,7 @@ void CBMHomebrewProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &H
 		CCallsign cs;
 		cs.SetCallsign(m_Callsign, false);
 		cs.SetCSModule(Header->GetRpt2Module());
-		clients->AddClient(std::make_shared<CBMHomebrewClient>(cs, Ip, Header->GetRpt2Module()));
+		clients->AddClient(std::make_shared<CBMMmdvmClient>(cs, Ip, Header->GetRpt2Module()));
 		client = clients->FindClient(Ip, EProtocol::bmhomebrew);
 	}
 
@@ -546,19 +546,19 @@ void CBMHomebrewProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &H
 
 	g_Reflector.ReleaseClients();
 
-	g_Reflector.GetUsers()->Hearing(my, rpt1, rpt2);
+	g_Reflector.GetUsers()->Hearing(my, rpt1, rpt2, "BMMmdvm");
 	g_Reflector.ReleaseUsers();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // outbound queue: Reflector -> BM
 
-uint8_t CBMHomebrewProtocol::SlotFlag(char module) const
+uint8_t CBMMmdvmProtocol::SlotFlag(char module) const
 {
 	return (m_TGMap.ModuleToTimeslot(module) == 2) ? BMHB_FLAG_SLOT2 : BMHB_FLAG_SLOT1;
 }
 
-void CBMHomebrewProtocol::HandleQueue(void)
+void CBMMmdvmProtocol::HandleQueue(void)
 {
 	while (!m_Queue.IsEmpty())
 	{
@@ -668,7 +668,7 @@ void CBMHomebrewProtocol::HandleQueue(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMRD encoding: Reflector -> BM
 
-bool CBMHomebrewProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char module, CBuffer &buffer)
+bool CBMMmdvmProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char module, CBuffer &buffer)
 {
 	uint32_t tg = m_TGMap.ModuleToTG(module);
 	auto it = m_OutboundCache.find(module);
@@ -696,7 +696,7 @@ bool CBMHomebrewProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char m
 	return true;
 }
 
-bool CBMHomebrewProtocol::EncodeDMRDVoiceFrame(
+bool CBMMmdvmProtocol::EncodeDMRDVoiceFrame(
 	const CDvFramePacket &frame0, const CDvFramePacket &frame1, const CDvFramePacket &frame2,
 	uint8_t seqNo, uint32_t streamId, char module, CBuffer &buffer)
 {
@@ -738,7 +738,7 @@ bool CBMHomebrewProtocol::EncodeDMRDVoiceFrame(
 	return true;
 }
 
-bool CBMHomebrewProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, CBuffer &buffer)
+bool CBMMmdvmProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, CBuffer &buffer)
 {
 	uint32_t tg = m_TGMap.ModuleToTG(module);
 
@@ -763,7 +763,7 @@ bool CBMHomebrewProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, C
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMR frame construction helpers (adapted from CDmrmmdvmProtocol)
 
-void CBMHomebrewProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
+void CBMMmdvmProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
 {
 	uint8_t payload[33];
 	CBPTC19696 bptc;
@@ -798,7 +798,7 @@ void CBMHomebrewProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId,
 	buffer->Append(payload, sizeof(payload));
 }
 
-void CBMHomebrewProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
+void CBMMmdvmProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
 {
 	uint8_t payload[33];
 	CBPTC19696 bptc;
@@ -833,7 +833,7 @@ void CBMHomebrewProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t s
 	buffer->Append(payload, sizeof(payload));
 }
 
-void CBMHomebrewProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketId) const
+void CBMMmdvmProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketId) const
 {
 	if (uiDmrPacketId == 0)
 	{
@@ -860,12 +860,12 @@ void CBMHomebrewProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacke
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMR ID / Callsign helpers
 
-uint32_t CBMHomebrewProtocol::CallsignToDmrId(const CCallsign &cs) const
+uint32_t CBMMmdvmProtocol::CallsignToDmrId(const CCallsign &cs) const
 {
 	return g_LDid.FindDmrid(cs.GetKey());
 }
 
-CCallsign CBMHomebrewProtocol::DmrIdToCallsign(uint32_t id) const
+CCallsign CBMMmdvmProtocol::DmrIdToCallsign(uint32_t id) const
 {
 	const UCallsign *ucs = g_LDid.FindCallsign(id);
 	if (ucs)
@@ -873,14 +873,14 @@ CCallsign CBMHomebrewProtocol::DmrIdToCallsign(uint32_t id) const
 	return CCallsign();
 }
 
-void CBMHomebrewProtocol::AppendDmrIdToBuffer(CBuffer *buffer, uint32_t id) const
+void CBMMmdvmProtocol::AppendDmrIdToBuffer(CBuffer *buffer, uint32_t id) const
 {
 	buffer->Append((uint8_t)(id >> 16));
 	buffer->Append((uint8_t)(id >> 8));
 	buffer->Append((uint8_t)(id));
 }
 
-void CBMHomebrewProtocol::AppendDmrRptrIdToBuffer(CBuffer *buffer, uint32_t id) const
+void CBMMmdvmProtocol::AppendDmrRptrIdToBuffer(CBuffer *buffer, uint32_t id) const
 {
 	buffer->Append((uint8_t)(id >> 24));
 	buffer->Append((uint8_t)(id >> 16));

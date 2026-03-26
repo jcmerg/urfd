@@ -220,6 +220,8 @@ bool CConfigure::ReadData(const std::string &path)
 			else if (0 == hname.compare(JYSFTXRXDB))
 				section = ESection::ysffreq;
 			else if (0 == hname.compare(JBMHOMEBREW))				section = ESection::bmhb;
+			else if (0 == hname.compare("Echo"))
+				section = ESection::echo;
 			else if (0 == hname.compare(JFILES))
 				section = ESection::files;
 			else
@@ -341,12 +343,16 @@ bool CConfigure::ReadData(const std::string &path)
 			case ESection::dcs:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.dcs.port] = getUnsigned(value, "DCS Port", 1024, 65535, 30051);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.dcs.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
 			case ESection::dextra:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.dextra.port] = getUnsigned(value, "DExtra Port", 1024, 65535, 30001);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.dextra.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
@@ -359,18 +365,24 @@ bool CConfigure::ReadData(const std::string &path)
 			case ESection::dmrplus:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.dmrplus.port] = getUnsigned(value, "DMRPlus Port", 1024, 65535, 8880);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.dmrplus.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
 			case ESection::dplus:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.dplus.port] = getUnsigned(value, "DPlus Port", 1024, 65535, 20001);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.dplus.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
 			case ESection::m17:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.m17.port] = getUnsigned(value, "M17 Port", 1024, 65535, 17000);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.m17.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
@@ -379,6 +391,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.mmdvm.port] = getUnsigned(value, "MMDVM Port", 1024, 65535, 62030);
 				else if (0 == key.compare(JDEFAULTID))
 					data[g_Keys.mmdvm.defaultid] = getUnsigned(value, "MMDVM DefaultID", 0, 9999999, 0);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.mmdvm.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
@@ -389,6 +403,8 @@ bool CConfigure::ReadData(const std::string &path)
 					setAutolink(JNXDN, g_Keys.nxdn.autolinkmod, value);
 				else if (0 == key.compare(JREFLECTORID))
 					data[g_Keys.nxdn.reflectorid] = getUnsigned(value, "NXDN ReflectorID", 0, 65535, 0);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.nxdn.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
@@ -399,12 +415,16 @@ bool CConfigure::ReadData(const std::string &path)
 					setAutolink(JP25, g_Keys.p25.autolinkmod, value);
 				else if (0 == key.compare(JREFLECTORID))
 					data[g_Keys.p25.reflectorid] = getUnsigned(value, "P25 ReflectorID", 0, 16777215, 0);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.p25.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
 			case ESection::urf:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.urf.port] = getUnsigned(value, "URF Port", 1024, 65535, 10017);
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.urf.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
@@ -451,6 +471,8 @@ bool CConfigure::ReadData(const std::string &path)
 					if (desc.size() > 16) desc.resize(16);
 					data[g_Keys.ysf.ysfreflectordb.description] = desc;
 				}
+				else if (0 == key.compare(JENABLE))
+					data[g_Keys.ysf.enable] = IS_TRUE(value[0]);
 				else
 					badParam(key);
 				break;
@@ -488,11 +510,11 @@ bool CConfigure::ReadData(const std::string &path)
 				else if (0 == key.compare("MasterAddress"))
 					data[g_Keys.bmhb.address] = value;
 				else if (0 == key.compare("MasterPort"))
-					data[g_Keys.bmhb.port] = getUnsigned(value, "BMHomebrew MasterPort", 1024, 65535, 62031);
+					data[g_Keys.bmhb.port] = getUnsigned(value, "BMMmdvm MasterPort", 1024, 65535, 62031);
 				else if (0 == key.compare("LocalPort"))
-					data[g_Keys.bmhb.localport] = getUnsigned(value, "BMHomebrew LocalPort", 0, 65535, 0);
+					data[g_Keys.bmhb.localport] = getUnsigned(value, "BMMmdvm LocalPort", 0, 65535, 0);
 				else if (0 == key.compare("DmrId"))
-					data[g_Keys.bmhb.dmrid] = getUnsigned(value, "BMHomebrew DmrId", 1, 999999999, 0);
+					data[g_Keys.bmhb.dmrid] = getUnsigned(value, "BMMmdvm DmrId", 1, 999999999, 0);
 				else if (0 == key.compare("Password"))
 					data[g_Keys.bmhb.password] = value;
 				else if (0 == key.compare("Callsign"))
@@ -508,9 +530,9 @@ bool CConfigure::ReadData(const std::string &path)
 				else if (0 == key.compare("URL"))
 					data[g_Keys.bmhb.url] = value;
 				else if (0 == key.compare("RxFreq"))
-					data[g_Keys.bmhb.rxfreq] = getUnsigned(value, "BMHomebrew RxFreq", 40000000, 2600000000, 439000000);
+					data[g_Keys.bmhb.rxfreq] = getUnsigned(value, "BMMmdvm RxFreq", 40000000, 2600000000, 439000000);
 				else if (0 == key.compare("TxFreq"))
-					data[g_Keys.bmhb.txfreq] = getUnsigned(value, "BMHomebrew TxFreq", 40000000, 2600000000, 439000000);
+					data[g_Keys.bmhb.txfreq] = getUnsigned(value, "BMMmdvm TxFreq", 40000000, 2600000000, 439000000);
 				else if (0 == key.compare("Software"))
 					data[g_Keys.bmhb.software] = value;
 				else if (0 == key.compare("Firmware"))
@@ -521,6 +543,15 @@ bool CConfigure::ReadData(const std::string &path)
 					// e.g. TG26363 = F,TS2 or TG26363 = F
 					std::string tgkey = "bmhbTG" + key.substr(2);
 					data[tgkey] = value;
+				}
+				else
+					badParam(key);
+				break;
+			case ESection::echo:
+				if (0 == key.compare("Module"))
+				{
+					if (value.size() >= 1 && value[0] >= 'A' && value[0] <= 'Z')
+						data[g_Keys.echo.module] = std::string(1, value[0]);
 				}
 				else
 					badParam(key);

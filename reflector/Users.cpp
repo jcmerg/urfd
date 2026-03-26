@@ -44,14 +44,14 @@ void CUsers::AddUser(const CUser &user)
 ////////////////////////////////////////////////////////////////////////////////////////
 // operation
 
-void CUsers::Hearing(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2)
+void CUsers::Hearing(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2, const std::string &proto)
 {
-	Hearing(my, rpt1, rpt2, g_Reflector.GetCallsign());
+	Hearing(my, rpt1, rpt2, g_Reflector.GetCallsign(), proto);
 }
 
-void CUsers::Hearing(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2, const CCallsign &xlx)
+void CUsers::Hearing(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2, const CCallsign &xlx, const std::string &proto)
 {
-	CUser heard(my, rpt1, rpt2, xlx);
+	CUser heard(my, rpt1, rpt2, xlx, proto);
 
 	// first check if this user is already listed. If so, erase him.
 	for ( auto it=begin(); it!=end(); it++ )

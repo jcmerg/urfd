@@ -21,7 +21,11 @@
 
 #include "Global.h"
 
-CReflector::CReflector() {}
+CReflector::CReflector()
+{
+	m_EchoModule = ' ';
+	m_EchoHasHeader = false;
+}
 
 CReflector::~CReflector()
 {
@@ -29,6 +33,10 @@ CReflector::~CReflector()
 	if ( m_MaintenanceFuture.valid() )
 	{
 		m_MaintenanceFuture.get();
+	}
+	if ( m_EchoFuture.valid() )
+	{
+		m_EchoFuture.get();
 	}
 
 	for (auto it=m_Modules.cbegin(); it!=m_Modules.cend(); it++)
@@ -89,6 +97,13 @@ bool CReflector::Start(void)
 		return true;
 	}
 
+	// echo module
+	if (g_Configure.Contains(g_Keys.echo.module))
+	{
+		m_EchoModule = g_Configure.GetString(g_Keys.echo.module)[0];
+		std::cout << "Echo module: " << m_EchoModule << std::endl;
+	}
+
 	// start one thread per reflector module
 	for (auto c : m_Modules)
 	{
@@ -133,6 +148,19 @@ bool CReflector::Start(void)
 		std::cerr << "Cannot start the dashboard data report thread: " << e.what() << '\n';
 	}
 
+	// start echo thread
+	if (m_EchoModule != ' ')
+	{
+		try
+		{
+			m_EchoFuture = std::async(std::launch::async, &CReflector::EchoThread, this);
+		}
+		catch(const std::exception& e)
+		{
+			std::cerr << "Cannot start echo thread: " << e.what() << '\n';
+		}
+	}
+
 #ifndef NO_DHT
 	PutDHTConfig();
 #endif
@@ -153,6 +181,12 @@ void CReflector::Stop(void)
 	if ( m_MaintenanceFuture.valid() )
 	{
 		m_MaintenanceFuture.get();
+	}
+
+	// stop echo thread
+	if ( m_EchoFuture.valid() )
+	{
+		m_EchoFuture.get();
 	}
 
 	// stop & delete all router thread
@@ -325,6 +359,23 @@ void CReflector::RouterThread(const char ThisModule)
 			(*it)->Push(std::move(copy));
 		}
 		m_Protocols.Unlock();
+
+		// echo: buffer packets for echo module (skip echo playback packets)
+		if (ThisModule == m_EchoModule && (packet->GetStreamId() < 0xEC00 || packet->GetStreamId() > 0xECFF))
+		{
+			std::lock_guard<std::mutex> lock(m_EchoMutex);
+			if (packet->IsDvHeader())
+			{
+				m_EchoBuffer.clear();
+				m_EchoHeader = *dynamic_cast<CDvHeaderPacket *>(packet.get());
+				m_EchoHasHeader = true;
+			}
+			if (packet->IsDvFrame())
+			{
+				m_EchoBuffer.push_back(packet->Copy());
+				m_EchoLastFrame = std::chrono::steady_clock::now();
+			}
+		}
 	}
 }
 
@@ -458,6 +509,8 @@ void CReflector::JsonReport(nlohmann::json &report)
 	ReleaseUsers();
 }
 
+#define XML_PROTO_ENABLED(key) (!g_Configure.Contains(key) || g_Configure.GetBoolean(key))
+
 void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 {
 	// write header
@@ -465,6 +518,151 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 
 	// software version
 	xmlFile << "<Version>" << g_Version << "</Version>" << std::endl;
+
+	// reflector metadata
+	xmlFile << "<Reflector>" << std::endl;
+	xmlFile << "\t<Callsign>" << g_Configure.GetString(g_Keys.names.callsign) << "</Callsign>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.country))
+		xmlFile << "\t<Country>" << g_Configure.GetString(g_Keys.names.country) << "</Country>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.sponsor))
+		xmlFile << "\t<Sponsor>" << g_Configure.GetString(g_Keys.names.sponsor) << "</Sponsor>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.url))
+		xmlFile << "\t<DashboardURL>" << g_Configure.GetString(g_Keys.names.url) << "</DashboardURL>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.email))
+		xmlFile << "\t<Email>" << g_Configure.GetString(g_Keys.names.email) << "</Email>" << std::endl;
+	xmlFile << "</Reflector>" << std::endl;
+
+	// configured modules
+	xmlFile << "<Modules>" << std::endl;
+	auto modules = g_Configure.GetString(g_Keys.modules.modules);
+	for (char m : modules)
+	{
+		if (m < 'A' || m > 'Z') continue;
+		xmlFile << "<Module>" << std::endl;
+		xmlFile << "\t<Name>" << m << "</Name>" << std::endl;
+		auto descKey = g_Keys.modules.descriptor[m - 'A'];
+		if (g_Configure.Contains(descKey))
+			xmlFile << "\t<Description>" << g_Configure.GetString(descKey) << "</Description>" << std::endl;
+		// auto-set Echo description
+		if (g_Configure.Contains(g_Keys.echo.module) && g_Configure.GetString(g_Keys.echo.module)[0] == m)
+			xmlFile << "\t<Echo>true</Echo>" << std::endl;
+		// count connected nodes on this module
+		int nodeCount = 0;
+		CClients *modClients = GetClients();
+		for (auto cit = modClients->cbegin(); cit != modClients->cend(); cit++)
+		{
+			if ((*cit)->IsNode() && (*cit)->GetReflectorModule() == m)
+				nodeCount++;
+		}
+		ReleaseClients();
+		xmlFile << "\t<LinkedNodes>" << nodeCount << "</LinkedNodes>" << std::endl;
+		// check if transcoded
+		auto tcmods = g_Configure.GetString(g_Keys.tc.modules);
+		bool transcoded = (tcmods.find(m) != std::string::npos);
+		xmlFile << "\t<Transcoded>" << (transcoded ? "true" : "false") << "</Transcoded>" << std::endl;
+		// standard protocol IDs for this module
+		int modIdx = m - 'A';
+		if (XML_PROTO_ENABLED(g_Keys.dmrplus.enable))
+			xmlFile << "\t<DMRplus>" << (4001 + modIdx) << "</DMRplus>" << std::endl;
+		if (XML_PROTO_ENABLED(g_Keys.ysf.enable))
+			xmlFile << "\t<YSFDGID>" << (10 + modIdx) << "</YSFDGID>" << std::endl;
+		// per-module protocol mappings (only if protocol is enabled)
+		if (XML_PROTO_ENABLED(g_Keys.ysf.enable)
+			&& g_Configure.Contains(g_Keys.ysf.autolinkmod) && g_Configure.GetString(g_Keys.ysf.autolinkmod)[0] == m)
+		{
+			xmlFile << "\t<Mapping><Protocol>YSF</Protocol><Type>AutoLink</Type>";
+			if (g_Configure.Contains(g_Keys.ysf.ysfreflectordb.id))
+				xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.ysf.ysfreflectordb.id) << "</ID>";
+			if (g_Configure.Contains(g_Keys.ysf.ysfreflectordb.name))
+				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.ysf.ysfreflectordb.name) << "</RemoteName>";
+			xmlFile << "</Mapping>" << std::endl;
+		}
+		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable)
+			&& g_Configure.Contains(g_Keys.nxdn.autolinkmod) && g_Configure.GetString(g_Keys.nxdn.autolinkmod)[0] == m)
+		{
+			xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>AutoLink</Type>";
+			if (g_Configure.Contains(g_Keys.nxdn.reflectorid))
+				xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid) << "</ID>";
+			xmlFile << "</Mapping>" << std::endl;
+		}
+		if (XML_PROTO_ENABLED(g_Keys.p25.enable)
+			&& g_Configure.Contains(g_Keys.p25.autolinkmod) && g_Configure.GetString(g_Keys.p25.autolinkmod)[0] == m)
+		{
+			xmlFile << "\t<Mapping><Protocol>P25</Protocol><Type>AutoLink</Type>";
+			if (g_Configure.Contains(g_Keys.p25.reflectorid))
+				xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.p25.reflectorid) << "</ID>";
+			xmlFile << "</Mapping>" << std::endl;
+		}
+		if (g_Configure.Contains(g_Keys.usrp.enable) && g_Configure.GetBoolean(g_Keys.usrp.enable)
+			&& g_Configure.Contains(g_Keys.usrp.module) && g_Configure.GetString(g_Keys.usrp.module)[0] == m)
+		{
+			xmlFile << "\t<Mapping><Protocol>USRP</Protocol><Type>Bridge</Type>";
+			if (g_Configure.Contains(g_Keys.usrp.callsign))
+				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.usrp.callsign) << "</RemoteName>";
+			xmlFile << "</Mapping>" << std::endl;
+		}
+		// BMMmdvm TG mappings for this module
+		if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))
+		{
+			const auto &jdata = g_Configure.GetData();
+			for (auto it = jdata.begin(); it != jdata.end(); ++it)
+			{
+				const std::string &key = it.key();
+				if (key.substr(0, 6) == "bmhbTG")
+				{
+					try {
+						std::string val = it.value().get<std::string>();
+						if (val.size() >= 1 && val[0] == m)
+						{
+							uint32_t tg = std::stoul(key.substr(6));
+							std::string ts = "TS2";
+							auto comma = val.find(',');
+							if (comma != std::string::npos)
+								ts = val.substr(comma + 1);
+							xmlFile << "\t<Mapping><Protocol>BMMmdvm</Protocol><Type>TG</Type>";
+							xmlFile << "<ID>" << tg << "</ID>";
+							xmlFile << "<Timeslot>" << ts << "</Timeslot>";
+							xmlFile << "</Mapping>" << std::endl;
+						}
+					} catch (...) {}
+				}
+			}
+		}
+		xmlFile << "</Module>" << std::endl;
+	}
+	xmlFile << "</Modules>" << std::endl;
+
+	// enabled protocols (only show if enabled; default=true for backwards compat)
+	xmlFile << "<Protocols>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.dextra.enable))
+		xmlFile << "<Protocol><Name>DExtra</Name><Port>" << g_Configure.GetUnsigned(g_Keys.dextra.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.dplus.enable))
+		xmlFile << "<Protocol><Name>DPlus</Name><Port>" << g_Configure.GetUnsigned(g_Keys.dplus.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.dcs.enable))
+		xmlFile << "<Protocol><Name>DCS</Name><Port>" << g_Configure.GetUnsigned(g_Keys.dcs.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.mmdvm.enable))
+		xmlFile << "<Protocol><Name>MMDVM</Name><Port>" << g_Configure.GetUnsigned(g_Keys.mmdvm.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.dmrplus.enable))
+		xmlFile << "<Protocol><Name>DMRPlus</Name><Port>" << g_Configure.GetUnsigned(g_Keys.dmrplus.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.m17.enable))
+		xmlFile << "<Protocol><Name>M17</Name><Port>" << g_Configure.GetUnsigned(g_Keys.m17.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.ysf.enable))
+		xmlFile << "<Protocol><Name>YSF</Name><Port>" << g_Configure.GetUnsigned(g_Keys.ysf.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.p25.enable))
+		xmlFile << "<Protocol><Name>P25</Name><Port>" << g_Configure.GetUnsigned(g_Keys.p25.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
+		xmlFile << "<Protocol><Name>NXDN</Name><Port>" << g_Configure.GetUnsigned(g_Keys.nxdn.port) << "</Port></Protocol>" << std::endl;
+	if (XML_PROTO_ENABLED(g_Keys.urf.enable))
+		xmlFile << "<Protocol><Name>URF</Name><Port>" << g_Configure.GetUnsigned(g_Keys.urf.port) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.bm.enable) && g_Configure.GetBoolean(g_Keys.bm.enable))
+		xmlFile << "<Protocol><Name>BM</Name><Port>" << g_Configure.GetUnsigned(g_Keys.bm.port) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.usrp.enable) && g_Configure.GetBoolean(g_Keys.usrp.enable))
+		xmlFile << "<Protocol><Name>USRP</Name><Port>" << g_Configure.GetUnsigned(g_Keys.usrp.rxport) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.g3.enable) && g_Configure.GetBoolean(g_Keys.g3.enable))
+		xmlFile << "<Protocol><Name>G3</Name><Port>40000</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))
+		xmlFile << "<Protocol><Name>BMMmdvm</Name><Port>" << (g_Configure.Contains(g_Keys.bmhb.localport) ? g_Configure.GetUnsigned(g_Keys.bmhb.localport) : 0) << "</Port></Protocol>" << std::endl;
+	xmlFile << "</Protocols>" << std::endl;
 
 	CCallsign cs = m_Callsign;
 	cs.PatchCallsign(0, "XLX", 3);
@@ -510,6 +708,89 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 	// unlock
 	ReleaseUsers();
 	xmlFile << "</" << cs << "heard users>" << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// echo thread
+
+void CReflector::EchoThread(void)
+{
+	std::cout << "Echo thread started for module " << m_EchoModule << std::endl;
+
+	while (keep_running)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		std::vector<std::unique_ptr<CPacket>> playback;
+		CDvHeaderPacket header;
+		bool doPlayback = false;
+
+		{
+			std::lock_guard<std::mutex> lock(m_EchoMutex);
+			if (m_EchoHasHeader && !m_EchoBuffer.empty())
+			{
+				auto elapsed = std::chrono::steady_clock::now() - m_EchoLastFrame;
+				if (elapsed > std::chrono::seconds(3))
+				{
+					header = m_EchoHeader;
+					playback = std::move(m_EchoBuffer);
+					m_EchoBuffer.clear();
+					m_EchoHasHeader = false;
+					doPlayback = true;
+				}
+			}
+		}
+
+		if (doPlayback && !playback.empty())
+		{
+			std::cout << "Echo: playing back " << playback.size() << " frames on module " << m_EchoModule << std::endl;
+
+			// get the stream for the echo module
+			auto streamIt = m_Stream.find(m_EchoModule);
+			if (streamIt == m_Stream.end())
+				continue;
+			auto stream = streamIt->second;
+
+			// wait for any current stream to finish
+			while (stream->IsOpen() && keep_running)
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+			if (!keep_running) break;
+
+			// generate a new stream ID
+			static uint16_t echoStreamId = 0xEC00;
+			echoStreamId++;
+			if (echoStreamId == 0) echoStreamId = 0xEC00;
+
+			// create echo header - swap MY callsign to show "ECHO"
+			CCallsign echoCs;
+			echoCs.SetCallsign("ECHO    ", false);
+			CCallsign rpt1 = header.GetRpt1Callsign();
+			CCallsign rpt2 = header.GetRpt2Callsign();
+			auto echoHeader = std::unique_ptr<CDvHeaderPacket>(
+				new CDvHeaderPacket(echoCs, header.GetMyCallsign(), rpt1, rpt2, echoStreamId, (uint8_t)0)
+			);
+			echoHeader->SetPacketModule(m_EchoModule);
+
+			// push header to stream
+			stream->Push(std::move(echoHeader));
+
+			// push voice frames with 20ms spacing
+			for (size_t i = 0; i < playback.size() && keep_running; i++)
+			{
+				playback[i]->SetStreamId(echoStreamId);
+				playback[i]->SetPacketModule(m_EchoModule);
+				if (i == playback.size() - 1)
+					playback[i]->SetLastPacket(true);
+				stream->Push(std::move(playback[i]));
+				std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+
+			std::cout << "Echo: playback complete" << std::endl;
+		}
+	}
+
+	std::cout << "Echo thread stopped" << std::endl;
 }
 
 #ifndef NO_DHT

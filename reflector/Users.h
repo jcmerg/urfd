@@ -47,8 +47,8 @@ public:
 	std::list<CUser>::const_iterator cend()         { return m_Users.cend(); }
 
 	// operation
-	void   Hearing(const CCallsign &, const CCallsign &, const CCallsign &);
-	void   Hearing(const CCallsign &, const CCallsign &, const CCallsign &, const CCallsign &);
+	void   Hearing(const CCallsign &, const CCallsign &, const CCallsign &, const std::string &proto = "");
+	void   Hearing(const CCallsign &, const CCallsign &, const CCallsign &, const CCallsign &, const std::string &proto = "");
 
 protected:
 	// data

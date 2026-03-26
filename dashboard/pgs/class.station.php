@@ -9,8 +9,9 @@ class Station {
    private $CallsignOnly;
    private $Peer;
    private $OnModule;
-      
-   public function __construct($Callsign, $Via, $Peer, $LastHeardTime, $OnModule) {
+   private $Protocol;
+
+   public function __construct($Callsign, $Via, $Peer, $LastHeardTime, $OnModule, $Protocol = '') {
       $this->Callsign      = trim($Callsign);
       $this->Via           = trim($Via);
       $this->Peer          = trim($Peer);
@@ -25,6 +26,7 @@ class Station {
       $tmp = explode(" ", $Callsign);
       $this->CallsignOnly = $tmp[0];
       $this->OnModule     = $OnModule;
+      $this->Protocol     = trim($Protocol);
    }
  
    public function GetCallsign()             { return $this->Callsign;       }
@@ -34,6 +36,7 @@ class Station {
    public function GetSuffix()               { return $this->Suffix;         }
    public function GetCallsignOnly()         { return $this->CallsignOnly;   }
    public function GetModule()               { return $this->OnModule;       }
+   public function GetProtocol()             { return $this->Protocol;       }
    
 }
 

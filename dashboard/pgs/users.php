@@ -48,13 +48,13 @@ if (isset($_GET['do'])) {
 ?>
 
 <div class="row">
-   <div class="col-md-9">
+   <div class="col-md-12">
       <table class="table table-striped table-hover">
 <?php
 if ($PageOptions['UserPage']['ShowFilter']) {
   echo '
  <tr>
-   <th colspan="8">
+   <th colspan="9">
       <table width="100%" border="0">
          <tr>
             <td align="left">
@@ -81,19 +81,21 @@ if ($PageOptions['UserPage']['ShowFilter']) {
 </tr>';
 }
 ?>
-         <tr class="table-center">   
-            <th class="col-md-1">#</th>
-            <th class="col-md-1">Flag</th>
-            <th class="col-md-2">Callsign</th>
-            <th class="col-md-2">Suffix</th>
-            <th class="col-md-1">DPRS</th>
-            <th class="col-md-2">Via / Peer</th>
-            <th class="col-md-2">Last heard</th>
-            <th class="col-md-1"><img src="./img/ear.png" alt="Listening on" /></th>
+         <tr class="table-center">
+            <th>TX</th>
+            <th>Flag</th>
+            <th>Callsign</th>
+            <th>Suffix</th>
+            <th>DPRS</th>
+            <th style="white-space:nowrap;">Via</th>
+            <th>Protocol</th>
+            <th>Last heard</th>
+            <th>Module</th>
          </tr>
 <?php
 
 $Reflector->LoadFlags();
+$displayNum = 0;
 for ($i=0;$i<$Reflector->StationCount();$i++) {
     $ShowThisStation = true;
     if ($PageOptions['UserPage']['ShowFilter']) {
@@ -114,14 +116,15 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
     }
 
     if ($ShowThisStation) {
-
+        $displayNum++;
+        $isLive = ($Reflector->Stations[$i]->GetLastHeardTime() > (time() - 60));
         echo '
       <tr class="table-center">
        <td>';
-        if ($i == 0 && $Reflector->Stations[$i]->GetLastHeardTime() > (time() - 60)) {
-            echo '<img src="./img/tx.gif" style="margin-top:3px;" height="20"/>';
+        if ($isLive) {
+            echo '<span class="live-indicator" title="TX"></span>';
         } else {
-            echo($i + 1);
+            echo '<span class="idle-indicator"></span>';
         }
 
 
@@ -135,13 +138,14 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
         echo '</td>
    <td><a href="https://www.qrz.com/db/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank">' . $Reflector->Stations[$i]->GetCallsignOnly() . '</a></td>
    <td>' . $Reflector->Stations[$i]->GetSuffix() . '</td>
-   <td><a href="http://www.aprs.fi/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank"><img src="./img/sat.png" alt=""></a></td>
-   <td>' . $Reflector->Stations[$i]->GetVia();
+   <td><a href="http://www.aprs.fi/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank">&#x1F6F0;&#xFE0F;</a></td>
+   <td style="white-space:nowrap;">' . $Reflector->Stations[$i]->GetVia();
         if ($Reflector->Stations[$i]->GetPeer() != $Reflector->GetReflectorName()) {
             echo ' / ' . $Reflector->Stations[$i]->GetPeer();
         }
         echo '</td>
-   <td>' . @date("d.m.Y H:i", $Reflector->Stations[$i]->GetLastHeardTime()) . '</td>
+   <td>' . htmlspecialchars($Reflector->Stations[$i]->GetProtocol()) . '</td>
+   <td style="white-space:nowrap;">' . @date("d.m.Y H:i", $Reflector->Stations[$i]->GetLastHeardTime()) . '</td>
    <td>' . $Reflector->Stations[$i]->GetModule() . '</td>
  </tr>';
     }
@@ -152,56 +156,6 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
 
 ?> 
  
-      </table>
-   </div>
-   <div class="col-md-3">
-      <table class="table table-striped table-hover">
-         <?php 
-
-$Modules = $Reflector->GetModules();
-sort($Modules, SORT_STRING);
-echo '<tr>';
-for ($i=0;$i<count($Modules);$i++) {
-   
-   if (isset($PageOptions['ModuleNames'][$Modules[$i]])) {
-      echo '<th>'.$PageOptions['ModuleNames'][$Modules[$i]];
-       if (trim($PageOptions['ModuleNames'][$Modules[$i]]) != "") {
-           echo '<br />';
-       }
-      echo $Modules[$i].'</th>';
-   }
-   else {
-   echo '
-  
-      <th>'.$Modules[$i].'</th>';
-   }
-}
-
-echo '</tr><tr>';
-
-$GlobalPositions = array();
-
-for ($i=0;$i<count($Modules);$i++) {
-    
-   $Users = $Reflector->GetNodesInModulesByID($Modules[$i]);
-   echo '<td><table class="table table-hover">';
-
-   $UserCheckedArray = array();
-   
-   for ($j=0;$j<count($Users);$j++) {
-       $Displayname = $Reflector->GetCallsignAndSuffixByID($Users[$j]);
-      echo '
-            <tr>
-               <td><a href="http://www.aprs.fi/'.$Displayname.'" class="pl" target="_blank">'.$Displayname.'</a> </td>
-            </tr>';
-      $UserCheckedArray[] = $Users[$j];
-   }
-   echo '</table></td>';
-}
-
-echo '</tr>';
-
-?>
       </table>
    </div>
 </div>

@@ -25,12 +25,13 @@ CUser::CUser()
 	m_LastHeardTime = std::time(nullptr);
 }
 
-CUser::CUser(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2, const CCallsign &xlx)
+CUser::CUser(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2, const CCallsign &xlx, const std::string &proto)
 {
 	m_My = my;
 	m_Rpt1 = rpt1;
 	m_Rpt2 = rpt2;
 	m_Xlx = xlx;
+	m_Protocol = proto;
 	m_LastHeardTime = std::time(nullptr);
 }
 
@@ -40,6 +41,7 @@ CUser::CUser(const CUser &user)
 	m_Rpt1 = user.m_Rpt1;
 	m_Rpt2 = user.m_Rpt2;
 	m_Xlx = user.m_Xlx;
+	m_Protocol = user.m_Protocol;
 	m_LastHeardTime = user.m_LastHeardTime;
 }
 
@@ -68,6 +70,8 @@ void CUser::WriteXml(std::ofstream &xmlFile)
 	xmlFile << "\t<Via node>" << m_Rpt1 << "</Via node>" << std::endl;
 	xmlFile << "\t<On module>" << m_Rpt2.GetCSModule() << "</On module>" << std::endl;
 	xmlFile << "\t<Via peer>" << m_Xlx << "</Via peer>" << std::endl;
+	if (!m_Protocol.empty())
+		xmlFile << "\t<Protocol>" << m_Protocol << "</Protocol>" << std::endl;
 
 	char mbstr[100];
 	if (std::strftime(mbstr, sizeof(mbstr), "%FT%TZ", std::gmtime(&m_LastHeardTime)))

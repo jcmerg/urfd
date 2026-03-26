@@ -22,13 +22,13 @@
 
 // configuration key names
 struct SJsonKeys {
-	struct PORTONLY { const std::string port; }
-	dcs { "DCSPort" },
-	dextra { "DExtraPort" },
-	dmrplus { "DMRPlusPort" },
-	dplus { "DPlusPort" },
-	m17 { "M17Port" },
-	urf { "URFPort" };
+	struct PORTENABLE { const std::string port, enable; }
+	dcs { "DCSPort", "DCSEnable" },
+	dextra { "DExtraPort", "DExtraEnable" },
+	dmrplus { "DMRPlusPort", "DMRPlusEnable" },
+	dplus { "DPlusPort", "DPlusEnable" },
+	m17 { "M17Port", "M17Enable" },
+	urf { "URFPort", "URFEnable" };
 
 	struct G3 { const std::string enable; }
 	g3 { "G3Enable" };
@@ -36,8 +36,8 @@ struct SJsonKeys {
 	struct BM { const std::string enable, port; }
 	bm { "bmEnable", "bmPort" };
 
-	struct MMDVM { const std::string port, defaultid; }
-	mmdvm { "MMDVMPort", "mmdvmdefaultid" };
+	struct MMDVM { const std::string port, defaultid, enable; }
+	mmdvm { "MMDVMPort", "mmdvmdefaultid", "MMDVMEnable" };
 
 	struct NAMES { const std::string callsign, bootstrap, url, email, country, sponsor; }
 	names { "Callsign", "bootstrap", "DashboardUrl", "SysopEmail", "Country", "Sponsor" };
@@ -55,19 +55,22 @@ struct SJsonKeys {
 	struct USRP { const std::string enable, ip, txport, rxport, module, callsign, filepath; }
 	usrp { "usrpEnable", "usrpIpAddress", "urspTxPort", "usrpRxPort", "usrpModule", "usrpCallsign", "usrpFilePath" };
 
-	struct P25NXDN { const std::string port, autolinkmod, reflectorid; }
-	p25 { "P25Port",  "P25AutolinkMod",   "P25ReflectorID" },
-	nxdn { "NXDNPort", "NXDNAutolinkMod", "NXDNReflectorID" };
+	struct P25NXDN { const std::string port, autolinkmod, reflectorid, enable; }
+	p25 { "P25Port",  "P25AutolinkMod",   "P25ReflectorID",  "P25Enable" },
+	nxdn { "NXDNPort", "NXDNAutolinkMod", "NXDNReflectorID", "NXDNEnable" };
 
-	struct YSF { const std::string port, autolinkmod, enabledgid, defaulttxfreq, defaultrxfreq;
+	struct YSF { const std::string port, autolinkmod, enabledgid, defaulttxfreq, defaultrxfreq, enable;
 		struct YSLREG { const std::string id, name, description; } ysfreflectordb; }
-	ysf { "YSFPort", "YSFAutoLinkMod", "YSFEnableDGID", "YSFDefaultTxFreq", "YSFDefaultRxFreq",
+	ysf { "YSFPort", "YSFAutoLinkMod", "YSFEnableDGID", "YSFDefaultTxFreq", "YSFDefaultRxFreq", "YSFEnable",
 		{ "ysfrefdbid", "ysfrefdbname", "ysfrefdbdesc" } };
 
 	struct DB { const std::string url, mode, refreshmin, filepath; }
 	dmriddb   {  "dmrIdDbUrl",  "dmrIdDbMode",  "dmrIdDbRefresh",  "dmrIdDbFilePath" },
 	nxdniddb  { "nxdnIdDbUrl", "nxdnIdDbMode", "nxdnIdDbRefresh", "nxdnIdDbFilePath" },
 	ysftxrxdb {  "ysfIdDbUrl",  "ysfIdDbMode",  "ysfIdDbRefresh",  "ysfIdDbFilePath" };
+
+	struct ECHO { const std::string module; }
+	echo { "EchoModule" };
 
 	struct FILES { const std::string pid, xml, json, white, black, interlink, terminal; }
 	files { "pidFilePath", "xmlFilePath", "jsonFilePath", "whitelistFilePath", "blacklistFilePath", "interlinkFilePath", "g3TerminalFilePath" };

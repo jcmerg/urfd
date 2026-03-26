@@ -1,6 +1,6 @@
 #pragma once
 
-// BMHomebrewProtocol -- Connects to Brandmeister via the Homebrew/MMDVM protocol
+// BMMmdvmProtocol -- Connects to Brandmeister via the Homebrew/MMDVM protocol
 // URFD acts as an MMDVM simplex repeater client to a BM master server.
 //
 // Copyright (C) 2024-2026
@@ -44,7 +44,7 @@ struct SBMHBStreamCache
 	uint32_t        streamId;
 };
 
-class CBMHomebrewProtocol : public CProtocol
+class CBMMmdvmProtocol : public CProtocol
 {
 public:
 	// initialization

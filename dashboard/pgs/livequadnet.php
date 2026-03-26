@@ -22,6 +22,8 @@
 //    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 // ----------------------------------------------------------------------------
 ?>
-<div width="100%" style="text-align:center;">
-   <iframe width="1250" height="800" src="https://irc-1.openquad.net/ics/" style="border:0px #000000 solid; margin-top:30px;" align="center"></iframe>
+<h2 class="sub-header">QuadNet Live</h2>
+<p class="text-muted" style="margin-top:8px; font-size:12px;">External content from OpenQuad ICS</p>
+<div style="text-align:center; background:#f0f0f0; border-radius:8px; padding:4px; margin-top:4px;">
+   <iframe width="100%" height="800" src="https://irc-1.openquad.net/ics/" style="border:none; max-width:1250px; background:#fff; border-radius:6px;" align="center"></iframe>
 </div>

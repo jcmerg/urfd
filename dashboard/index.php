@@ -74,7 +74,7 @@ if ($CallingHome['Active']) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -152,11 +152,11 @@ if ($CallingHome['Active']) {
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <span class="navbar-brand"><?php echo str_replace("XLX", "URF", $Reflector->GetReflectorName()); ?> Universal Reflector</span>
+            <span class="navbar-brand"><?php echo str_replace("XLX", "URF", $Reflector->GetReflectorName()); ?> Universal Reflector (<?php echo $Reflector->GetReflectorName(); ?>)</span>
         </div>
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav navbar-right">
-                <li class="navbar-info">V#Q<?php echo $Reflector->GetVersion(); ?> - Dashboard
+                <li class="navbar-info">v<?php echo $Reflector->GetVersion(); ?> - Dashboard
                     v<?php echo $PageOptions['DashboardVersion']; ?></li>
                 <li class="navbar-info">Service
                     uptime: <?php echo FormatSeconds($Reflector->GetServiceUptime()); ?></li>
@@ -171,6 +171,10 @@ if ($CallingHome['Active']) {
             <ul class="nav nav-sidebar">
                 <li<?php echo (($_GET['show'] == "users") || ($_GET['show'] == "")) ? ' class="active"' : ''; ?>><a
                             href="./index.php">Last Heard</a></li>
+                <li<?php echo ($_GET['show'] == "modules") ? ' class="active"' : ''; ?>><a
+                            href="./index.php?show=modules">Active Users</a></li>
+                <li<?php echo ($_GET['show'] == "modulesd") ? ' class="active"' : ''; ?>><a
+                            href="./index.php?show=modulesd">Overview Modules</a></li>
                 <li<?php echo ($_GET['show'] == "repeaters") ? ' class="active"' : ''; ?>><a
                             href="./index.php?show=repeaters">Links (<?php echo $Reflector->NodeCount(); ?>)
                         </a></li>
@@ -197,6 +201,12 @@ if ($CallingHome['Active']) {
             switch ($_GET['show']) {
                 case 'users'      :
                     require_once("./pgs/users.php");
+                    break;
+                case 'modules'    :
+                    require_once("./pgs/modules.php");
+                    break;
+                case 'modulesd'   :
+                    require_once("./pgs/modulesd.php");
                     break;
                 case 'repeaters'  :
                     require_once("./pgs/repeaters.php");

@@ -282,7 +282,7 @@ const std::string CGateKeeper::ProtocolName(const EProtocol p) const
 		case EProtocol::dmrmmdvm:
 			return "MMDVM DMR";
 		case EProtocol::bmhomebrew:
-			return "BMHomebrew";
+			return "BMMmdvm";
 		case EProtocol::dmrplus:
 			return "DMR+";
 		case EProtocol::urf:

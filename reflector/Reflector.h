@@ -19,6 +19,8 @@
 #pragma once
 
 #include <unordered_map>
+#include <chrono>
+#include <vector>
 
 #include "Users.h"
 #include "Clients.h"
@@ -98,6 +100,16 @@ protected:
 	// xml helpers
 	void WriteXmlFile(std::ofstream &);
 	void JsonReport(nlohmann::json &report);
+
+	// echo module
+	void EchoThread(void);
+	char m_EchoModule;
+	std::mutex m_EchoMutex;
+	std::vector<std::unique_ptr<CPacket>> m_EchoBuffer;
+	CDvHeaderPacket m_EchoHeader;
+	bool m_EchoHasHeader;
+	std::chrono::steady_clock::time_point m_EchoLastFrame;
+	std::future<void> m_EchoFuture;
 
 	// identity
 	CCallsign   m_Callsign;

@@ -66,6 +66,7 @@ public:
 	void UpdatePids(const uint32_t);
 	void SetPacketModule(char cMod) { m_cModule = cMod; }
 	void SetLastPacket(bool value)  { m_bLastPacket = value; }
+	void SetStreamId(uint16_t id)   { m_uiStreamId = id; }
 	void SetLocalOrigin(void)       { m_eOrigin = EOrigin::local; }
 	void SetRemotePeerOrigin(void)  { m_eOrigin = EOrigin::peer; }
 

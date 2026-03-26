@@ -28,7 +28,7 @@ class CUser
 public:
 	// constructor
 	CUser();
-	CUser(const CCallsign &, const CCallsign &, const CCallsign &, const CCallsign &);
+	CUser(const CCallsign &, const CCallsign &, const CCallsign &, const CCallsign &, const std::string &proto = "");
 	CUser(const CUser &);
 
 	// destructor
@@ -40,6 +40,7 @@ public:
 	char GetOnModule(void)              const { return m_Rpt2.GetCSModule(); }
 	const std::string GetViaPeer(void)  const { return m_Xlx.GetCS(); }
 	std::time_t GetLastHeardTime(void)  const { return m_LastHeardTime; }
+	const std::string &GetProtocol(void) const { return m_Protocol; }
 
 	// operation
 	void HeardNow(void)     { m_LastHeardTime = time(nullptr); }
@@ -59,4 +60,5 @@ protected:
 	CCallsign   m_Rpt2;
 	CCallsign   m_Xlx;
 	time_t      m_LastHeardTime;
+	std::string m_Protocol;
 };
