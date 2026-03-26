@@ -420,10 +420,13 @@ void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId
 	CCallsign rpt2(g_Reflector.GetCallsign());
 	rpt2.SetCSModule(module);
 
-	// Check if this BM streamId is already mapped to a valid URFD stream
+	// Check if this BM streamId is already mapped
 	auto existing = m_IncomingStreams.find(streamId);
 	if (existing != m_IncomingStreams.end())
 	{
+		if (existing->second == 0)
+			return; // already rejected, ignore silently
+
 		// Already mapped - tickle the stream if it still exists
 		auto stream = GetStream(existing->second, &m_MasterIp);
 		if (stream)
@@ -441,14 +444,19 @@ void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId
 	s_nextId += 0x100;
 	if (s_nextId == 0) s_nextId = 0x100;
 
-	m_IncomingStreams[streamId] = urfStreamId;
-
 	CCallsign my = DmrIdToCallsign(srcId);
 	std::cout << "BMMmdvm: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
 
 	auto header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(srcId, CCallsign("CQCQCQ"), rpt1, rpt2, urfStreamId, 0, 0));
 
+	m_IncomingStreams[streamId] = urfStreamId;
+
 	OnDvHeaderPacketIn(header, m_MasterIp);
+
+	// Check if stream was actually opened, mark as rejected if not
+	auto stream = GetStream(urfStreamId, &m_MasterIp);
+	if (!stream)
+		m_IncomingStreams[streamId] = 0; // sentinel: rejected
 }
 
 void CBMMmdvmProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
@@ -463,6 +471,8 @@ void CBMMmdvmProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId,
 	}
 
 	uint16_t urfStreamId = it->second;
+	if (urfStreamId == 0)
+		return; // rejected stream
 	const uint8_t *dmrframe = Buffer.data() + 20;
 
 	// Extract 3 x 9-byte AMBE2+ from interleaved DMR frame
