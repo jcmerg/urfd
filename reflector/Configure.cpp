@@ -90,7 +90,8 @@
 #define JXMLPATH                 "XmlPath"
 #define JYSF                     "YSF"
 #define JYSFTXRXDB               "YSF TX/RX DB"
-#define JBMHOMEBREW              "BMHomebrew"
+#define JBMMMDVM                 "BMMmdvm"
+#define JBMHOMEBREW              "BMHomebrew"  // legacy alias
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
 {
@@ -219,7 +220,8 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::nxdnid;
 			else if (0 == hname.compare(JYSFTXRXDB))
 				section = ESection::ysffreq;
-			else if (0 == hname.compare(JBMHOMEBREW))				section = ESection::bmhb;
+			else if (0 == hname.compare(JBMMMDVM) || 0 == hname.compare(JBMHOMEBREW))
+				section = ESection::bmhb;
 			else if (0 == hname.compare("Echo"))
 				section = ESection::echo;
 			else if (0 == hname.compare(JFILES))

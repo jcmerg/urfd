@@ -10,7 +10,7 @@ Fork of [urfd](https://github.com/nostar/urfd) with extended features for the UR
 Direct Brandmeister connection via the Homebrew/MMDVM protocol. Maps BM talkgroups to reflector modules with per-timeslot support.
 
 ```ini
-[BMHomebrew]
+[BMMmdvm]
 Enable = true
 MasterAddress = 2622.master.brandmeister.network
 MasterPort = 62031

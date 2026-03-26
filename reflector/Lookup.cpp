@@ -43,6 +43,7 @@ std::time_t CLookup::GetLastModTime()
 void CLookup::LookupInit()
 {
 	LoadParameters();
+	m_LastLoadTime = 0;
 
 	m_Future = std::async(std::launch::async, &CLookup::Thread, this);
 }
