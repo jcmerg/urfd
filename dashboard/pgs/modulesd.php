@@ -170,7 +170,7 @@ foreach ($Modules as $mod => $info) {
         if ($rname != '')        $details[] = $rname;
         if (count($details) > 0) $label .= ': ' . implode(' ', $details);
 
-        $mappingParts[] = '<span class="label label-info" style="background-color:#1976d2;margin:2px;display:inline-block;">'
+        $mappingParts[] = '<span class="label label-info" style="background-color:#1976d2;margin:2px;display:inline-block;padding:4px 8px;font-size:12px;font-weight:normal;border-radius:4px;">'
             . $label . '</span>';
     }
     $mappingsStr = count($mappingParts) > 0 ? implode(' ', $mappingParts) : '<span class="text-muted">&mdash;</span>';
