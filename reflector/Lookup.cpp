@@ -109,6 +109,7 @@ bool CLookup::LoadContentFile(std::stringstream &ss)
     if ( file )
     {
         ss << file.rdbuf();
+        ss.clear();  // clear failbit if file was empty (operator<< sets it when no chars extracted)
         file.close();
 		rval = true;
     }
