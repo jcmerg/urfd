@@ -189,6 +189,11 @@ if ($CallingHome['Active']) {
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
 
             <?php
+            // Display MOTD / maintenance banner from config
+            if (isset($PageOptions['MOTD']) && trim($PageOptions['MOTD']) !== '') {
+                echo '<div class="motd-banner">' . htmlspecialchars(trim($PageOptions['MOTD'])) . '</div>';
+            }
+
             if ($CallingHome['Active']) {
                 if (!is_readable($CallingHome['HashFile']) && (!is_writeable($CallingHome['HashFile']))) {
                     echo '

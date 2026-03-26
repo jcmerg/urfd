@@ -49,6 +49,7 @@ $PageOptions['MetaRevisit']                          = 'After 30 Days';         
 $PageOptions['MetaRobots']                           = 'index,follow';                                               // Meta Tag Values, usefull for Search Engine
 
 $PageOptions['UserPage']['ShowFilter']               = true;                                                         // Show Filter on Users page
+// $PageOptions['MOTD']                              = 'Scheduled maintenance on Sunday 12:00-14:00 UTC';            // Banner message (leave commented out or empty to hide)
 
 $Service['PIDFile']                                  = '/var/run/xlxd.pid';
 $Service['XMLFile']                                  = '/var/log/xlxd.xml';
