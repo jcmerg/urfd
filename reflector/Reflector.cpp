@@ -251,10 +251,18 @@ std::shared_ptr<CPacketStream> CReflector::OpenStream(std::unique_ptr<CDvHeaderP
 		return nullptr;
 	}
 
+	// check if module needs a transcoder and if it's connected
+	char module = DvHeader->GetRpt2Module();
+	auto tcmods = g_Configure.GetString(g_Keys.tc.modules);
+	if (tcmods.find(module) != std::string::npos && g_TCServer.GetFD(module) < 0)
+	{
+		std::cout << "Module " << module << " waiting for transcoder, rejecting stream from " << client->GetCallsign() << std::endl;
+		return nullptr;
+	}
+
 	// set the packet module
 	DvHeader->SetPacketModule(client->GetReflectorModule());
 	// get the module's queue
-	char module = DvHeader->GetRpt2Module();
 	auto stream = GetStream(module);
 	if ( stream == nullptr )
 	{
