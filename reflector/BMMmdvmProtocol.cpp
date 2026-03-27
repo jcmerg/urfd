@@ -388,9 +388,14 @@ void CBMMmdvmProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 	if (streamId == 0) streamId = 1;
 
 	uint8_t flags = Buffer.data()[15];
+	uint8_t slot = (flags & BMHB_FLAG_SLOT2) ? 2 : 1;
 
 	if (!m_TGMap.IsTGMapped(dstId))
 		return;
+
+	// Combine streamId with slot to allow parallel streams on different timeslots
+	// BM may reuse the same streamId for both slots simultaneously
+	uint32_t slotStreamId = (streamId & 0x00FFFFFF) | ((uint32_t)slot << 24);
 
 	bool isDataSync = (flags & BMHB_FLAG_DATA_SYNC) != 0;
 	uint8_t dataType = flags & 0x0F;
@@ -398,13 +403,13 @@ void CBMMmdvmProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 	if (isDataSync)
 	{
 		if (dataType == DMR_DT_VOICE_LC_HEADER)
-			OnDMRDVoiceHeaderIn(Buffer, srcId, dstId, streamId);
+			OnDMRDVoiceHeaderIn(Buffer, srcId, dstId, slotStreamId);
 		else if (dataType == DMR_DT_TERMINATOR_WITH_LC)
-			OnDMRDTerminatorIn(Buffer, srcId, dstId, streamId);
+			OnDMRDTerminatorIn(Buffer, srcId, dstId, slotStreamId);
 	}
 	else
 	{
-		OnDMRDVoiceFrameIn(Buffer, srcId, dstId, streamId);
+		OnDMRDVoiceFrameIn(Buffer, srcId, dstId, slotStreamId);
 	}
 }
 
