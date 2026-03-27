@@ -319,8 +319,15 @@ void CSvxReflectorProtocol::OnAuthOk(void)
 void CSvxReflectorProtocol::OnServerInfo(const std::vector<uint8_t> &payload)
 {
 	if (payload.size() < 4) return;
+
+	// Debug: dump ServerInfo hex
+	std::cout << "SvxReflector: ServerInfo raw (" << payload.size() << " bytes):";
+	for (size_t i = 0; i < std::min(payload.size(), (size_t)40); i++)
+		printf(" %02x", payload[i]);
+	std::cout << std::endl;
+
 	size_t pos = 2; // skip type
-	m_ClientId = UnpackUint16(payload, pos);
+	m_ClientId = UnpackUint32(payload, pos);
 	std::cout << "SvxReflector: received ServerInfo, client_id=" << m_ClientId << std::endl;
 
 	// Send MsgNodeInfo (JSON metadata)
@@ -353,6 +360,15 @@ void CSvxReflectorProtocol::OnServerInfo(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnTcpMessage(uint16_t type, const std::vector<uint8_t> &payload)
 {
+	// Debug: log all TCP messages
+	if (type != SVX_TCP_MSG_HEARTBEAT)
+	{
+		std::cout << "SvxReflector: TCP msg type=" << type << " len=" << payload.size() << " hex:";
+		for (size_t i = 0; i < std::min(payload.size(), (size_t)32); i++)
+			printf(" %02x", payload[i]);
+		std::cout << std::endl;
+	}
+
 	switch (type)
 	{
 		case SVX_TCP_MSG_HEARTBEAT:
@@ -502,27 +518,37 @@ void CSvxReflectorProtocol::Task(void)
 				if (Receive4(buffer, ip, 20))
 				{
 					m_UdpLastReceiveTimer.start();
-					if (buffer.size() >= 4)
+					if (buffer.size() >= 2)
 					{
 						uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
+						std::cout << "SvxReflector: UDP recv type=" << type << " len=" << buffer.size() << " from " << ip << std::endl;
 						if (type == SVX_UDP_MSG_AUDIO)
 							OnUdpAudio(buffer);
 						else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
 							OnUdpFlush();
+						else if (type == SVX_UDP_MSG_HEARTBEAT)
+							; // OK, just keepalive
+						else
+							std::cout << "SvxReflector: UDP unknown type " << type << std::endl;
 					}
 				}
 
 				// Send UDP heartbeat
 				if (m_UdpHeartbeatTimer.time() >= SVX_UDP_KEEPALIVE_PERIOD)
 				{
+					// V2 UDP format: type(2) + client_id(2) + seq(2)
 					CBuffer hb;
-					uint8_t hbdata[4];
-					hbdata[0] = 0; hbdata[1] = SVX_UDP_MSG_HEARTBEAT;
+					uint8_t hbdata[6];
+					hbdata[0] = (SVX_UDP_MSG_HEARTBEAT >> 8) & 0xFF;
+					hbdata[1] = SVX_UDP_MSG_HEARTBEAT & 0xFF;
 					hbdata[2] = (m_ClientId >> 8) & 0xFF;
 					hbdata[3] = m_ClientId & 0xFF;
-					hb.Set(hbdata, 4);
+					hbdata[4] = 0; // seq high
+					hbdata[5] = 0; // seq low
+					hb.Set(hbdata, 6);
 					Send(hb, m_ServerIp);
 					m_UdpHeartbeatTimer.start();
+					std::cout << "SvxReflector: UDP heartbeat sent to " << m_ServerIp << " client_id=" << m_ClientId << std::endl;
 				}
 
 				// Check UDP timeout

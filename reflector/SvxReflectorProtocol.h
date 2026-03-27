@@ -108,7 +108,7 @@ protected:
 	int m_ReconnectBackoff;
 
 	// auth
-	uint16_t m_ClientId;
+	uint32_t m_ClientId;
 	std::string m_Password;
 	std::string m_Callsign;
 	std::string m_Host;
