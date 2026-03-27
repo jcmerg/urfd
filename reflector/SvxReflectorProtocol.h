@@ -73,6 +73,7 @@ protected:
 	// UDP audio
 	void OnUdpAudio(const CBuffer &buffer);
 	void OnUdpFlush(void);
+	void CloseInStream(void);
 	void EncodeAndSendAudio(const int16_t *pcm, uint32_t tg);
 
 	// serialization helpers (big-endian)
@@ -109,6 +110,7 @@ protected:
 
 	// auth
 	uint32_t m_ClientId;
+	uint16_t m_UdpSeq;
 	std::string m_Password;
 	std::string m_Callsign;
 	std::string m_Host;
@@ -127,6 +129,7 @@ protected:
 		char module;
 		uint16_t streamId;
 		bool open;
+		std::string talkerCallsign;
 	};
 	SIncomingStream m_InStream;
 
