@@ -690,14 +690,77 @@ void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// outgoing audio path: urfd streams -> SvxReflector (stub — Task 5)
+// outgoing audio path: urfd streams -> SvxReflector
 
 void CSvxReflectorProtocol::HandleQueue(void)
 {
-	// TODO: implement in Task 5
+	while (!m_Queue.IsEmpty())
+	{
+		auto packet = m_Queue.Pop();
+		const char module = packet->GetPacketModule();
+
+		if (packet->IsDvHeader())
+		{
+			// Look up TG for this module
+			uint32_t tg = ModuleToTG(module);
+			if (tg != 0)
+			{
+				m_OutStreamTG[module] = tg;
+			}
+		}
+		else if (packet->IsDvFrame())
+		{
+			auto it = m_OutStreamTG.find(module);
+			if (it == m_OutStreamTG.end())
+				continue;
+
+			uint32_t tg = it->second;
+			const CDvFramePacket &frame = (const CDvFramePacket &)*packet;
+
+			if (packet->IsLastPacket())
+			{
+				// Send UDP flush to signal end of transmission
+				CBuffer flushBuf;
+				uint8_t flushData[2];
+				flushData[0] = (SVX_UDP_MSG_FLUSH_SAMPLES >> 8) & 0xFF;
+				flushData[1] = SVX_UDP_MSG_FLUSH_SAMPLES & 0xFF;
+				flushBuf.Set(flushData, 2);
+				Send(flushBuf, m_ServerIp);
+
+				// Cleanup
+				m_OutStreamTG.erase(it);
+			}
+			else
+			{
+				// Get PCM data and encode/send
+				const int16_t *pcm = (const int16_t *)frame.GetCodecData(ECodecType::usrp);
+				if (pcm)
+				{
+					EncodeAndSendAudio(pcm, tg);
+				}
+			}
+		}
+	}
 }
 
 void CSvxReflectorProtocol::EncodeAndSendAudio(const int16_t *pcm, uint32_t tg)
 {
-	// TODO: implement in Task 5
+	// OPUS encode
+	uint8_t opusBuf[512];
+	int opusLen = opus_encode(m_OpusEncoder, pcm, 160, opusBuf, sizeof(opusBuf));
+	if (opusLen <= 0)
+	{
+		std::cerr << "SvxReflector: opus_encode failed: " << opus_strerror(opusLen) << std::endl;
+		return;
+	}
+
+	// Build UDP packet: type(2) + opus_data
+	CBuffer buf;
+	uint8_t hdr[2];
+	hdr[0] = (SVX_UDP_MSG_AUDIO >> 8) & 0xFF;
+	hdr[1] = SVX_UDP_MSG_AUDIO & 0xFF;
+	buf.Set(hdr, 2);
+	buf.Append(opusBuf, opusLen);
+
+	Send(buf, m_ServerIp);
 }
