@@ -49,34 +49,30 @@ if (isset($_GET['do'])) {
 
 <div class="row">
    <div class="col-md-12">
+      <div class="table-responsive">
       <table class="table table-striped table-hover">
 <?php
 if ($PageOptions['UserPage']['ShowFilter']) {
   echo '
  <tr>
    <th colspan="9">
-      <table width="100%" border="0">
-         <tr>
-            <td align="left">
-               <form name="frmFilterCallSign" method="post" action="./index.php">
-                  <input type="hidden" name="do" value="SetFilter" />
-                  <input type="text" class="FilterField" value="'.$_SESSION['FilterCallSign'].'" name="txtSetCallsignFilter" placeholder="Callsign" onfocus="SuspendPageRefresh();" onblur="setTimeout(ReloadPage, '.$PageOptions['PageRefreshDelay'].');" />
-                  <input type="submit" value="Apply" class="FilterSubmit" />
-               </form>
-            </td>';
+      <div class="mobile-filter-form">
+         <form name="frmFilterCallSign" method="post" action="./index.php" style="display:inline-flex;gap:6px;align-items:center;">
+            <input type="hidden" name="do" value="SetFilter" />
+            <input type="text" class="FilterField" value="'.$_SESSION['FilterCallSign'].'" name="txtSetCallsignFilter" placeholder="Callsign" onfocus="SuspendPageRefresh();" onblur="setTimeout(ReloadPage, '.$PageOptions['PageRefreshDelay'].');" />
+            <input type="submit" value="Apply" class="FilterSubmit" />
+         </form>
+         <form name="frmFilterModule" method="post" action="./index.php" style="display:inline-flex;gap:6px;align-items:center;">
+            <input type="hidden" name="do" value="SetFilter" />
+            <input type="text" class="FilterField" value="'.$_SESSION['FilterModule'].'" name="txtSetModuleFilter" placeholder="Module" onfocus="SuspendPageRefresh();" onblur="setTimeout(ReloadPage, '.$PageOptions['PageRefreshDelay'].');" />
+            <input type="submit" value="Apply" class="FilterSubmit" />
+         </form>';
               if (($_SESSION['FilterModule'] != null) || ($_SESSION['FilterCallSign'] != null)) {
                   echo '
-         <td><a href="./index.php?do=resetfilter" class="smalllink">Disable filters</a></td>';
+         <a href="./index.php?do=resetfilter" class="smalllink">Disable filters</a>';
               }
-              echo '            
-            <td align="right" style="padding-right:3px;">
-               <form name="frmFilterModule" method="post" action="./index.php">
-                  <input type="hidden" name="do" value="SetFilter" />
-                  <input type="text" class="FilterField" value="'.$_SESSION['FilterModule'].'" name="txtSetModuleFilter" placeholder="Module" onfocus="SuspendPageRefresh();" onblur="setTimeout(ReloadPage, '.$PageOptions['PageRefreshDelay'].');" />
-                  <input type="submit" value="Apply" class="FilterSubmit" />
-               </form>
-            </td>
-      </table>
+              echo '
+      </div>
    </th>
 </tr>';
 }
@@ -85,10 +81,10 @@ if ($PageOptions['UserPage']['ShowFilter']) {
             <th>TX</th>
             <th>Flag</th>
             <th>Callsign</th>
-            <th>Suffix</th>
-            <th>DPRS</th>
+            <th class="mobile-hide">Suffix</th>
+            <th class="mobile-hide">DPRS</th>
             <th style="white-space:nowrap;">Via</th>
-            <th>Protocol</th>
+            <th class="mobile-hide">Protocol</th>
             <th>Last heard</th>
             <th>Module</th>
          </tr>
@@ -137,8 +133,8 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
         }
         echo '</td>
    <td><a href="https://www.qrz.com/db/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank">' . $Reflector->Stations[$i]->GetCallsignOnly() . '</a></td>
-   <td>' . $Reflector->Stations[$i]->GetSuffix() . '</td>
-   <td><a href="http://www.aprs.fi/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank">&#x1F6F0;&#xFE0F;</a></td>
+   <td class="mobile-hide">' . $Reflector->Stations[$i]->GetSuffix() . '</td>
+   <td class="mobile-hide"><a href="http://www.aprs.fi/' . $Reflector->Stations[$i]->GetCallsignOnly() . '" class="pl" target="_blank">&#x1F6F0;&#xFE0F;</a></td>
    <td style="white-space:nowrap;">' . $Reflector->Stations[$i]->GetVia();
         $peerName = trim($Reflector->Stations[$i]->GetPeer());
         $reflName = trim($Reflector->GetReflectorName());
@@ -147,7 +143,7 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
             echo ' / ' . $peerName;
         }
         echo '</td>
-   <td>' . htmlspecialchars($Reflector->Stations[$i]->GetProtocol()) . '</td>
+   <td class="mobile-hide">' . htmlspecialchars($Reflector->Stations[$i]->GetProtocol()) . '</td>
    <td style="white-space:nowrap;">' . @date("d.m.Y H:i", $Reflector->Stations[$i]->GetLastHeardTime()) . '</td>
    <td>' . $Reflector->Stations[$i]->GetModule() . '</td>
  </tr>';
@@ -160,5 +156,6 @@ for ($i=0;$i<$Reflector->StationCount();$i++) {
 ?> 
  
       </table>
+      </div>
    </div>
 </div>

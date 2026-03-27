@@ -155,6 +155,15 @@ if ($CallingHome['Active']) {
             <span class="navbar-brand"><?php echo str_replace("XLX", "URF", $Reflector->GetReflectorName()); ?> Universal Reflector (<?php echo $Reflector->GetReflectorName(); ?>)</span>
         </div>
         <div id="navbar" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav navbar-mobile-nav">
+                <li<?php echo (($_GET['show'] == "users") || ($_GET['show'] == "")) ? ' class="active"' : ''; ?>><a href="./index.php">Last Heard</a></li>
+                <li<?php echo ($_GET['show'] == "modules") ? ' class="active"' : ''; ?>><a href="./index.php?show=modules">Active Users</a></li>
+                <li<?php echo ($_GET['show'] == "modulesd") ? ' class="active"' : ''; ?>><a href="./index.php?show=modulesd">Overview Modules</a></li>
+                <li<?php echo ($_GET['show'] == "repeaters") ? ' class="active"' : ''; ?>><a href="./index.php?show=repeaters">Links (<?php echo $Reflector->NodeCount(); ?>)</a></li>
+                <li<?php echo ($_GET['show'] == "peers") ? ' class="active"' : ''; ?>><a href="./index.php?show=peers">Peers (<?php echo $Reflector->PeerCount(); ?>)</a></li>
+                <li<?php echo ($_GET['show'] == "reflectors") ? ' class="active"' : ''; ?>><a href="./index.php?show=reflectors">Reflector List</a></li>
+                <li<?php echo ($_GET['show'] == "livequadnet") ? ' class="active"' : ''; ?>><a href="./index.php?show=livequadnet">QuadNet Live</a></li>
+            </ul>
             <ul class="nav navbar-nav navbar-right">
                 <li class="navbar-info">v<?php echo $Reflector->GetVersion(); ?> - Dashboard
                     v<?php echo $PageOptions['DashboardVersion']; ?></li>

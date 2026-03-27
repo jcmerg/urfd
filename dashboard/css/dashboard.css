@@ -696,3 +696,117 @@ a,
 .table > tbody > tr {
   transition: all 0.2s ease;
 }
+
+
+/*
+ * Mobile / Responsive improvements
+ */
+
+/* Mobile navigation in navbar - hidden on desktop */
+@media (min-width: 768px) {
+  .navbar-mobile-nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .navbar-mobile-nav {
+    display: block;
+  }
+
+  .navbar-mobile-nav > li > a {
+    color: var(--text-secondary);
+    padding: 10px 15px;
+  }
+
+  .navbar-mobile-nav > li > a:hover,
+  .navbar-mobile-nav > li > a:focus {
+    color: var(--text-primary);
+    background-color: rgba(15, 52, 96, 0.3);
+  }
+
+  .navbar-mobile-nav > .active > a,
+  .navbar-mobile-nav > .active > a:hover {
+    color: #fff;
+    background-color: var(--accent);
+  }
+
+  /* Main content: remove sidebar offset, tighter padding */
+  .main {
+    padding: 10px;
+  }
+
+  /* Navbar brand shorter on mobile */
+  .navbar-brand {
+    max-width: 70vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px !important;
+  }
+
+  /* Table responsive wrapper */
+  .table-responsive {
+    border: none;
+    margin-bottom: 0;
+  }
+
+  /* Smaller table text on mobile */
+  .table {
+    font-size: 13px;
+  }
+
+  .table > thead > tr > th {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .table > tbody > tr > td {
+    padding: 6px 8px;
+  }
+
+  /* Hide less important columns on small screens */
+  .mobile-hide {
+    display: none !important;
+  }
+
+  /* Filter form stacked on mobile */
+  .mobile-filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-filter-form form {
+    display: flex;
+    gap: 6px;
+  }
+
+  .mobile-filter-form .FilterField {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Panel cards better spacing on mobile */
+  .col-md-4.col-sm-6 {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  /* Sub-header smaller on mobile */
+  .sub-header {
+    font-size: 18px;
+    padding-bottom: 8px;
+  }
+
+  /* Footer full width on mobile */
+  .footer {
+    height: auto;
+    padding: 8px 0;
+  }
+
+  .footer p {
+    margin: 4px 0;
+    font-size: 12px;
+  }
+}

@@ -18,12 +18,13 @@ if ($Result) {
 fclose($Result);
 ?>
 
+<div class="table-responsive">
 <table class="table table-striped table-hover">
 	<tr class="table-center">
-		<th class="col-md-1">#</th>
+		<th class="col-md-1 mobile-hide">#</th>
 		<th class="col-md-2">XLX Peer</th>
 		<th class="col-md-2">Last Heard</th>
-		<th class="col-md-2">Linked for</th>
+		<th class="col-md-2 mobile-hide">Linked for</th>
 		<th class="col-md-2">Protocol</th>
 		<th class="col-md-1">Module</th><?php
 
@@ -40,7 +41,7 @@ $Reflector->LoadFlags();
 for ($i=0;$i<$Reflector->PeerCount();$i++) {
 	echo '
 	<tr class="table-center">
-	<td>'.($i+1).'</td>';
+	<td class="mobile-hide">'.($i+1).'</td>';
 
 	$Name = $Reflector->Peers[$i]->GetCallSign();
 	$URL = '';
@@ -57,7 +58,7 @@ for ($i=0;$i<$Reflector->PeerCount();$i++) {
 	}
 	echo '
 	<td>'.date("d.m.Y H:i", $Reflector->Peers[$i]->GetLastHeardTime()).'</td>
-	<td>'.FormatSeconds(time()-$Reflector->Peers[$i]->GetConnectTime()).' s</td>
+	<td class="mobile-hide">'.FormatSeconds(time()-$Reflector->Peers[$i]->GetConnectTime()).' s</td>
 	<td>'.$Reflector->Peers[$i]->GetProtocol().'</td>
 	<td>'.$Reflector->Peers[$i]->GetLinkedModule().'</td>';
 	if ($PageOptions['PeerPage']['IPModus'] != 'HideIP') {
@@ -99,3 +100,4 @@ for ($i=0;$i<$Reflector->PeerCount();$i++) {
 ?>
 
 </table>
+</div>
