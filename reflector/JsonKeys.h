@@ -76,4 +76,6 @@ struct SJsonKeys {
 	files { "pidFilePath", "xmlFilePath", "jsonFilePath", "whitelistFilePath", "blacklistFilePath", "interlinkFilePath", "g3TerminalFilePath" };
 	struct BMHB { const std::string enable, address, port, localport, dmrid, password, callsign, latitude, longitude, location, description, url, rxfreq, txfreq, software, firmware; }
 	bmhb { "bmhbEnable", "bmhbAddress", "bmhbPort", "bmhbLocalPort", "bmhbDmrId", "bmhbPassword", "bmhbCallsign", "bmhbLatitude", "bmhbLongitude", "bmhbLocation", "bmhbDescription", "bmhbUrl", "bmhbRxFreq", "bmhbTxFreq", "bmhbSoftware", "bmhbFirmware" };
+	struct SVX { const std::string enable, host, port, callsign, password; }
+	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword" };
 };

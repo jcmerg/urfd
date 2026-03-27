@@ -92,6 +92,7 @@
 #define JYSF                     "YSF"
 #define JYSFTXRXDB               "YSF TX/RX DB"
 #define JBMMMDVM                 "BMMmdvm"
+#define JSVXREFLECTOR            "SvxReflector"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
 {
@@ -224,6 +225,8 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::bmhb;
 			else if (0 == hname.compare("Echo"))
 				section = ESection::echo;
+			else if (0 == hname.compare(JSVXREFLECTOR))
+				section = ESection::svx;
 			else if (0 == hname.compare(JFILES))
 				section = ESection::files;
 			else
@@ -549,6 +552,25 @@ bool CConfigure::ReadData(const std::string &path)
 				else
 					badParam(key);
 				break;
+			case ESection::svx:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.svx.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare("Host"))
+					data[g_Keys.svx.host] = value;
+				else if (0 == key.compare(JPORT))
+					data[g_Keys.svx.port] = getUnsigned(value, "SvxReflector Port", 1024, 65535, 5300);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.svx.callsign] = value;
+				else if (0 == key.compare("Password"))
+					data[g_Keys.svx.password] = value;
+				else if (0 == key.compare(0, 2, "TG"))
+				{
+					std::string tgkey = "svxTG" + key.substr(2);
+					data[tgkey] = value;
+				}
+				else
+					badParam(key);
+				break;
 			case ESection::echo:
 				if (0 == key.compare(JENABLE))
 					data[g_Keys.echo.enable] = IS_TRUE(value[0]);
@@ -829,6 +851,41 @@ bool CConfigure::ReadData(const std::string &path)
 			else
 			{
 				std::cerr << "ERROR: " << JUSRP << " requires a transoder" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// SvxReflector
+	if (isDefined(ErrorLevel::fatal, JSVXREFLECTOR, JENABLE, g_Keys.svx.enable, rval))
+	{
+		if (GetBoolean(g_Keys.svx.enable))
+		{
+			if (tcport)
+			{
+				isDefined(ErrorLevel::fatal, JSVXREFLECTOR, "Host", g_Keys.svx.host, rval);
+				isDefined(ErrorLevel::fatal, JSVXREFLECTOR, JPORT, g_Keys.svx.port, rval);
+				isDefined(ErrorLevel::fatal, JSVXREFLECTOR, JCALLSIGN, g_Keys.svx.callsign, rval);
+				isDefined(ErrorLevel::fatal, JSVXREFLECTOR, "Password", g_Keys.svx.password, rval);
+				// Validate TG mappings: each module must be transcoded
+				const auto &jdata = GetData();
+				for (auto it = jdata.begin(); it != jdata.end(); ++it)
+				{
+					const std::string &k = it.key();
+					if (k.substr(0, 5) == "svxTG")
+					{
+						std::string val = it.value().get<std::string>();
+						if (val.size() >= 1 && std::string::npos == GetString(g_Keys.tc.modules).find(val[0]))
+						{
+							std::cerr << "ERROR: [" << JSVXREFLECTOR << "] TG" << k.substr(5) << " module " << val[0] << " is not a transcoded module" << std::endl;
+							rval = true;
+						}
+					}
+				}
+			}
+			else
+			{
+				std::cerr << "ERROR: " << JSVXREFLECTOR << " requires a transcoder" << std::endl;
 				rval = true;
 			}
 		}

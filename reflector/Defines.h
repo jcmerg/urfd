@@ -51,6 +51,7 @@
 #define P25_IPV4 true
 #define NXDN_IPV4 true
 #define USRP_IPV4 true
+#define SVX_IPV4 true
 #define URF_IPV4 true
 
 
@@ -62,11 +63,12 @@
 #define P25_IPV6 false
 #define NXDN_IPV6 false
 #define USRP_IPV6 false
+#define SVX_IPV6 false
 #define URF_IPV6 true
 
 // protocols ---------------------------------------------------
 
-enum class EProtocol { any, none, dextra, dplus, dcs, g3, bm, urf, dmrplus, dmrmmdvm, nxdn, p25, usrp, ysf, m17, bmhomebrew };
+enum class EProtocol { any, none, dextra, dplus, dcs, g3, bm, urf, dmrplus, dmrmmdvm, nxdn, p25, usrp, ysf, m17, bmhomebrew, svxreflector };
 
 // DExtra
 #define DEXTRA_KEEPALIVE_PERIOD         3                                   // in seconds
@@ -122,6 +124,13 @@ enum class EProtocol { any, none, dextra, dplus, dcs, g3, bm, urf, dmrplus, dmrm
 // USRP
 #define USRP_KEEPALIVE_PERIOD          1                                   // in seconds
 #define USRP_KEEPALIVE_TIMEOUT         (USRP_KEEPALIVE_PERIOD*10)         // in seconds
+
+// SvxReflector
+#define SVX_TCP_KEEPALIVE_PERIOD       10                                  // in seconds
+#define SVX_TCP_KEEPALIVE_TIMEOUT      15                                  // in seconds
+#define SVX_UDP_KEEPALIVE_PERIOD       15                                  // in seconds
+#define SVX_UDP_KEEPALIVE_TIMEOUT      60                                  // in seconds
+#define SVX_RECONNECT_PERIOD           5                                   // in seconds
 
 // G3 Terminal
 #define G3_PRESENCE_PORT                12346                               // UDP port
