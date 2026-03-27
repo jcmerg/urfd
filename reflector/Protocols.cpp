@@ -30,6 +30,7 @@
 #include "P25Protocol.h"
 #include "NXDNProtocol.h"
 #include "USRPProtocol.h"
+#include "SvxReflectorProtocol.h"
 #include "G3Protocol.h"
 #include "Protocols.h"
 #include "Global.h"
@@ -126,6 +127,13 @@ bool CProtocols::Init(void)
 		{
 			m_Protocols.emplace_back(std::unique_ptr<CUSRPProtocol>(new CUSRPProtocol));
 			if (! m_Protocols.back()->Initialize("USRP", EProtocol::usrp, uint16_t(g_Configure.GetUnsigned(g_Keys.usrp.rxport)), USRP_IPV4, USRP_IPV6))
+				return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))
+		{
+			m_Protocols.emplace_back(std::unique_ptr<CSvxReflectorProtocol>(new CSvxReflectorProtocol));
+			if (! m_Protocols.back()->Initialize("SvxReflector", EProtocol::svxreflector, uint16_t(g_Configure.GetUnsigned(g_Keys.svx.port)), SVX_IPV4, SVX_IPV6))
 				return false;
 		}
 

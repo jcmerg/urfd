@@ -32,7 +32,7 @@ else
 CFLAGS = -W -Werror -std=c++17 -MMD -MD
 endif
 
-LDFLAGS=-pthread -lcurl
+LDFLAGS=-pthread -lcurl -lopus
 
 ifeq ($(DHT), true)
 LDFLAGS += -lopendht

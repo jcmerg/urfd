@@ -638,6 +638,30 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				}
 			}
 		}
+		// SvxReflector TG mappings for this module
+		if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))
+		{
+			const auto &jdata = g_Configure.GetData();
+			for (auto it = jdata.begin(); it != jdata.end(); ++it)
+			{
+				const std::string &key = it.key();
+				if (key.substr(0, 5) == "svxTG")
+				{
+					try {
+						std::string val = it.value().get<std::string>();
+						if (val.size() >= 1 && val[0] == m)
+						{
+							uint32_t tg = std::stoul(key.substr(5));
+							xmlFile << "\t<Mapping><Protocol>SvxReflector</Protocol><Type>TG</Type>";
+							xmlFile << "<ID>" << tg << "</ID>";
+							if (g_Configure.Contains(g_Keys.svx.host))
+								xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.svx.host) << "</RemoteName>";
+							xmlFile << "</Mapping>" << std::endl;
+						}
+					} catch (...) {}
+				}
+			}
+		}
 		xmlFile << "</Module>" << std::endl;
 	}
 	xmlFile << "</Modules>" << std::endl;
@@ -668,6 +692,8 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		xmlFile << "<Protocol><Name>XLXPeer</Name><Port>" << g_Configure.GetUnsigned(g_Keys.bm.port) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.usrp.enable) && g_Configure.GetBoolean(g_Keys.usrp.enable))
 		xmlFile << "<Protocol><Name>USRP</Name><Port>" << g_Configure.GetUnsigned(g_Keys.usrp.rxport) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))
+		xmlFile << "<Protocol><Name>SvxReflector</Name><Port>" << g_Configure.GetUnsigned(g_Keys.svx.port) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.g3.enable) && g_Configure.GetBoolean(g_Keys.g3.enable))
 		xmlFile << "<Protocol><Name>G3</Name><Port>40000</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))

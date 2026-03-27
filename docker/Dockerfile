@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-gnutls-dev \
     libopendht-dev \
     nlohmann-json3-dev \
+    libopus-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -27,6 +28,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl3t64-gnutls \
     libopendht3t64 \
+    libopus0 \
     nginx \
     php-fpm \
     supervisor \
