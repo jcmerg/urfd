@@ -1,5 +1,5 @@
-// BMMmdvmProtocol -- Connects to Brandmeister via the MMDVM protocol
-// URFD acts as a virtual MMDVM repeater client to a BM master server.
+// MMDVMClientProtocol -- Connects to a DMR master via the MMDVM protocol
+// URFD acts as a virtual MMDVM repeater client to an MMDVM master server.
 //
 // Copyright (C) 2024-2026
 // Licensed under the GNU General Public License v3 or later
@@ -8,8 +8,8 @@
 #include <cstdlib>
 
 #include "Global.h"
-#include "BMMmdvmClient.h"
-#include "BMMmdvmProtocol.h"
+#include "MMDVMClientPeer.h"
+#include "MMDVMClientProtocol.h"
 #include "BPTC19696.h"
 #include "RS129.h"
 #include "Golay2087.h"
@@ -25,12 +25,12 @@ static uint8_t g_DmrSyncBSData[]  = { 0x0D,0xFF,0x57,0xD7,0x5D,0xF5,0xD0 };
 ////////////////////////////////////////////////////////////////////////////////////////
 // initialization
 
-bool CBMMmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
+bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
 {
-	m_uiDmrId = g_Configure.GetUnsigned(g_Keys.bmhb.dmrid);
-	m_Password = g_Configure.GetString(g_Keys.bmhb.password);
-	m_Callsign = g_Configure.GetString(g_Keys.bmhb.callsign);
-	m_MasterPort = (uint16_t)g_Configure.GetUnsigned(g_Keys.bmhb.port);
+	m_uiDmrId = g_Configure.GetUnsigned(g_Keys.mmdvmclient.dmrid);
+	m_Password = g_Configure.GetString(g_Keys.mmdvmclient.password);
+	m_Callsign = g_Configure.GetString(g_Keys.mmdvmclient.callsign);
+	m_MasterPort = (uint16_t)g_Configure.GetUnsigned(g_Keys.mmdvmclient.port);
 
 	// Store DMR ID as big-endian 4 bytes
 	m_uiId[0] = (uint8_t)(m_uiDmrId >> 24);
@@ -39,13 +39,13 @@ bool CBMMmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const
 	m_uiId[3] = (uint8_t)(m_uiDmrId);
 
 	// Resolve master address
-	auto addr = g_Configure.GetString(g_Keys.bmhb.address);
+	auto addr = g_Configure.GetString(g_Keys.mmdvmclient.address);
 	m_MasterIp = CIp(addr.c_str(), AF_INET, SOCK_DGRAM, m_MasterPort);
 
 	// Load TG mappings
 	if (!m_TGMap.LoadFromConfig())
 	{
-		std::cerr << "BMMmdvm: failed to load TG mappings" << std::endl;
+		std::cerr << "MMDVMClient: failed to load TG mappings" << std::endl;
 		return false;
 	}
 
@@ -58,7 +58,7 @@ bool CBMMmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const
 	m_TimeoutTimer.start();
 	m_PingTimer.start();
 
-	std::cout << "BMMmdvm: initialized, DMR ID " << m_uiDmrId
+	std::cout << "MMDVMClient: initialized, DMR ID " << m_uiDmrId
 	          << ", master " << addr << ":" << m_MasterPort << std::endl;
 
 	return true;
@@ -67,7 +67,7 @@ bool CBMMmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const
 ////////////////////////////////////////////////////////////////////////////////////////
 // task
 
-void CBMMmdvmProtocol::Task(void)
+void CMMDVMClientProtocol::Task(void)
 {
 	CBuffer Buffer;
 	CIp     Ip;
@@ -89,12 +89,12 @@ void CBMMmdvmProtocol::Task(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // state machine
 
-void CBMMmdvmProtocol::HandleStateMachine(void)
+void CMMDVMClientProtocol::HandleStateMachine(void)
 {
 	switch (m_State)
 	{
 	case EHBState::DISCONNECTED:
-		if (m_RetryTimer.time() > BMHB_RETRY_PERIOD)
+		if (m_RetryTimer.time() > MMDVMCLI_RETRY_PERIOD)
 		{
 			SendLogin();
 			m_State = EHBState::WAITING_LOGIN;
@@ -107,7 +107,7 @@ void CBMMmdvmProtocol::HandleStateMachine(void)
 	case EHBState::WAITING_AUTH:
 	case EHBState::WAITING_CONFIG:
 	case EHBState::WAITING_OPTIONS:
-		if (m_RetryTimer.time() > BMHB_RETRY_PERIOD)
+		if (m_RetryTimer.time() > MMDVMCLI_RETRY_PERIOD)
 		{
 			switch (m_State)
 			{
@@ -119,23 +119,23 @@ void CBMMmdvmProtocol::HandleStateMachine(void)
 			}
 			m_RetryTimer.start();
 		}
-		if (m_TimeoutTimer.time() > BMHB_TIMEOUT_PERIOD)
+		if (m_TimeoutTimer.time() > MMDVMCLI_TIMEOUT_PERIOD)
 		{
-			std::cout << "BMMmdvm: handshake timeout, reconnecting" << std::endl;
+			std::cout << "MMDVMClient: handshake timeout, reconnecting" << std::endl;
 			m_State = EHBState::DISCONNECTED;
 			m_RetryTimer.start();
 		}
 		break;
 
 	case EHBState::RUNNING:
-		if (m_PingTimer.time() > BMHB_PING_PERIOD)
+		if (m_PingTimer.time() > MMDVMCLI_PING_PERIOD)
 		{
 			SendPing();
 			m_PingTimer.start();
 		}
-		if (m_TimeoutTimer.time() > BMHB_TIMEOUT_PERIOD)
+		if (m_TimeoutTimer.time() > MMDVMCLI_TIMEOUT_PERIOD)
 		{
-			std::cout << "BMMmdvm: keepalive timeout, reconnecting" << std::endl;
+			std::cout << "MMDVMClient: keepalive timeout, reconnecting" << std::endl;
 			m_State = EHBState::DISCONNECTED;
 			m_RetryTimer.start();
 		}
@@ -146,7 +146,7 @@ void CBMMmdvmProtocol::HandleStateMachine(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // incoming packet handler
 
-void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
+void CMMDVMClientProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 {
 	// Update master IP with actual source address (port may differ from config)
 	m_MasterIp = Ip;
@@ -168,7 +168,7 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 			break;
 
 		case EHBState::WAITING_AUTH:
-			std::cout << "BMMmdvm: authentication successful" << std::endl;
+			std::cout << "MMDVMClient: authentication successful" << std::endl;
 			SendConfig();
 			m_State = EHBState::WAITING_CONFIG;
 			m_TimeoutTimer.start();
@@ -180,13 +180,13 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 			std::string opts = m_TGMap.GetOptionsString();
 			if (!opts.empty())
 			{
-				std::cout << "BMMmdvm: config accepted, sending options: " << opts << std::endl;
+				std::cout << "MMDVMClient: config accepted, sending options: " << opts << std::endl;
 				SendOptions();
 				m_State = EHBState::WAITING_OPTIONS;
 			}
 			else
 			{
-				std::cout << "BMMmdvm: connected" << std::endl;
+				std::cout << "MMDVMClient: connected" << std::endl;
 				m_State = EHBState::RUNNING;
 			}
 			m_TimeoutTimer.start();
@@ -196,7 +196,7 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 		}
 
 		case EHBState::WAITING_OPTIONS:
-			std::cout << "BMMmdvm: connected" << std::endl;
+			std::cout << "MMDVMClient: connected" << std::endl;
 			m_State = EHBState::RUNNING;
 			m_TimeoutTimer.start();
 			m_PingTimer.start();
@@ -211,7 +211,7 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	{
 		if (m_State == EHBState::WAITING_OPTIONS || m_State == EHBState::WAITING_CONFIG)
 		{
-			std::cout << "BMMmdvm: connected (beacon)" << std::endl;
+			std::cout << "MMDVMClient: connected (beacon)" << std::endl;
 			m_State = EHBState::RUNNING;
 			m_TimeoutTimer.start();
 			m_PingTimer.start();
@@ -221,11 +221,11 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	else if (Buffer.size() >= 7 && 0 == Buffer.Compare((uint8_t *)"MSTPONG", 7))
 	{
 		m_TimeoutTimer.start();
-		// keep all BMMmdvm clients alive
+		// keep all MMDVMClient clients alive
 		CClients *clients = g_Reflector.GetClients();
 		for (auto it = clients->begin(); it != clients->end(); it++)
 		{
-			if ((*it)->GetProtocol() == EProtocol::bmhomebrew)
+			if ((*it)->GetProtocol() == EProtocol::mmdvmclient)
 				(*it)->Alive();
 		}
 		g_Reflector.ReleaseClients();
@@ -233,7 +233,7 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	// MSTNAK
 	else if (Buffer.size() >= 6 && 0 == Buffer.Compare((uint8_t *)"MSTNAK", 6))
 	{
-		std::cout << "BMMmdvm: NAK in state " << (int)m_State << std::endl;
+		std::cout << "MMDVMClient: NAK in state " << (int)m_State << std::endl;
 		if (m_State == EHBState::RUNNING)
 		{
 			m_State = EHBState::WAITING_LOGIN;
@@ -250,12 +250,12 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 	// MSTCL
 	else if (Buffer.size() >= 5 && 0 == Buffer.Compare((uint8_t *)"MSTCL", 5))
 	{
-		std::cout << "BMMmdvm: master closed connection" << std::endl;
+		std::cout << "MMDVMClient: master closed connection" << std::endl;
 		m_State = EHBState::DISCONNECTED;
 		m_RetryTimer.start();
 	}
 	// DMRD
-	else if (Buffer.size() == HOMEBREW_DATA_PACKET_LENGTH && 0 == Buffer.Compare((uint8_t *)"DMRD", 4))
+	else if (Buffer.size() == MMDVMCLI_DATA_PACKET_LENGTH && 0 == Buffer.Compare((uint8_t *)"DMRD", 4))
 	{
 		if (m_State == EHBState::WAITING_OPTIONS)
 		{
@@ -273,7 +273,7 @@ void CBMMmdvmProtocol::HandleIncoming(const CBuffer &Buffer, const CIp &Ip)
 ////////////////////////////////////////////////////////////////////////////////////////
 // auth packet helpers
 
-void CBMMmdvmProtocol::SendLogin(void)
+void CMMDVMClientProtocol::SendLogin(void)
 {
 	CBuffer buf;
 	buf.Set((uint8_t *)"RPTL", 4);
@@ -281,7 +281,7 @@ void CBMMmdvmProtocol::SendLogin(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMMmdvmProtocol::SendAuth(void)
+void CMMDVMClientProtocol::SendAuth(void)
 {
 	size_t pwlen = m_Password.size();
 	std::vector<uint8_t> input(4 + pwlen);
@@ -298,27 +298,27 @@ void CBMMmdvmProtocol::SendAuth(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMMmdvmProtocol::SendConfig(void)
+void CMMDVMClientProtocol::SendConfig(void)
 {
 	// Read config values with defaults
 	double lat = 0.0, lon = 0.0;
 	unsigned rxfreq = 439000000, txfreq = 439000000;
 	std::string location, description, url;
 
-	if (g_Configure.Contains(g_Keys.bmhb.latitude))
-		lat = std::stod(g_Configure.GetString(g_Keys.bmhb.latitude));
-	if (g_Configure.Contains(g_Keys.bmhb.longitude))
-		lon = std::stod(g_Configure.GetString(g_Keys.bmhb.longitude));
-	if (g_Configure.Contains(g_Keys.bmhb.rxfreq))
-		rxfreq = g_Configure.GetUnsigned(g_Keys.bmhb.rxfreq);
-	if (g_Configure.Contains(g_Keys.bmhb.txfreq))
-		txfreq = g_Configure.GetUnsigned(g_Keys.bmhb.txfreq);
-	if (g_Configure.Contains(g_Keys.bmhb.location))
-		location = g_Configure.GetString(g_Keys.bmhb.location);
-	if (g_Configure.Contains(g_Keys.bmhb.description))
-		description = g_Configure.GetString(g_Keys.bmhb.description);
-	if (g_Configure.Contains(g_Keys.bmhb.url))
-		url = g_Configure.GetString(g_Keys.bmhb.url);
+	if (g_Configure.Contains(g_Keys.mmdvmclient.latitude))
+		lat = std::stod(g_Configure.GetString(g_Keys.mmdvmclient.latitude));
+	if (g_Configure.Contains(g_Keys.mmdvmclient.longitude))
+		lon = std::stod(g_Configure.GetString(g_Keys.mmdvmclient.longitude));
+	if (g_Configure.Contains(g_Keys.mmdvmclient.rxfreq))
+		rxfreq = g_Configure.GetUnsigned(g_Keys.mmdvmclient.rxfreq);
+	if (g_Configure.Contains(g_Keys.mmdvmclient.txfreq))
+		txfreq = g_Configure.GetUnsigned(g_Keys.mmdvmclient.txfreq);
+	if (g_Configure.Contains(g_Keys.mmdvmclient.location))
+		location = g_Configure.GetString(g_Keys.mmdvmclient.location);
+	if (g_Configure.Contains(g_Keys.mmdvmclient.description))
+		description = g_Configure.GetString(g_Keys.mmdvmclient.description);
+	if (g_Configure.Contains(g_Keys.mmdvmclient.url))
+		url = g_Configure.GetString(g_Keys.mmdvmclient.url);
 
 	char config[400];
 	::memset(config, 0, sizeof(config));
@@ -326,14 +326,14 @@ void CBMMmdvmProtocol::SendConfig(void)
 	int n = ::snprintf(config, sizeof(config),
 		"%-8.8s%09u%09u%02u%02u%+08.4f%+09.4f%03d%-20.20s%-19.19s%c%-124.124s%-40.40s%-40.40s",
 		m_Callsign.c_str(), rxfreq, txfreq,
-		1U, (unsigned)BMHB_COLOUR_CODE,
+		1U, (unsigned)MMDVMCLI_COLOUR_CODE,
 		lat, lon, 0,
 		location.empty() ? "URFD Reflector" : location.c_str(),
 		description.empty() ? g_Configure.GetString(g_Keys.names.callsign).c_str() : description.c_str(),
-		'3',  // duplex (required by BM)
+		'3',  // duplex (required by master)
 		url.c_str(),
-		g_Configure.Contains(g_Keys.bmhb.firmware) ? g_Configure.GetString(g_Keys.bmhb.firmware).c_str() : "20260325_URFD",
-		g_Configure.Contains(g_Keys.bmhb.software) ? g_Configure.GetString(g_Keys.bmhb.software).c_str() : "MMDVM_URFD_Virtual"
+		g_Configure.Contains(g_Keys.mmdvmclient.firmware) ? g_Configure.GetString(g_Keys.mmdvmclient.firmware).c_str() : "20260325_URFD",
+		g_Configure.Contains(g_Keys.mmdvmclient.software) ? g_Configure.GetString(g_Keys.mmdvmclient.software).c_str() : "MMDVM_URFD_Virtual"
 	);
 
 	CBuffer buf;
@@ -343,7 +343,7 @@ void CBMMmdvmProtocol::SendConfig(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMMmdvmProtocol::SendOptions(void)
+void CMMDVMClientProtocol::SendOptions(void)
 {
 	std::string opts = m_TGMap.GetOptionsString();
 	if (opts.empty())
@@ -356,7 +356,7 @@ void CBMMmdvmProtocol::SendOptions(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMMmdvmProtocol::SendPing(void)
+void CMMDVMClientProtocol::SendPing(void)
 {
 	CBuffer buf;
 	buf.Set((uint8_t *)"RPTPING", 7);
@@ -364,7 +364,7 @@ void CBMMmdvmProtocol::SendPing(void)
 	Send(buf, m_MasterIp);
 }
 
-void CBMMmdvmProtocol::SendClose(void)
+void CMMDVMClientProtocol::SendClose(void)
 {
 	CBuffer buf;
 	buf.Set((uint8_t *)"RPTCL", 5);
@@ -373,9 +373,9 @@ void CBMMmdvmProtocol::SendClose(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// DMRD incoming: BM -> Reflector
+// DMRD incoming: Master -> Reflector
 
-void CBMMmdvmProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
+void CMMDVMClientProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 {
 	uint32_t srcId = ((uint32_t)Buffer.data()[5] << 16) |
 	                 ((uint32_t)Buffer.data()[6] << 8) |
@@ -388,16 +388,16 @@ void CBMMmdvmProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 	if (streamId == 0) streamId = 1;
 
 	uint8_t flags = Buffer.data()[15];
-	uint8_t slot = (flags & BMHB_FLAG_SLOT2) ? 2 : 1;
+	uint8_t slot = (flags & MMDVMCLI_FLAG_SLOT2) ? 2 : 1;
 
 	if (!m_TGMap.IsTGMapped(dstId))
 		return;
 
 	// Combine streamId with slot to allow parallel streams on different timeslots
-	// BM may reuse the same streamId for both slots simultaneously
+	// Master may reuse the same streamId for both slots simultaneously
 	uint32_t slotStreamId = (streamId & 0x00FFFFFF) | ((uint32_t)slot << 24);
 
-	bool isDataSync = (flags & BMHB_FLAG_DATA_SYNC) != 0;
+	bool isDataSync = (flags & MMDVMCLI_FLAG_DATA_SYNC) != 0;
 	uint8_t dataType = flags & 0x0F;
 
 	if (isDataSync)
@@ -413,7 +413,7 @@ void CBMMmdvmProtocol::OnDMRDPacketIn(const CBuffer &Buffer)
 	}
 }
 
-void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
+void CMMDVMClientProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
 {
 	char module = m_TGMap.TGToModule(dstId);
 	if (module == ' ')
@@ -425,7 +425,7 @@ void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId
 	CCallsign rpt2(g_Reflector.GetCallsign());
 	rpt2.SetCSModule(module);
 
-	// Check if this BM streamId is already mapped
+	// Check if this master streamId is already mapped
 	auto existing = m_IncomingStreams.find(streamId);
 	if (existing != m_IncomingStreams.end())
 	{
@@ -450,7 +450,7 @@ void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId
 	if (s_nextId == 0) s_nextId = 0x100;
 
 	CCallsign my = DmrIdToCallsign(srcId);
-	std::cout << "BMMmdvm: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
+	std::cout << "MMDVMClient: voice from " << my << " (ID " << srcId << ") TG" << dstId << " -> Module " << module << std::endl;
 
 	auto header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(srcId, CCallsign("CQCQCQ"), rpt1, rpt2, urfStreamId, 0, 0));
 
@@ -464,7 +464,7 @@ void CBMMmdvmProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId
 		m_IncomingStreams[streamId] = 0; // sentinel: rejected
 }
 
-void CBMMmdvmProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
+void CMMDVMClientProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
 {
 	auto it = m_IncomingStreams.find(streamId);
 	if (it == m_IncomingStreams.end())
@@ -493,7 +493,7 @@ void CBMMmdvmProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId,
 
 	uint8_t flags = Buffer.data()[15];
 	uint8_t pid = flags & 0x0F;
-	if (flags & BMHB_FLAG_VOICE_SYNC)
+	if (flags & MMDVMCLI_FLAG_VOICE_SYNC)
 		pid = 0;
 
 	// Push frames directly to the stream
@@ -511,7 +511,7 @@ void CBMMmdvmProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId,
 	}
 }
 
-void CBMMmdvmProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
+void CMMDVMClientProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
 {
 	auto it = m_IncomingStreams.find(streamId);
 	if (it == m_IncomingStreams.end())
@@ -535,7 +535,7 @@ void CBMMmdvmProtocol::OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t srcId,
 ////////////////////////////////////////////////////////////////////////////////////////
 // stream helper for incoming
 
-void CBMMmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
+void CMMDVMClientProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
 {
 	auto stream = GetStream(Header->GetStreamId(), &m_MasterIp);
 	if (stream)
@@ -553,11 +553,11 @@ void CBMMmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Head
 	CCallsign cs;
 	cs.SetCallsign(m_Callsign, false);
 	cs.SetCSModule(module);
-	std::shared_ptr<CClient> client = clients->FindClient(cs, module, Ip, EProtocol::bmhomebrew);
+	std::shared_ptr<CClient> client = clients->FindClient(cs, module, Ip, EProtocol::mmdvmclient);
 	if (client == nullptr)
 	{
-		clients->AddClient(std::make_shared<CBMMmdvmClient>(cs, Ip, module));
-		client = clients->FindClient(cs, module, Ip, EProtocol::bmhomebrew);
+		clients->AddClient(std::make_shared<CMMDVMClientPeer>(cs, Ip, module));
+		client = clients->FindClient(cs, module, Ip, EProtocol::mmdvmclient);
 	}
 
 	if (client)
@@ -572,19 +572,19 @@ void CBMMmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Head
 
 	g_Reflector.ReleaseClients();
 
-	g_Reflector.GetUsers()->Hearing(my, rpt1, rpt2, "BMMmdvm");
+	g_Reflector.GetUsers()->Hearing(my, rpt1, rpt2, "MMDVMClient");
 	g_Reflector.ReleaseUsers();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// outbound queue: Reflector -> BM
+// outbound queue: Reflector -> Master
 
-uint8_t CBMMmdvmProtocol::SlotFlag(char module) const
+uint8_t CMMDVMClientProtocol::SlotFlag(char module) const
 {
-	return (m_TGMap.ModuleToTimeslot(module) == 2) ? BMHB_FLAG_SLOT2 : BMHB_FLAG_SLOT1;
+	return (m_TGMap.ModuleToTimeslot(module) == 2) ? MMDVMCLI_FLAG_SLOT2 : MMDVMCLI_FLAG_SLOT1;
 }
 
-void CBMMmdvmProtocol::HandleQueue(void)
+void CMMDVMClientProtocol::HandleQueue(void)
 {
 	while (!m_Queue.IsEmpty())
 	{
@@ -606,7 +606,7 @@ void CBMMmdvmProtocol::HandleQueue(void)
 			if (userSrcId == 0U)
 				userSrcId = m_uiDmrId;
 
-			SBMHBStreamCache cache;
+			SMMDVMClientStreamCache cache;
 			cache.header = header;
 			cache.frameCount = 0;
 			cache.seqNo = 0;
@@ -634,7 +634,7 @@ void CBMMmdvmProtocol::HandleQueue(void)
 				if (tg == 0)
 					continue;
 
-				SBMHBStreamCache cache;
+				SMMDVMClientStreamCache cache;
 				cache.frameCount = 0;
 				cache.seqNo = 0;
 				cache.pktSeqNo = 0;
@@ -654,7 +654,7 @@ void CBMMmdvmProtocol::HandleQueue(void)
 				buf.Append((uint8_t)(tg >> 8));
 				buf.Append((uint8_t)(tg));
 				buf.Append(m_uiId, 4);
-				buf.Append((uint8_t)(SlotFlag(module) | BMHB_FLAG_DATA_SYNC | DMR_DT_VOICE_LC_HEADER));
+				buf.Append((uint8_t)(SlotFlag(module) | MMDVMCLI_FLAG_DATA_SYNC | DMR_DT_VOICE_LC_HEADER));
 				buf.Append((uint8_t *)&cache.streamId, 4);
 				AppendVoiceLCToBuffer(&buf, srcId, tg);
 				buf.Append((uint8_t)0);
@@ -692,9 +692,9 @@ void CBMMmdvmProtocol::HandleQueue(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// DMRD encoding: Reflector -> BM
+// DMRD encoding: Reflector -> Master
 
-bool CBMMmdvmProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char module, CBuffer &buffer)
+bool CMMDVMClientProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char module, CBuffer &buffer)
 {
 	uint32_t tg = m_TGMap.ModuleToTG(module);
 	auto it = m_OutboundCache.find(module);
@@ -713,7 +713,7 @@ bool CBMMmdvmProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char modu
 	buffer.Append((uint8_t)(tg >> 8));
 	buffer.Append((uint8_t)(tg));
 	buffer.Append(m_uiId, 4);
-	buffer.Append((uint8_t)(SlotFlag(module) | BMHB_FLAG_DATA_SYNC | DMR_DT_VOICE_LC_HEADER));
+	buffer.Append((uint8_t)(SlotFlag(module) | MMDVMCLI_FLAG_DATA_SYNC | DMR_DT_VOICE_LC_HEADER));
 	buffer.Append((uint8_t *)&streamId, 4);
 	AppendVoiceLCToBuffer(&buffer, srcId, tg);
 	buffer.Append((uint8_t)0);
@@ -722,7 +722,7 @@ bool CBMMmdvmProtocol::EncodeDMRDHeader(const CDvHeaderPacket &header, char modu
 	return true;
 }
 
-bool CBMMmdvmProtocol::EncodeDMRDVoiceFrame(
+bool CMMDVMClientProtocol::EncodeDMRDVoiceFrame(
 	const CDvFramePacket &frame0, const CDvFramePacket &frame1, const CDvFramePacket &frame2,
 	uint8_t seqNo, uint32_t streamId, char module, CBuffer &buffer)
 {
@@ -742,7 +742,7 @@ bool CBMMmdvmProtocol::EncodeDMRDVoiceFrame(
 
 	uint8_t voiceSeq = seqNo % 6;
 	uint8_t flags = SlotFlag(module);
-	flags |= (voiceSeq == 0) ? BMHB_FLAG_VOICE_SYNC : voiceSeq;
+	flags |= (voiceSeq == 0) ? MMDVMCLI_FLAG_VOICE_SYNC : voiceSeq;
 	buffer.Append(flags);
 
 	buffer.Append((uint8_t *)&streamId, 4);
@@ -764,7 +764,7 @@ bool CBMMmdvmProtocol::EncodeDMRDVoiceFrame(
 	return true;
 }
 
-bool CBMMmdvmProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, CBuffer &buffer)
+bool CMMDVMClientProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, CBuffer &buffer)
 {
 	uint32_t tg = m_TGMap.ModuleToTG(module);
 
@@ -777,7 +777,7 @@ bool CBMMmdvmProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, CBuf
 	buffer.Append((uint8_t)(tg >> 8));
 	buffer.Append((uint8_t)(tg));
 	buffer.Append(m_uiId, 4);
-	buffer.Append((uint8_t)(SlotFlag(module) | BMHB_FLAG_DATA_SYNC | DMR_DT_TERMINATOR_WITH_LC));
+	buffer.Append((uint8_t)(SlotFlag(module) | MMDVMCLI_FLAG_DATA_SYNC | DMR_DT_TERMINATOR_WITH_LC));
 	buffer.Append((uint8_t *)&streamId, 4);
 	AppendTerminatorLCToBuffer(&buffer, m_uiDmrId, tg);
 	buffer.Append((uint8_t)0);
@@ -789,7 +789,7 @@ bool CBMMmdvmProtocol::EncodeDMRDTerminator(uint32_t streamId, char module, CBuf
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMR frame construction helpers (adapted from CDmrmmdvmProtocol)
 
-void CBMMmdvmProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
+void CMMDVMClientProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
 {
 	uint8_t payload[33];
 	CBPTC19696 bptc;
@@ -812,7 +812,7 @@ void CBMMmdvmProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId, ui
 	::memcpy(payload + 13, g_DmrSyncBSData, 7);
 	uint8_t slottype[3];
 	::memset(slottype, 0, sizeof(slottype));
-	slottype[0]  = (BMHB_COLOUR_CODE << 4) & 0xF0;
+	slottype[0]  = (MMDVMCLI_COLOUR_CODE << 4) & 0xF0;
 	slottype[0] |= DMR_DT_VOICE_LC_HEADER & 0x0F;
 	CGolay2087::encode(slottype);
 	payload[12] = (payload[12] & 0xC0) | ((slottype[0] >> 2) & 0x3F);
@@ -824,7 +824,7 @@ void CBMMmdvmProtocol::AppendVoiceLCToBuffer(CBuffer *buffer, uint32_t srcId, ui
 	buffer->Append(payload, sizeof(payload));
 }
 
-void CBMMmdvmProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
+void CMMDVMClientProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t srcId, uint32_t dstId) const
 {
 	uint8_t payload[33];
 	CBPTC19696 bptc;
@@ -847,7 +847,7 @@ void CBMMmdvmProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t srcI
 	::memcpy(payload + 13, g_DmrSyncBSData, 7);
 	uint8_t slottype[3];
 	::memset(slottype, 0, sizeof(slottype));
-	slottype[0]  = (BMHB_COLOUR_CODE << 4) & 0xF0;
+	slottype[0]  = (MMDVMCLI_COLOUR_CODE << 4) & 0xF0;
 	slottype[0] |= DMR_DT_TERMINATOR_WITH_LC & 0x0F;
 	CGolay2087::encode(slottype);
 	payload[12] = (payload[12] & 0xC0) | ((slottype[0] >> 2) & 0x3F);
@@ -859,7 +859,7 @@ void CBMMmdvmProtocol::AppendTerminatorLCToBuffer(CBuffer *buffer, uint32_t srcI
 	buffer->Append(payload, sizeof(payload));
 }
 
-void CBMMmdvmProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketId) const
+void CMMDVMClientProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketId) const
 {
 	if (uiDmrPacketId == 0)
 	{
@@ -870,7 +870,7 @@ void CBMMmdvmProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketId
 	else
 	{
 		uint8_t emb[2];
-		emb[0]  = (BMHB_COLOUR_CODE << 4) & 0xF0;
+		emb[0]  = (MMDVMCLI_COLOUR_CODE << 4) & 0xF0;
 		emb[1]  = 0x00;
 		CQR1676::encode(emb);
 		buffer->ReplaceAt(33, (uint8_t)((buffer->at(33) & 0xF0) | ((emb[0] >> 4) & 0x0F)));
@@ -886,12 +886,12 @@ void CBMMmdvmProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketId
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMR ID / Callsign helpers
 
-uint32_t CBMMmdvmProtocol::CallsignToDmrId(const CCallsign &cs) const
+uint32_t CMMDVMClientProtocol::CallsignToDmrId(const CCallsign &cs) const
 {
 	return g_LDid.FindDmrid(cs.GetKey());
 }
 
-CCallsign CBMMmdvmProtocol::DmrIdToCallsign(uint32_t id) const
+CCallsign CMMDVMClientProtocol::DmrIdToCallsign(uint32_t id) const
 {
 	const UCallsign *ucs = g_LDid.FindCallsign(id);
 	if (ucs)
@@ -899,14 +899,14 @@ CCallsign CBMMmdvmProtocol::DmrIdToCallsign(uint32_t id) const
 	return CCallsign();
 }
 
-void CBMMmdvmProtocol::AppendDmrIdToBuffer(CBuffer *buffer, uint32_t id) const
+void CMMDVMClientProtocol::AppendDmrIdToBuffer(CBuffer *buffer, uint32_t id) const
 {
 	buffer->Append((uint8_t)(id >> 16));
 	buffer->Append((uint8_t)(id >> 8));
 	buffer->Append((uint8_t)(id));
 }
 
-void CBMMmdvmProtocol::AppendDmrRptrIdToBuffer(CBuffer *buffer, uint32_t id) const
+void CMMDVMClientProtocol::AppendDmrRptrIdToBuffer(CBuffer *buffer, uint32_t id) const
 {
 	buffer->Append((uint8_t)(id >> 24));
 	buffer->Append((uint8_t)(id >> 16));

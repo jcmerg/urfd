@@ -74,6 +74,6 @@ struct SJsonKeys {
 
 	struct FILES { const std::string pid, xml, json, white, black, interlink, terminal; }
 	files { "pidFilePath", "xmlFilePath", "jsonFilePath", "whitelistFilePath", "blacklistFilePath", "interlinkFilePath", "g3TerminalFilePath" };
-	struct BMHB { const std::string enable, address, port, localport, dmrid, password, callsign, latitude, longitude, location, description, url, rxfreq, txfreq, software, firmware; }
-	bmhb { "bmhbEnable", "bmhbAddress", "bmhbPort", "bmhbLocalPort", "bmhbDmrId", "bmhbPassword", "bmhbCallsign", "bmhbLatitude", "bmhbLongitude", "bmhbLocation", "bmhbDescription", "bmhbUrl", "bmhbRxFreq", "bmhbTxFreq", "bmhbSoftware", "bmhbFirmware" };
+	struct MMDVMCLIENT { const std::string enable, address, port, localport, dmrid, password, callsign, latitude, longitude, location, description, url, rxfreq, txfreq, software, firmware; }
+	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware" };
 };

@@ -1,5 +1,5 @@
 // TGModuleMap -- Maps DMR Talkgroups to URFD Modules and vice versa
-// Part of the BMMmdvm protocol extension for urfd
+// Part of the MMDVMClient protocol extension for urfd
 
 #include <iostream>
 #include <sstream>
@@ -16,17 +16,17 @@ bool CTGModuleMap::LoadFromConfig(void)
 	m_ModuleToTG.clear();
 
 	// Read TG mappings from the JSON config
-	// Format: "bmhbTG<number>" = "<module>[,TS<1|2>]"
-	// e.g. "bmhbTG26363" = "F" or "bmhbTG26363" = "F,TS2"
+	// Format: "mmdvmcliTG<number>" = "<module>[,TS<1|2>]"
+	// e.g. "mmdvmcliTG26363" = "F" or "mmdvmcliTG26363" = "F,TS2"
 	const auto &jdata = g_Configure.GetData();
 	for (auto it = jdata.begin(); it != jdata.end(); ++it)
 	{
 		const std::string &key = it.key();
-		if (key.substr(0, 6) == "bmhbTG")
+		if (key.substr(0, 10) == "mmdvmcliTG")
 		{
 			try
 			{
-				uint32_t tg = std::stoul(key.substr(6));
+				uint32_t tg = std::stoul(key.substr(10));
 				std::string val = it.value().get<std::string>();
 
 				// Parse "F" or "F,TS2"
@@ -55,29 +55,29 @@ bool CTGModuleMap::LoadFromConfig(void)
 					auto existing = m_ModuleToTG.find(mod);
 					if (existing != m_ModuleToTG.end())
 					{
-						std::cerr << "BMMmdvm: module " << mod << " already mapped to TG" << existing->second
+						std::cerr << "MMDVMClient: module " << mod << " already mapped to TG" << existing->second
 						          << ", cannot also map TG" << tg << " — each module may only have one TG" << std::endl;
 						continue;
 					}
 					m_TGtoEntry[tg] = { mod, ts };
 					m_ModuleToTG[mod] = tg;
-					std::cout << "BMMmdvm TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << std::endl;
+					std::cout << "MMDVMClient TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << std::endl;
 				}
 				else
 				{
-					std::cerr << "BMMmdvm: invalid module '" << val << "' for TG" << tg << std::endl;
+					std::cerr << "MMDVMClient: invalid module '" << val << "' for TG" << tg << std::endl;
 				}
 			}
 			catch (const std::exception &e)
 			{
-				std::cerr << "BMMmdvm: failed to parse TG mapping key '" << key << "': " << e.what() << std::endl;
+				std::cerr << "MMDVMClient: failed to parse TG mapping key '" << key << "': " << e.what() << std::endl;
 			}
 		}
 	}
 
 	if (m_TGtoEntry.empty())
 	{
-		std::cerr << "BMMmdvm: no TG mappings configured!" << std::endl;
+		std::cerr << "MMDVMClient: no TG mappings configured!" << std::endl;
 		return false;
 	}
 

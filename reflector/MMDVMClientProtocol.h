@@ -1,7 +1,7 @@
 #pragma once
 
-// BMMmdvmProtocol -- Connects to Brandmeister via the MMDVM protocol
-// URFD acts as an MMDVM repeater client to a BM master server.
+// MMDVMClientProtocol -- Connects to a DMR master via the MMDVM protocol
+// URFD acts as an MMDVM repeater client to an MMDVM master server.
 //
 // Copyright (C) 2024-2026
 // Licensed under the GNU General Public License v3 or later
@@ -16,24 +16,24 @@
 #include "BPTC19696.h"
 
 // MMDVM protocol constants
-#define BMHB_RETRY_PERIOD       10  // seconds between retransmissions
-#define BMHB_TIMEOUT_PERIOD     60  // seconds before connection is considered dead
-#define BMHB_PING_PERIOD        10  // seconds between keepalive pings
+#define MMDVMCLI_RETRY_PERIOD       10  // seconds between retransmissions
+#define MMDVMCLI_TIMEOUT_PERIOD     60  // seconds before connection is considered dead
+#define MMDVMCLI_PING_PERIOD        10  // seconds between keepalive pings
 
 // MMDVM data packet size
-#define HOMEBREW_DATA_PACKET_LENGTH 55
+#define MMDVMCLI_DATA_PACKET_LENGTH 55
 
 // MMDVM byte 15 flags (NOT the same as DMR_DT_* values from Protocol.h)
 // These are the flag bits in the MMDVM wire format
-#define BMHB_FLAG_SLOT1         0x00
-#define BMHB_FLAG_SLOT2         0x80
-#define BMHB_FLAG_DATA_SYNC     0x20
-#define BMHB_FLAG_VOICE_SYNC    0x10
+#define MMDVMCLI_FLAG_SLOT1         0x00
+#define MMDVMCLI_FLAG_SLOT2         0x80
+#define MMDVMCLI_FLAG_DATA_SYNC     0x20
+#define MMDVMCLI_FLAG_VOICE_SYNC    0x10
 // Colour code for this repeater
-#define BMHB_COLOUR_CODE        1
+#define MMDVMCLI_COLOUR_CODE        1
 
 // Stream cache for outbound triplet buffering (3 AMBE frames per DMRD packet)
-struct SBMHBStreamCache
+struct SMMDVMClientStreamCache
 {
 	CDvHeaderPacket header;
 	CDvFramePacket  frames[3];
@@ -44,7 +44,7 @@ struct SBMHBStreamCache
 	uint32_t        streamId;
 };
 
-class CBMMmdvmProtocol : public CProtocol
+class CMMDVMClientProtocol : public CProtocol
 {
 public:
 	// initialization
@@ -79,13 +79,13 @@ protected:
 	void SendPing(void);
 	void SendClose(void);
 
-	// DMRD incoming: BM -> Reflector
+	// DMRD incoming: Master -> Reflector
 	void OnDMRDPacketIn(const CBuffer &Buffer);
 	void OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId);
 	void OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId);
 	void OnDMRDTerminatorIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId);
 
-	// DMRD outgoing: Reflector -> BM
+	// DMRD outgoing: Reflector -> Master
 	bool EncodeDMRDHeader(const CDvHeaderPacket &header, char module, CBuffer &buffer);
 	bool EncodeDMRDVoiceFrame(const CDvFramePacket &frame0, const CDvFramePacket &frame1, const CDvFramePacket &frame2, uint8_t seqNo, uint32_t streamId, char module, CBuffer &buffer);
 	bool EncodeDMRDTerminator(uint32_t streamId, char module, CBuffer &buffer);
@@ -126,11 +126,11 @@ private:
 	// TG mapping
 	CTGModuleMap    m_TGMap;
 
-	// Incoming stream tracking: BM streamId -> URFD streamId
+	// Incoming stream tracking: master streamId -> URFD streamId
 	std::unordered_map<uint32_t, uint16_t> m_IncomingStreams;
 
 	// Outbound stream cache per module (triplet buffering)
-	std::unordered_map<char, SBMHBStreamCache> m_OutboundCache;
+	std::unordered_map<char, SMMDVMClientStreamCache> m_OutboundCache;
 
 	// SHA256
 	CSHA256         m_SHA256;
