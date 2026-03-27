@@ -133,7 +133,7 @@ bool CProtocols::Init(void)
 		if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))
 		{
 			m_Protocols.emplace_back(std::unique_ptr<CSvxReflectorProtocol>(new CSvxReflectorProtocol));
-			if (! m_Protocols.back()->Initialize("SvxReflector", EProtocol::svxreflector, uint16_t(g_Configure.GetUnsigned(g_Keys.svx.port)), SVX_IPV4, SVX_IPV6))
+			if (! m_Protocols.back()->Initialize("SvxReflector", EProtocol::svxreflector, uint16_t(0), SVX_IPV4, SVX_IPV6))
 				return false;
 		}
 

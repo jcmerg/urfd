@@ -284,10 +284,11 @@ bool CSvxReflectorProtocol::TcpReceiveFrame(std::vector<uint8_t> &frame)
 
 void CSvxReflectorProtocol::OnAuthChallenge(const std::vector<uint8_t> &payload)
 {
-	// payload: 2 bytes type + 20 bytes nonce
-	if (payload.size() < 22) return;
+	// payload: type(2) + vector_length(2) + nonce(20)
+	if (payload.size() < 24) return;
 
-	const uint8_t *nonce = &payload[2];
+	// Skip type(2) and vector length prefix(2), nonce starts at offset 4
+	const uint8_t *nonce = &payload[4];
 
 	// HMAC-SHA1(password, nonce)
 	unsigned int digest_len = 20;
@@ -297,11 +298,13 @@ void CSvxReflectorProtocol::OnAuthChallenge(const std::vector<uint8_t> &payload)
 	     nonce, 20,
 	     digest, &digest_len);
 
-	// Build MsgAuthResponse: type(2) + digest(20) + callsign(string)
+	// Build MsgAuthResponse: type(2) + callsign(string) + digest(vector<uint8_t>)
+	// Field order matches ASYNC_MSG_MEMBERS(m_callsign, m_digest)
 	std::vector<uint8_t> resp;
 	PackUint16(resp, SVX_TCP_MSG_AUTH_RESPONSE);
-	resp.insert(resp.end(), digest, digest + 20);
-	PackString(resp, m_Callsign);
+	PackString(resp, m_Callsign);          // callsign FIRST (length-prefixed string)
+	PackUint16(resp, 20);                  // vector<uint8_t> length prefix
+	resp.insert(resp.end(), digest, digest + 20); // 20 bytes HMAC digest
 
 	TcpSendFrame(resp.data(), (uint32_t)resp.size());
 	std::cout << "SvxReflector: auth response sent for " << m_Callsign << std::endl;
@@ -436,6 +439,7 @@ void CSvxReflectorProtocol::Task(void)
 		case EState::disconnected:
 			if (m_ReconnectTimer.time() >= m_ReconnectBackoff)
 			{
+				std::cout << "SvxReflector: attempting TCP connect to " << m_Host << std::endl;
 				m_ReconnectTimer.start();
 				if (TcpConnect())
 				{
@@ -451,6 +455,7 @@ void CSvxReflectorProtocol::Task(void)
 				}
 				else
 				{
+					std::cerr << "SvxReflector: TCP connect failed, next attempt in " << std::min(m_ReconnectBackoff * 2, 60) << "s" << std::endl;
 					// Increase backoff: 5, 10, 20, 40, 60, 60, ...
 					if (m_ReconnectBackoff < 60)
 						m_ReconnectBackoff = std::min(m_ReconnectBackoff * 2, 60);
