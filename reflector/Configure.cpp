@@ -857,7 +857,7 @@ bool CConfigure::ReadData(const std::string &path)
 	}
 
 	// SvxReflector
-	if (isDefined(ErrorLevel::fatal, JSVXREFLECTOR, JENABLE, g_Keys.svx.enable, rval))
+	if (isDefined(ErrorLevel::mild, JSVXREFLECTOR, JENABLE, g_Keys.svx.enable, rval))
 	{
 		if (GetBoolean(g_Keys.svx.enable))
 		{
