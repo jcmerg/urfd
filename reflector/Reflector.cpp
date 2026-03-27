@@ -263,6 +263,7 @@ std::shared_ptr<CPacketStream> CReflector::OpenStream(std::unique_ptr<CDvHeaderP
 	// set the packet module
 	DvHeader->SetPacketModule(client->GetReflectorModule());
 	// get the module's queue
+	module = DvHeader->GetPacketModule();
 	auto stream = GetStream(module);
 	if ( stream == nullptr )
 	{
