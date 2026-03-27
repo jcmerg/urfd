@@ -343,7 +343,7 @@ bool CDcsProtocol::IsValidDisconnectPacket(const CBuffer &Buffer, CCallsign *cal
 		callsign->SetCSModule(Buffer.data()[8]);
 		valid = callsign->IsValid();
 	}
-	else if ((Buffer.size() == 19) && (Buffer.data()[9] == ' ') && (Buffer.data()[10] == 0x00))
+	else if ((Buffer.size() == 19) && ((Buffer.data()[9] == ' ') || (Buffer.data()[9] == 0x00)))
 	{
 		callsign->SetCallsign(Buffer.data(), 8);
 		callsign->SetCSModule(Buffer.data()[8]);
