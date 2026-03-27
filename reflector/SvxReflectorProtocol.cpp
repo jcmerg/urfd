@@ -545,36 +545,156 @@ void CSvxReflectorProtocol::HandleKeepalives(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// stubs — will be implemented in Task 4 (incoming audio) and Task 5 (outgoing audio)
+// incoming audio path: SvxReflector -> urfd streams
 
 void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 {
-	// TODO: implement in Task 4
+	// payload: type(2) + tg(4) + ...
+	if (payload.size() < 6) return;
+	size_t pos = 2;
+	uint32_t tg = UnpackUint32(payload, pos);
+	char module = TGToModule(tg);
+	if (module == ' ')
+	{
+		std::cout << "SvxReflector: talker start on unmapped TG" << tg << ", ignoring" << std::endl;
+		return;
+	}
+
+	// Generate a stream ID in range 0x5C00-0x5CFF
+	static uint8_t counter = 0;
+	uint16_t streamId = 0x5C00 | (counter++ & 0xFF);
+
+	m_InStream.tg = tg;
+	m_InStream.module = module;
+	m_InStream.streamId = streamId;
+	m_InStream.open = false;
+
+	std::cout << "SvxReflector: talker start on TG" << tg << " -> Module " << module << std::endl;
 }
 
 void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 {
-	// TODO: implement in Task 4
+	uint32_t tg = m_InStream.tg;
+	if (m_InStream.open)
+	{
+		OnUdpFlush();
+	}
+	m_InStream.tg = 0;
+	m_InStream.module = ' ';
+	m_InStream.streamId = 0;
+	m_InStream.open = false;
+	std::cout << "SvxReflector: talker stop on TG" << tg << std::endl;
 }
 
 void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 {
-	// TODO: implement in Task 4
+	if (m_InStream.tg == 0)
+		return;
+
+	// UDP audio format from server: type(2) + opus_data
+	// Minimum: type(2) + at least 1 byte of opus data
+	if (buffer.size() < 3)
+		return;
+
+	// OPUS decode to PCM
+	int16_t pcm[160];
+	int samples = opus_decode(m_OpusDecoder, buffer.data() + 2, (int)(buffer.size() - 2), pcm, 160, 0);
+	if (samples <= 0)
+	{
+		std::cerr << "SvxReflector: opus_decode failed: " << opus_strerror(samples) << std::endl;
+		return;
+	}
+
+	// On first audio frame, open a stream with a header packet
+	if (!m_InStream.open)
+	{
+		CCallsign my;
+		my.SetCallsign(m_Callsign, false);
+		CCallsign rpt1;
+		rpt1.SetCallsign(m_Callsign, false);
+		rpt1.SetCSModule(m_InStream.module);
+		CCallsign rpt2 = m_ReflectorCallsign;
+		rpt2.SetCSModule(m_InStream.module);
+		auto header = std::unique_ptr<CDvHeaderPacket>(
+			new CDvHeaderPacket(my, CCallsign("CQCQCQ"), rpt1, rpt2, m_InStream.streamId, true));
+		OnDvHeaderPacketIn(header, m_ServerIp);
+		m_InStream.open = true;
+	}
+
+	// Create frame and push to stream
+	auto frame = std::unique_ptr<CDvFramePacket>(
+		new CDvFramePacket(pcm, m_InStream.streamId, false));
+	OnDvFramePacketIn(frame, &m_ServerIp);
 }
 
 void CSvxReflectorProtocol::OnUdpFlush(void)
 {
-	// TODO: implement in Task 4
-}
+	if (!m_InStream.open)
+		return;
 
-void CSvxReflectorProtocol::HandleQueue(void)
-{
-	// TODO: implement in Task 5
+	// Send a last packet to close the stream
+	int16_t silence[160] = {};
+	auto frame = std::unique_ptr<CDvFramePacket>(
+		new CDvFramePacket(silence, m_InStream.streamId, true));
+	frame->SetLastPacket(true);
+	OnDvFramePacketIn(frame, &m_ServerIp);
+
+	// Reset state
+	m_InStream.open = false;
+	m_InStream.tg = 0;
+	m_InStream.module = ' ';
+	m_InStream.streamId = 0;
 }
 
 void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
 {
-	// TODO: implement in Task 4
+	// Check if stream already open
+	auto stream = GetStream(Header->GetStreamId(), &Ip);
+	if (stream)
+	{
+		stream->Tickle();
+		return;
+	}
+
+	CCallsign my(Header->GetMyCallsign());
+	CCallsign rpt1(Header->GetRpt1Callsign());
+	CCallsign rpt2(Header->GetRpt2Callsign());
+
+	// Find or create client
+	CClients *clients = g_Reflector.GetClients();
+	char module = Header->GetRpt2Module();
+	CCallsign cs;
+	cs.SetCallsign(m_Callsign, false);
+	cs.SetCSModule(module);
+	std::shared_ptr<CClient> client = clients->FindClient(cs, module, Ip, EProtocol::svxreflector);
+	if (client == nullptr)
+	{
+		clients->AddClient(std::make_shared<CSvxReflectorClient>(cs, Ip, module));
+		client = clients->FindClient(cs, module, Ip, EProtocol::svxreflector);
+	}
+
+	if (client)
+	{
+		client->Alive();
+		client->SetReflectorModule(module);
+		if ((stream = g_Reflector.OpenStream(Header, client)) != nullptr)
+		{
+			m_Streams[stream->GetStreamId()] = stream;
+		}
+	}
+
+	g_Reflector.ReleaseClients();
+
+	g_Reflector.GetUsers()->Hearing(my, rpt1, rpt2, "SvxReflector");
+	g_Reflector.ReleaseUsers();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// outgoing audio path: urfd streams -> SvxReflector (stub — Task 5)
+
+void CSvxReflectorProtocol::HandleQueue(void)
+{
+	// TODO: implement in Task 5
 }
 
 void CSvxReflectorProtocol::EncodeAndSendAudio(const int16_t *pcm, uint32_t tg)
