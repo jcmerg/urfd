@@ -59,6 +59,7 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 	m_RTSum = 0;
 	m_RTCount = 0;
 	m_uiTotalPackets = 0;
+	m_uiMismatchCount = 0;
 }
 
 void CCodecStream::ReportStats()
@@ -154,12 +155,9 @@ void CCodecStream::Task(void)
 			}
 			else
 			{
-				// Not the correct packet! It will be ignored
-				// Report it
-				if (pack.streamid != Packet->GetCodecPacket()->streamid)
-					std::cerr << std::hex  << std::showbase << "StreamID mismatch: this voice frame=" << ntohs(Packet->GetCodecPacket()->streamid) << " returned transcoder packet=" << ntohs(pack.streamid) << std::dec << std::noshowbase << std::endl;
-				if (pack.sequence != Packet->GetCodecPacket()->sequence)
-					std::cerr << "Sequence mismatch: this voice frame=" << Packet->GetCodecPacket()->sequence << " returned transcoder packet=" << pack.sequence << std::endl;
+				// Stale packet from previous stream — log once, then suppress
+				if (m_uiMismatchCount++ == 0)
+					std::cerr << "Transcoder mismatch on module " << m_CSModule << " (stale packets from previous stream)" << std::endl;
 			}
 		}
 		else

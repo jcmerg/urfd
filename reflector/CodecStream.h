@@ -79,4 +79,5 @@ protected:
 	double       m_RTSum;
 	unsigned int m_RTCount;
 	uint32_t     m_uiTotalPackets;
+	uint32_t     m_uiMismatchCount;
 };
