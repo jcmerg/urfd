@@ -22,6 +22,23 @@ TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
 
 Static talkgroups may need to be configured on the master server.
 
+### SvxReflector Client
+Connect to SvxLink SvxReflector servers (e.g. FM-Funknetz) for bidirectional FM audio bridging. Uses TCP for signaling and UDP for OPUS-encoded audio. Requires transcoded modules.
+
+```ini
+[SvxReflector]
+Enable = true
+Host = svxreflector.example.com
+Port = 5300
+Callsign = YOURCALL-HS
+Password = yourpassword
+TG26363 = S              # SvxReflector TG -> Module S
+# FallbackDmrId = 1234567  # For SVX callers not in DMR database
+# BlockProtocols = MMDVMClient  # Block audio between SVX and DMR
+```
+
+**BlockProtocols** prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `BM`, `G3`. Comma-separated.
+
 ### XLX Interlink Support
 Peer with XLX reflectors using the native XLX protocol (port 10002). DNS hostnames are supported in interlink entries.
 
@@ -93,12 +110,15 @@ Complete redesign with dark mode theme.
 
 **Features:**
 - Dark mode with CSS custom properties
+- Mobile-responsive tables for peers, repeaters, users
 - Last Heard table with protocol column, pulsing TX indicator, module display
 - MOTD/maintenance banner via `$PageOptions['MOTD']` in config.inc.php
 - Module names read from urfd XML (single source of truth)
 - Contact email obfuscated against bots
 - CallingHome runs automatically via supervisor (every 5 min)
-- QuadNet Live iframe with light background wrapper
+- QuadNet Live: native PHP proxy table with search and auto-refresh (replaces iframe)
+- Reflector list: client-side search and pagination (25 per page) with CSS status dots
+- QRZ links use callsign without module suffix
 
 ### Bug Fixes
 - Fix options string per-timeslot indexing for multi-TG configs
@@ -108,10 +128,15 @@ Complete redesign with dark mode theme.
 - Fix YSF CONN_REQ radio ID collision causing phantom module switches (cherry-picked from dbehnke/urfd)
 - Fix transcoder module ID enforcement to prevent audio cross-contamination (cherry-picked from dbehnke/urfd)
 - Remove spurious getsockname warning on ephemeral ports
+- Fix concurrent stream blocking on MMDVMClient (one stream per module)
+- Fix DCS disconnect with 0x00 at byte 9
+- Fix OpenStream module lookup using wrong field
+- Suppress repeated "voice from" log messages (once per stream)
+- Reject streams on modules without transcoder connection
 
 ## Introduction
 
-The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN and USRP (AllStar).
+The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN, USRP (AllStar) and SvxReflector (SvxLink FM).
 
 A key part of this is the hybrid transcoder, [tcd](https://github.com/n7tae/tcd), in a separate repository. The reflector can be built without a transcoder, but clients will only hear other clients using the same codec.
 
@@ -156,7 +181,7 @@ Dashboard config at `/opt/urfd/dashboard/config.inc.php` (mounted into container
 
 ```bash
 sudo apt update && sudo apt upgrade
-sudo apt install git apache2 php build-essential nlohmann-json3-dev libcurl4-gnutls-dev
+sudo apt install git apache2 php build-essential nlohmann-json3-dev libcurl4-gnutls-dev libopus-dev libssl-dev
 ```
 
 ### OpenDHT support (recommended)
@@ -187,6 +212,7 @@ Edit `urfd.ini` to set:
 - Protocol-specific settings (ports, enable flags, autolink modules)
 - Echo module assignment
 - MMDVMClient TG mappings
+- SvxReflector connection and TG mappings
 - Database URLs for DMR ID, NXDN ID, YSF TX/RX lookups
 
 ### Dashboard
@@ -231,6 +257,7 @@ Required ports (only open ports for enabled protocols):
 | 41000/udp | P25 | P25 protocol |
 | 41400/udp | NXDN | NXDN protocol |
 | 42000/udp | YSF | YSF/C4FM protocol |
+| 5300/tcp+udp | SvxReflector | SvxLink (outgoing only) |
 | 62030/udp | MMDVM | DMR MMDVM |
 
 ## YSF
