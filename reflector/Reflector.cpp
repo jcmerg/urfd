@@ -611,25 +611,25 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.usrp.callsign) << "</RemoteName>";
 			xmlFile << "</Mapping>" << std::endl;
 		}
-		// BMMmdvm TG mappings for this module
-		if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))
+		// MMDVMClient TG mappings for this module
+		if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))
 		{
 			const auto &jdata = g_Configure.GetData();
 			for (auto it = jdata.begin(); it != jdata.end(); ++it)
 			{
 				const std::string &key = it.key();
-				if (key.substr(0, 6) == "bmhbTG")
+				if (key.substr(0, 10) == "mmdvmcliTG")
 				{
 					try {
 						std::string val = it.value().get<std::string>();
 						if (val.size() >= 1 && val[0] == m)
 						{
-							uint32_t tg = std::stoul(key.substr(6));
+							uint32_t tg = std::stoul(key.substr(10));
 							std::string ts = "TS2";
 							auto comma = val.find(',');
 							if (comma != std::string::npos)
 								ts = val.substr(comma + 1);
-							xmlFile << "\t<Mapping><Protocol>BMMmdvm</Protocol><Type>TG</Type>";
+							xmlFile << "\t<Mapping><Protocol>MMDVMClient</Protocol><Type>TG</Type>";
 							xmlFile << "<ID>" << tg << "</ID>";
 							xmlFile << "<Timeslot>" << ts << "</Timeslot>";
 							xmlFile << "</Mapping>" << std::endl;
@@ -696,8 +696,8 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		xmlFile << "<Protocol><Name>SvxReflector</Name><Port>" << g_Configure.GetUnsigned(g_Keys.svx.port) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.g3.enable) && g_Configure.GetBoolean(g_Keys.g3.enable))
 		xmlFile << "<Protocol><Name>G3</Name><Port>40000</Port></Protocol>" << std::endl;
-	if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))
-		xmlFile << "<Protocol><Name>BMMmdvm</Name><Port>" << (g_Configure.Contains(g_Keys.bmhb.localport) ? g_Configure.GetUnsigned(g_Keys.bmhb.localport) : 0) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))
+		xmlFile << "<Protocol><Name>MMDVMClient</Name><Port>" << (g_Configure.Contains(g_Keys.mmdvmclient.localport) ? g_Configure.GetUnsigned(g_Keys.mmdvmclient.localport) : 0) << "</Port></Protocol>" << std::endl;
 	xmlFile << "</Protocols>" << std::endl;
 
 	CCallsign cs = m_Callsign;

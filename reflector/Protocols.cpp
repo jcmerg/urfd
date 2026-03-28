@@ -26,7 +26,7 @@
 #include "YSFProtocol.h"
 #include "M17Protocol.h"
 #include "BMProtocol.h"
-#include "BMMmdvmProtocol.h"
+#include "MMDVMClientProtocol.h"
 #include "P25Protocol.h"
 #include "NXDNProtocol.h"
 #include "USRPProtocol.h"
@@ -151,13 +151,13 @@ bool CProtocols::Init(void)
 			return false;
 		}
 
-		if (g_Configure.Contains(g_Keys.bmhb.enable) && g_Configure.GetBoolean(g_Keys.bmhb.enable))
+		if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))
 		{
 			uint16_t localport = 0;
-			if (g_Configure.Contains(g_Keys.bmhb.localport))
-				localport = uint16_t(g_Configure.GetUnsigned(g_Keys.bmhb.localport));
-			m_Protocols.emplace_back(std::unique_ptr<CBMMmdvmProtocol>(new CBMMmdvmProtocol));
-			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::bmhomebrew, localport, DMR_IPV4, false))
+			if (g_Configure.Contains(g_Keys.mmdvmclient.localport))
+				localport = uint16_t(g_Configure.GetUnsigned(g_Keys.mmdvmclient.localport));
+			m_Protocols.emplace_back(std::unique_ptr<CMMDVMClientProtocol>(new CMMDVMClientProtocol));
+			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::mmdvmclient, localport, DMR_IPV4, false))
 				return false;
 		}
 

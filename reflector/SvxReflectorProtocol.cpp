@@ -218,7 +218,7 @@ bool CSvxReflectorProtocol::TcpConnect(void)
 	// back to blocking with short timeouts for reads
 	int flags = fcntl(m_TcpFd, F_GETFL);
 	fcntl(m_TcpFd, F_SETFL, flags & ~O_NONBLOCK);
-	struct timeval tv = { 0, 100000 }; // 100ms read timeout
+	struct timeval tv = { 0, 5000 }; // 5ms read timeout — keep short for UDP audio
 	setsockopt(m_TcpFd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
 	std::cout << "SvxReflector: TCP connected to " << m_Host << ":" << portStr << std::endl;
@@ -338,12 +338,6 @@ void CSvxReflectorProtocol::OnServerInfo(const std::vector<uint8_t> &payload)
 {
 	if (payload.size() < 4) return;
 
-	// Debug: dump ServerInfo hex
-	std::cout << "SvxReflector: ServerInfo raw (" << payload.size() << " bytes):";
-	for (size_t i = 0; i < std::min(payload.size(), (size_t)40); i++)
-		printf(" %02x", payload[i]);
-	std::cout << std::endl;
-
 	size_t pos = 2; // skip type
 	m_ClientId = UnpackUint32(payload, pos);
 	std::cout << "SvxReflector: received ServerInfo, client_id=" << m_ClientId << std::endl;
@@ -367,20 +361,11 @@ void CSvxReflectorProtocol::OnServerInfo(const std::vector<uint8_t> &payload)
 
 	// Send initial UDP heartbeat immediately so server learns our UDP address
 	{
-		uint16_t cid = (uint16_t)(m_ClientId & 0xFFFF);
 		m_UdpSeq = 0;
 		CBuffer hb;
-		uint8_t hbdata[6];
-		hbdata[0] = (SVX_UDP_MSG_HEARTBEAT >> 8) & 0xFF;
-		hbdata[1] = SVX_UDP_MSG_HEARTBEAT & 0xFF;
-		hbdata[2] = (cid >> 8) & 0xFF;
-		hbdata[3] = cid & 0xFF;
-		hbdata[4] = 0;
-		hbdata[5] = 0;
-		m_UdpSeq++;
-		hb.Set(hbdata, 6);
+		BuildUdpHeader(hb, SVX_UDP_MSG_HEARTBEAT);
 		Send(hb, m_ServerIp);
-		std::cout << "SvxReflector: initial UDP heartbeat sent, client_id=" << m_ClientId << " (0x" << std::hex << cid << std::dec << ")" << std::endl;
+		std::cout << "SvxReflector: initial UDP heartbeat sent, client_id=" << m_ClientId << std::endl;
 	}
 	m_UdpHeartbeatTimer.start();
 	m_UdpLastReceiveTimer.start();
@@ -394,15 +379,6 @@ void CSvxReflectorProtocol::OnServerInfo(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnTcpMessage(uint16_t type, const std::vector<uint8_t> &payload)
 {
-	// Debug: log all TCP messages
-	if (type != SVX_TCP_MSG_HEARTBEAT)
-	{
-		std::cout << "SvxReflector: TCP msg type=" << type << " len=" << payload.size() << " hex:";
-		for (size_t i = 0; i < std::min(payload.size(), (size_t)32); i++)
-			printf(" %02x", payload[i]);
-		std::cout << std::endl;
-	}
-
 	switch (type)
 	{
 		case SVX_TCP_MSG_HEARTBEAT:
@@ -452,16 +428,16 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 
 	LoadTGMap();
 
-	// Initialize OPUS encoder at 8kHz (outgoing: PCM 8kHz -> OPUS)
-	// and decoder at 16kHz (incoming: OPUS from SvxLink 16kHz -> resample to 8kHz)
+	// OPUS encoder at 16kHz (SvxReflector expects 16kHz OPUS)
+	// OPUS decoder at 8kHz (libopus resamples 16kHz->8kHz internally, clean anti-aliased)
 	int err;
-	m_OpusEncoder = opus_encoder_create(8000, 1, OPUS_APPLICATION_VOIP, &err);
+	m_OpusEncoder = opus_encoder_create(16000, 1, OPUS_APPLICATION_AUDIO, &err);
 	if (err != OPUS_OK)
 	{
 		std::cerr << "SvxReflector: opus_encoder_create failed: " << opus_strerror(err) << std::endl;
 		return false;
 	}
-	m_OpusDecoder = opus_decoder_create(16000, 1, &err);
+	m_OpusDecoder = opus_decoder_create(8000, 1, &err);
 	if (err != OPUS_OK)
 	{
 		std::cerr << "SvxReflector: opus_decoder_create failed: " << opus_strerror(err) << std::endl;
@@ -547,54 +523,33 @@ void CSvxReflectorProtocol::Task(void)
 
 			if (m_State == EState::connected)
 			{
-				// Receive UDP audio
+				// Drain all pending UDP packets
 				CBuffer buffer;
 				CIp ip;
-				if (Receive4(buffer, ip, 20))
+				while (Receive4(buffer, ip, 0))
 				{
 					m_UdpLastReceiveTimer.start();
 					if (buffer.size() >= 2)
 					{
 						uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
-						std::cout << "SvxReflector: UDP recv type=" << type << " len=" << buffer.size() << " from " << ip << std::endl;
 						if (type == SVX_UDP_MSG_AUDIO)
 							OnUdpAudio(buffer);
 						else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
 							OnUdpFlush();
 						else if (type == SVX_UDP_MSG_HEARTBEAT)
-					{
-						// Debug: dump server heartbeat
-						static int hbDbg = 0;
-						if (hbDbg < 3) {
-							std::cout << "SvxReflector: UDP HB from server (" << buffer.size() << " bytes):";
-							for (size_t i = 0; i < buffer.size(); i++) printf(" %02x", buffer.data()[i]);
-							std::cout << std::endl;
-							hbDbg++;
-						}
-					}
-						else
-							std::cout << "SvxReflector: UDP unknown type " << type << std::endl;
+						{} // heartbeat OK
+						else if (type == SVX_UDP_MSG_ALL_FLUSHED)
+						{} // acknowledge flush
 					}
 				}
 
 				// Send UDP heartbeat
-				if (m_UdpHeartbeatTimer.time() >= 5) // send every 5s for now
+				if (m_UdpHeartbeatTimer.time() >= SVX_UDP_KEEPALIVE_PERIOD)
 				{
-					// V2 UDP format: type(2) + client_id(2) + seq(2)
-					uint16_t cid = (uint16_t)(m_ClientId & 0xFFFF);
 					CBuffer hb;
-					uint8_t hbdata[6];
-					hbdata[0] = (SVX_UDP_MSG_HEARTBEAT >> 8) & 0xFF;
-					hbdata[1] = SVX_UDP_MSG_HEARTBEAT & 0xFF;
-					hbdata[2] = (cid >> 8) & 0xFF;
-					hbdata[3] = cid & 0xFF;
-					hbdata[4] = (m_UdpSeq >> 8) & 0xFF;
-					hbdata[5] = m_UdpSeq & 0xFF;
-					m_UdpSeq++;
-					hb.Set(hbdata, 6);
+					BuildUdpHeader(hb, SVX_UDP_MSG_HEARTBEAT);
 					Send(hb, m_ServerIp);
 					m_UdpHeartbeatTimer.start();
-					std::cout << "SvxReflector: UDP heartbeat sent to " << m_ServerIp << " client_id=" << m_ClientId << std::endl;
 				}
 
 				// Check UDP timeout
@@ -604,6 +559,9 @@ void CSvxReflectorProtocol::Task(void)
 					TcpDisconnect();
 					m_ReconnectTimer.start();
 				}
+
+				// Handle end of streaming timeout
+				CheckStreamsTimeout();
 
 				// Handle outbound queue
 				HandleQueue();
@@ -626,12 +584,27 @@ void CSvxReflectorProtocol::HandleKeepalives(void)
 
 void CSvxReflectorProtocol::CloseInStream(void)
 {
-	// Don't close the reflector stream - let it expire via timeout
-	// (same approach as USRP protocol)
-	// Keep streamId and open flag so next TalkerStart reuses the stream
+	if (m_InStream.open)
+	{
+		// Send a silent last-frame to close the stream cleanly
+		int16_t silence[160] = {};
+		auto lastFrame = std::unique_ptr<CDvFramePacket>(
+			new CDvFramePacket(silence, m_InStream.streamId, true));
+		lastFrame->SetPacketModule(m_InStream.module);
+		auto it = m_Streams.find(m_InStream.streamId);
+		if (it != m_Streams.end() && it->second)
+		{
+			it->second->Push(std::move(lastFrame));
+			g_Reflector.CloseStream(it->second);
+			m_Streams.erase(it);
+		}
+
+		m_InStream.open = false;
+		m_InStream.streamId = 0;
+	}
 	m_InStream.tg = 0;
+	m_InStream.module = ' ';
 	m_InStream.talkerCallsign.clear();
-	// m_InStream.open, m_InStream.streamId, m_InStream.module stay unchanged
 }
 
 void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
@@ -682,20 +655,8 @@ void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 {
-	// If no TalkerStart received yet, use first configured TG/module
-	if (m_InStream.module == ' ' && !m_TGToModule.empty())
-	{
-		auto first = m_TGToModule.begin();
-		m_InStream.tg = first->first;
-		m_InStream.module = first->second;
-		if (!m_InStream.open)
-		{
-			static uint8_t counter = 0;
-			m_InStream.streamId = 0x5C00 | (counter++ & 0xFF);
-		}
-		std::cout << "SvxReflector: audio without TalkerStart, using TG" << m_InStream.tg << " -> Module " << m_InStream.module << std::endl;
-	}
-	if (m_InStream.module == ' ')
+	// Ignore audio if no active talker (no TalkerStart received or after TalkerStop)
+	if (m_InStream.module == ' ' || m_InStream.tg == 0)
 		return;
 
 	// V2 UDP audio: type(2) + client_id(2) + seq(2) + opus_len(2) + opus_data
@@ -709,42 +670,21 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		return;
 	}
 
-	// OPUS data starts at offset 8
-	// Decode at 16kHz (320 samples per 20ms frame), then downsample to 8kHz (160 samples)
-	int16_t pcm16k[320];
-	int samples = opus_decode(m_OpusDecoder, buffer.data() + 8, opusLen, pcm16k, 320, 0);
+	// Decode OPUS to 8kHz PCM (libopus resamples from 16kHz internally)
+	int16_t pcm[160];
+	int samples = opus_decode(m_OpusDecoder, buffer.data() + 8, opusLen, pcm, 160, 0);
 	if (samples <= 0)
 	{
 		std::cerr << "SvxReflector: opus_decode failed: " << opus_strerror(samples) << std::endl;
 		return;
 	}
-
-	// Downsample 16kHz -> 8kHz (simple decimation: take every 2nd sample)
-	int16_t pcm[160];
-	int outSamples = samples / 2;
-	if (outSamples > 160) outSamples = 160;
-	for (int i = 0; i < outSamples; i++)
-		pcm[i] = pcm16k[i * 2];
-	// Zero-pad if we got fewer samples
-	for (int i = outSamples; i < 160; i++)
+	// Zero-pad if fewer than 160 samples
+	for (int i = samples; i < 160; i++)
 		pcm[i] = 0;
-
-	// Log first frame per talker with PCM peak level
-	static uint32_t lastLogTg = 0;
-	if (lastLogTg != m_InStream.tg || !m_InStream.open)
-	{
-		int16_t peak = 0;
-		for (int i = 0; i < outSamples; i++)
-			if (abs(pcm[i]) > peak) peak = abs(pcm[i]);
-		std::cout << "SvxReflector: audio decoded " << samples << "@16k -> " << outSamples << "@8k, peak=" << peak
-		          << " open=" << m_InStream.open << " sid=0x" << std::hex << m_InStream.streamId << std::dec << std::endl;
-		lastLogTg = m_InStream.tg;
-	}
 
 	// On first audio frame, open a stream with a header packet
 	if (!m_InStream.open)
 	{
-		std::cout << "SvxReflector: opening stream, creating header..." << std::endl;
 		// Use talker callsign if available, otherwise reflector callsign
 		std::string userCs = m_InStream.talkerCallsign.empty() ? "URF363" : m_InStream.talkerCallsign;
 		CCallsign my;
@@ -753,13 +693,11 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		rpt1.SetCSModule(m_InStream.module);
 		CCallsign rpt2 = m_ReflectorCallsign;
 		rpt2.SetCSModule(m_InStream.module);
-		std::cout << "SvxReflector: my=" << my << " rpt1=" << rpt1 << " rpt2=" << rpt2 << " sid=0x" << std::hex << m_InStream.streamId << std::dec << std::endl;
 		auto header = std::unique_ptr<CDvHeaderPacket>(
 			new CDvHeaderPacket(my, CCallsign("CQCQCQ"), rpt1, rpt2, m_InStream.streamId, true));
-		std::cout << "SvxReflector: header created, calling OnDvHeaderPacketIn..." << std::endl;
 		OnDvHeaderPacketIn(header, m_ServerIp);
 		m_InStream.open = true;
-		std::cout << "SvxReflector: stream opened for module " << m_InStream.module << std::endl;
+		std::cout << "SvxReflector: stream opened for " << userCs << " on module " << m_InStream.module << std::endl;
 	}
 
 	// Create frame and push directly to stream
@@ -814,14 +752,11 @@ void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> 
 		client->SetReflectorModule(module);
 		if ((stream = g_Reflector.OpenStream(Header, client)) != nullptr)
 		{
-			uint16_t sid = stream->GetStreamId();
-			m_Streams[sid] = stream;
-			std::cout << "SvxReflector: OpenStream OK, stored in m_Streams[0x" << std::hex << sid << std::dec
-			          << "], m_Streams.size()=" << m_Streams.size() << std::endl;
+			m_Streams[stream->GetStreamId()] = stream;
 		}
 		else
 		{
-			std::cerr << "SvxReflector: OpenStream FAILED for module " << module << std::endl;
+			std::cerr << "SvxReflector: OpenStream failed for module " << module << std::endl;
 		}
 	}
 	else
@@ -867,10 +802,7 @@ void CSvxReflectorProtocol::HandleQueue(void)
 			{
 				// Send UDP flush to signal end of transmission
 				CBuffer flushBuf;
-				uint8_t flushData[2];
-				flushData[0] = (SVX_UDP_MSG_FLUSH_SAMPLES >> 8) & 0xFF;
-				flushData[1] = SVX_UDP_MSG_FLUSH_SAMPLES & 0xFF;
-				flushBuf.Set(flushData, 2);
+				BuildUdpHeader(flushBuf, SVX_UDP_MSG_FLUSH_SAMPLES);
 				Send(flushBuf, m_ServerIp);
 
 				// Cleanup
@@ -889,23 +821,46 @@ void CSvxReflectorProtocol::HandleQueue(void)
 	}
 }
 
+void CSvxReflectorProtocol::BuildUdpHeader(CBuffer &buf, uint16_t type)
+{
+	// V2 UDP header: type(2) + client_id(2) + seq(2)
+	uint16_t cid = (uint16_t)(m_ClientId & 0xFFFF);
+	uint8_t hdr[6];
+	hdr[0] = (type >> 8) & 0xFF;
+	hdr[1] = type & 0xFF;
+	hdr[2] = (cid >> 8) & 0xFF;
+	hdr[3] = cid & 0xFF;
+	hdr[4] = (m_UdpSeq >> 8) & 0xFF;
+	hdr[5] = m_UdpSeq & 0xFF;
+	m_UdpSeq++;
+	buf.Set(hdr, 6);
+}
+
 void CSvxReflectorProtocol::EncodeAndSendAudio(const int16_t *pcm, uint32_t tg)
 {
-	// OPUS encode
+	// OPUS encode at 16kHz (upsample 8kHz PCM -> 16kHz for SvxReflector)
+	int16_t pcm16k[320];
+	for (int i = 0; i < 160; i++)
+	{
+		pcm16k[i * 2] = pcm[i];
+		pcm16k[i * 2 + 1] = (i < 159) ? (int16_t)(((int32_t)pcm[i] + pcm[i+1]) / 2) : pcm[i];
+	}
+
 	uint8_t opusBuf[512];
-	int opusLen = opus_encode(m_OpusEncoder, pcm, 160, opusBuf, sizeof(opusBuf));
+	int opusLen = opus_encode(m_OpusEncoder, pcm16k, 320, opusBuf, sizeof(opusBuf));
 	if (opusLen <= 0)
 	{
 		std::cerr << "SvxReflector: opus_encode failed: " << opus_strerror(opusLen) << std::endl;
 		return;
 	}
 
-	// Build UDP packet: type(2) + opus_data
+	// V2 UDP audio: header(6) + opus_len(2) + opus_data
 	CBuffer buf;
-	uint8_t hdr[2];
-	hdr[0] = (SVX_UDP_MSG_AUDIO >> 8) & 0xFF;
-	hdr[1] = SVX_UDP_MSG_AUDIO & 0xFF;
-	buf.Set(hdr, 2);
+	BuildUdpHeader(buf, SVX_UDP_MSG_AUDIO);
+	uint8_t lenHdr[2];
+	lenHdr[0] = (opusLen >> 8) & 0xFF;
+	lenHdr[1] = opusLen & 0xFF;
+	buf.Append(lenHdr, 2);
 	buf.Append(opusBuf, opusLen);
 
 	Send(buf, m_ServerIp);

@@ -1,11 +1,12 @@
+<div class="table-responsive">
 <table class="table table-striped table-hover">
 	<tr class="table-center">
-		<th class="col-md-1">#</th>
+		<th class="col-md-1 mobile-hide">#</th>
 		<th class="col-md-1">Flag</th>
 		<th class="col-md-2">DV Station</th>
-		<th class="col-md-1">Band</th>
+		<th class="col-md-1 mobile-hide">Band</th>
 		<th class="col-md-2">Last Heard</th>
-		<th class="col-md-2">Linked for</th>
+		<th class="col-md-2 mobile-hide">Linked for</th>
 		<th class="col-md-1">Protocol</th>
 		<th class="col-md-1">Module</th><?php
 
@@ -22,7 +23,7 @@ $Reflector->LoadFlags();
 for ($i=0;$i<$Reflector->NodeCount();$i++) {
 
 	echo '<tr class="table-center">
-	<td>'.($i+1).'</td>
+	<td class="mobile-hide">'.($i+1).'</td>
 	<td>';
 	list ($Flag, $Name) = $Reflector->GetFlag($Reflector->Nodes[$i]->GetCallSign());
 	if (file_exists("./img/flags/".$Flag.".png")) {
@@ -34,7 +35,7 @@ for ($i=0;$i<$Reflector->NodeCount();$i++) {
 	echo '" class="pl" target="_blank">'.$Reflector->Nodes[$i]->GetCallSign();
 	if ($Reflector->Nodes[$i]->GetSuffix() != "") { echo '-'.$Reflector->Nodes[$i]->GetSuffix(); }
 	echo '</a></td>
-	<td>';
+	<td class="mobile-hide">';
 	if (($Reflector->Nodes[$i]->GetPrefix() == 'REF') || ($Reflector->Nodes[$i]->GetPrefix() == 'XRF')) {
 		switch ($Reflector->Nodes[$i]->GetPrefix()) {
 			case 'REF'  : echo 'REF-Link'; break;
@@ -53,7 +54,7 @@ for ($i=0;$i<$Reflector->NodeCount();$i++) {
 	}
 	echo '</td>
 	<td>'.date("d.m.Y H:i", $Reflector->Nodes[$i]->GetLastHeardTime()).'</td>
-	<td>'.FormatSeconds(time()-$Reflector->Nodes[$i]->GetConnectTime()).' s</td>
+	<td class="mobile-hide">'.FormatSeconds(time()-$Reflector->Nodes[$i]->GetConnectTime()).' s</td>
 	<td>'.$Reflector->Nodes[$i]->GetProtocol().'</td>
 	<td>'.$Reflector->Nodes[$i]->GetLinkedModule().'</td>';
 	if ($PageOptions['RepeatersPage']['IPModus'] != 'HideIP') {
@@ -94,3 +95,4 @@ for ($i=0;$i<$Reflector->NodeCount();$i++) {
 ?>
 
 </table>
+</div>

@@ -55,7 +55,8 @@ foreach ($Modules as $mod) {
     if ($count > 0) {
         foreach ($NodeIDs as $nid) {
             $displayName = $Reflector->GetCallsignAndSuffixByID($nid);
-            echo '<tr><td><a href="https://www.qrz.com/db/' . htmlspecialchars($displayName) . '" class="pl" target="_blank">' . htmlspecialchars($displayName) . '</a></td></tr>';
+            $qrzCall = explode('-', $displayName)[0];
+            echo '<tr><td><a href="https://www.qrz.com/db/' . htmlspecialchars($qrzCall) . '" class="pl" target="_blank">' . htmlspecialchars($displayName) . '</a></td></tr>';
         }
     } else {
         echo '<tr><td class="text-muted" style="font-style:italic; text-align:center;">No nodes connected</td></tr>';

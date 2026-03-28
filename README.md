@@ -6,13 +6,13 @@ Fork of [urfd](https://github.com/nostar/urfd) with extended features for the UR
 
 ## What's New in This Fork
 
-### BMMmdvm Connector
-Direct Brandmeister connection via the MMDVM protocol. Maps BM talkgroups to reflector modules with per-timeslot support.
+### MMDVMClient Connector
+Connect to any DMR master server via the MMDVM protocol. Maps talkgroups to reflector modules with per-timeslot support.
 
 ```ini
-[BMMmdvm]
+[MMDVMClient]
 Enable = true
-MasterAddress = 2622.master.brandmeister.network
+MasterAddress = master.example.com    # DMR master server
 MasterPort = 62031
 DmrId = 123456701
 Password = yourpassword
@@ -20,7 +20,7 @@ Callsign = YOURCALL
 TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
 ```
 
-Each TG must also be configured as a static talkgroup in the BM Selfcare portal.
+Static talkgroups may need to be configured on the master server.
 
 ### XLX Interlink Support
 Peer with XLX reflectors using the native XLX protocol (port 10002). DNS hostnames are supported in interlink entries.
@@ -77,9 +77,9 @@ The XML status file now includes:
 
 - **Reflector metadata**: callsign, country, sponsor, dashboard URL, email
 - **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID
-- **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (BMMmdvm), USRP bridges
+- **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient), USRP bridges
 - **Enabled protocols**: name and port for each active protocol
-- **Per-station protocol**: which protocol a user was heard on (DCS, BMMmdvm, YSF, etc.)
+- **Per-station protocol**: which protocol a user was heard on (DCS, MMDVMClient, YSF, etc.)
 
 Module names are configured once in `urfd.ini` and automatically available in the dashboard.
 
@@ -101,7 +101,7 @@ Complete redesign with dark mode theme.
 - QuadNet Live iframe with light background wrapper
 
 ### Bug Fixes
-- Fix BM options string per-timeslot indexing for multi-TG configs
+- Fix options string per-timeslot indexing for multi-TG configs
 - Fix `Mode=both` DB loader failbit when file is empty
 - Fix Via/Peer display matching both XLX and URF reflector name variants
 - Fix callsign sanitization for malformed NXDN/DMR gateway callsigns (cherry-picked from dbehnke/urfd)
@@ -111,7 +111,7 @@ Complete redesign with dark mode theme.
 
 ## Introduction
 
-The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, BMMmdvm), M17, YSF, P25, NXDN and USRP (AllStar).
+The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN and USRP (AllStar).
 
 A key part of this is the hybrid transcoder, [tcd](https://github.com/n7tae/tcd), in a separate repository. The reflector can be built without a transcoder, but clients will only hear other clients using the same codec.
 
@@ -186,7 +186,7 @@ Edit `urfd.ini` to set:
 - Transcoder port and modules (set port to 0 if no transcoder)
 - Protocol-specific settings (ports, enable flags, autolink modules)
 - Echo module assignment
-- BMMmdvm TG mappings
+- MMDVMClient TG mappings
 - Database URLs for DMR ID, NXDN ID, YSF TX/RX lookups
 
 ### Dashboard

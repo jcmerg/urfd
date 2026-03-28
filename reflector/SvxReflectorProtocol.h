@@ -75,6 +75,7 @@ protected:
 	void OnUdpFlush(void);
 	void CloseInStream(void);
 	void EncodeAndSendAudio(const int16_t *pcm, uint32_t tg);
+	void BuildUdpHeader(CBuffer &buf, uint16_t type);
 
 	// serialization helpers (big-endian)
 	void PackUint16(std::vector<uint8_t> &buf, uint16_t val);

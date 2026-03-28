@@ -1,7 +1,7 @@
 #pragma once
 
 // TGModuleMap -- Maps DMR Talkgroups to URFD Modules and vice versa
-// Part of the BMMmdvm protocol extension for urfd
+// Part of the MMDVMClient protocol extension for urfd
 
 #include <map>
 #include <string>
