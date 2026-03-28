@@ -686,7 +686,7 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 	if (!m_InStream.open)
 	{
 		// Use talker callsign if available, otherwise reflector callsign
-		std::string userCs = m_InStream.talkerCallsign.empty() ? "URF363" : m_InStream.talkerCallsign;
+		std::string userCs = m_InStream.talkerCallsign.empty() ? m_Callsign : m_InStream.talkerCallsign;
 		CCallsign my;
 		my.SetCallsign(userCs, true); // true = lookup DMR ID
 		CCallsign rpt1(g_Reflector.GetCallsign());
