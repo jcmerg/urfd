@@ -663,7 +663,13 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 {
-	uint32_t tg = m_InStream.tg;
+	// Read TG from payload (not from m_InStream which may already be cleared by Flush)
+	uint32_t tg = 0;
+	if (payload.size() >= 6)
+	{
+		size_t pos = 2;
+		tg = UnpackUint32(payload, pos);
+	}
 	CloseInStream();
 	std::cout << "SvxReflector: talker stop on TG" << tg << std::endl;
 }
