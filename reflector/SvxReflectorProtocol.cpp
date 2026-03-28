@@ -17,8 +17,6 @@
 
 #include <openssl/hmac.h>
 #include <regex>
-#include <sstream>
-#include <map>
 
 #include "SvxReflectorProtocol.h"
 #include "SvxReflectorClient.h"
@@ -49,8 +47,7 @@ static std::string ExtractCallsign(const std::string &svxCallsign)
 // constructor / destructor
 
 CSvxReflectorProtocol::CSvxReflectorProtocol()
-	: m_FallbackDmrId(0)
-	, m_State(EState::disconnected)
+	: m_State(EState::disconnected)
 	, m_TcpFd(-1)
 	, m_ReconnectBackoff(SVX_RECONNECT_PERIOD)
 	, m_ClientId(0)
@@ -262,21 +259,23 @@ bool CSvxReflectorProtocol::TcpReceiveFrame(std::vector<uint8_t> &frame)
 {
 	if (m_TcpFd < 0) return false;
 
+	// Non-blocking check: return immediately if no TCP data waiting
+	struct pollfd pfd = { m_TcpFd, POLLIN, 0 };
+	if (poll(&pfd, 1, 0) <= 0)
+		return false;
+
 	uint8_t hdr[4];
 	ssize_t n = recv(m_TcpFd, hdr, 4, MSG_WAITALL);
 	if (n == 0)
 	{
-		// Peer closed connection
 		std::cerr << "SvxReflector: TCP connection closed by server" << std::endl;
 		TcpDisconnect();
 		return false;
 	}
 	if (n != 4)
 	{
-		// EAGAIN/EWOULDBLOCK means no data yet (SO_RCVTIMEO timeout) — not an error
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return false;
-		// Real error
 		std::cerr << "SvxReflector: TCP recv error: " << strerror(errno) << std::endl;
 		TcpDisconnect();
 		return false;
@@ -428,40 +427,6 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 	m_Host = g_Configure.GetString(g_Keys.svx.host);
 	m_Password = g_Configure.GetString(g_Keys.svx.password);
 	m_Callsign = g_Configure.GetString(g_Keys.svx.callsign);
-	m_FallbackDmrId = g_Configure.GetUnsigned(g_Keys.svx.fallbackdmrid);
-
-	// Parse BlockProtocols (comma-separated list, e.g. "MMDVMClient,USRP")
-	{
-		std::string bp = g_Configure.GetString(g_Keys.svx.blockprotocols);
-		// Protocol name to EProtocol mapping
-		const std::map<std::string, EProtocol> protoMap = {
-			{"MMDVMClient", EProtocol::mmdvmclient}, {"DExtra", EProtocol::dextra},
-			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
-			{"DMRPlus", EProtocol::dmrplus}, {"DMRMMDVM", EProtocol::dmrmmdvm},
-			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
-			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
-			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},
-			{"BM", EProtocol::bm}, {"G3", EProtocol::g3},
-		};
-		std::istringstream ss(bp);
-		std::string token;
-		while (std::getline(ss, token, ','))
-		{
-			// trim whitespace
-			token.erase(0, token.find_first_not_of(" \t"));
-			token.erase(token.find_last_not_of(" \t") + 1);
-			auto it = protoMap.find(token);
-			if (it != protoMap.end())
-			{
-				m_BlockedSources.insert(it->second);
-				std::cout << "SvxReflector: blocking protocol " << token << std::endl;
-			}
-			else if (!token.empty())
-			{
-				std::cerr << "SvxReflector: unknown protocol in BlockProtocols: " << token << std::endl;
-			}
-		}
-	}
 
 	LoadTGMap();
 
@@ -530,7 +495,31 @@ void CSvxReflectorProtocol::Task(void)
 		case EState::authenticating:
 		case EState::connected:
 		{
-			// Receive TCP frames
+			if (m_State == EState::connected)
+			{
+				// UDP first: drain all pending audio packets before processing TCP
+				// This ensures audio frames arrive before TalkerStop closes the stream
+				CBuffer buffer;
+				CIp ip;
+				while (Receive4(buffer, ip, 0))
+				{
+					m_UdpLastReceiveTimer.start();
+					if (buffer.size() >= 2)
+					{
+						uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
+						if (type == SVX_UDP_MSG_AUDIO)
+							OnUdpAudio(buffer);
+						else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
+							OnUdpFlush();
+						else if (type == SVX_UDP_MSG_HEARTBEAT)
+						{} // heartbeat OK
+						else if (type == SVX_UDP_MSG_ALL_FLUSHED)
+						{} // acknowledge flush
+					}
+				}
+			}
+
+			// Receive TCP frames (non-blocking via poll)
 			std::vector<uint8_t> frame;
 			while (TcpReceiveFrame(frame))
 			{
@@ -560,25 +549,6 @@ void CSvxReflectorProtocol::Task(void)
 
 			if (m_State == EState::connected)
 			{
-				// Drain all pending UDP packets
-				CBuffer buffer;
-				CIp ip;
-				while (Receive4(buffer, ip, 0))
-				{
-					m_UdpLastReceiveTimer.start();
-					if (buffer.size() >= 2)
-					{
-						uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
-						if (type == SVX_UDP_MSG_AUDIO)
-							OnUdpAudio(buffer);
-						else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
-							OnUdpFlush();
-						else if (type == SVX_UDP_MSG_HEARTBEAT)
-						{} // heartbeat OK
-						else if (type == SVX_UDP_MSG_ALL_FLUSHED)
-						{} // acknowledge flush
-					}
-				}
 
 				// Send UDP heartbeat
 				if (m_UdpHeartbeatTimer.time() >= SVX_UDP_KEEPALIVE_PERIOD)
@@ -662,6 +632,14 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 		talkerCs = ExtractCallsign(raw);
 	}
 
+	// Loop detection: if we are currently sending audio TO SVX on this module,
+	// ignore incoming TalkerStart (it's our own audio echoed back)
+	if (m_OutStreamTG.count(module) > 0)
+	{
+		std::cout << "SvxReflector: ignoring TalkerStart on module " << module << " (outgoing stream active, loop)" << std::endl;
+		return;
+	}
+
 	m_InStream.tg = tg;
 	m_InStream.talkerCallsign = talkerCs;
 
@@ -726,9 +704,6 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		std::string userCs = m_InStream.talkerCallsign.empty() ? m_Callsign : m_InStream.talkerCallsign;
 		CCallsign my;
 		my.SetCallsign(userCs, true); // true = lookup DMR ID
-		// Fallback DMR ID for callsigns not in the database
-		if (my.GetDmrid() == 0 && m_FallbackDmrId != 0)
-			my.SetDmrid(m_FallbackDmrId, false);
 		CCallsign rpt1(g_Reflector.GetCallsign());
 		rpt1.SetCSModule(m_InStream.module);
 		CCallsign rpt2 = m_ReflectorCallsign;
