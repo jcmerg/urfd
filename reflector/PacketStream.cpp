@@ -86,20 +86,6 @@ void CPacketStream::Push(std::unique_ptr<CPacket> Packet)
 	{
 		Packet->UpdatePids(m_uiPacketCntr++);
 	}
-	// ... Is there a CodecStream (is this module transcoded)?
-	// AND Is this voice data?
-	// AND Is this from a local client and not from an interlinked URF
-	static int psDbg = 0;
-	if (psDbg < 5 && Packet->IsDvFrame())
-	{
-		std::cout << "PacketStream::Push module=" << m_PSModule
-		          << " codecStream=" << (m_CodecStream ? "YES" : "NO")
-		          << " isDvFrame=" << Packet->IsDvFrame()
-		          << " isLocal=" << Packet->IsLocalOrigin()
-		          << " codecIn=" << (int)Packet->GetCodecIn()
-		          << std::endl;
-		psDbg++;
-	}
 	if ( m_CodecStream && Packet->IsDvFrame() && Packet->IsLocalOrigin())
 	{
 		// yes, push packet to trancoder queue
