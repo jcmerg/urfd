@@ -22,7 +22,7 @@ fclose($Result);
 <table class="table table-striped table-hover">
 	<tr class="table-center">
 		<th class="col-md-1 mobile-hide">#</th>
-		<th class="col-md-2">XLX Peer</th>
+		<th class="col-md-2">Peer</th>
 		<th class="col-md-2">Last Heard</th>
 		<th class="col-md-2 mobile-hide">Linked for</th>
 		<th class="col-md-2">Protocol</th>
