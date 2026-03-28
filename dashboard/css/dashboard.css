@@ -521,23 +521,37 @@ a.pl:hover {
 
 .pagination > li > a,
 .pagination > li > span {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-color);
-  color: var(--link-color);
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--link-color) !important;
 }
 
-.pagination > li > a:hover {
-  background-color: var(--bg-tertiary);
-  border-color: var(--border-color);
-  color: var(--link-hover);
+.pagination > li > a:hover,
+.pagination > li > a:focus {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--link-hover) !important;
 }
 
 .pagination > .active > a,
 .pagination > .active > a:hover,
-.pagination > .active > a:focus {
-  background-color: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.pagination > .active > a:focus,
+.pagination > .active > span,
+.pagination > .active > span:hover {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+
+.pagination > .disabled > a,
+.pagination > .disabled > span,
+.pagination > .disabled > a:hover,
+.pagination > .disabled > a:focus,
+.pagination > .disabled > span:hover,
+.pagination > .disabled > span:focus {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-muted) !important;
 }
 
 
@@ -666,6 +680,22 @@ pre {
 @keyframes live-pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--highlight, #e94560); }
   50% { opacity: 0.4; box-shadow: 0 0 12px var(--highlight, #e94560); }
+}
+
+/* Service status dots (reflector list) */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-up {
+  background-color: var(--success);
+}
+
+.status-down {
+  background-color: var(--danger);
 }
 
 .idle-indicator {
