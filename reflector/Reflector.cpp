@@ -360,16 +360,15 @@ void CReflector::RouterThread(const char ThisModule)
 		m_Protocols.Lock();
 		for ( auto it=m_Protocols.begin(); it!=m_Protocols.end(); it++ )
 		{
-			// bidirectional block: skip if target blocks source
+			// bidirectional block: skip if target blocks source or vice versa
+			EProtocol dstProto = (*it)->GetProtocolType();
 			if ((*it)->IsSourceBlocked(srcProto))
 			{
 				if (packet->IsDvHeader())
-					std::cout << "Router: blocked " << (int)srcProto << " -> " << (int)(*it)->GetProtocolType() << " on module " << ThisModule << std::endl;
+					std::cout << "Router: blocked on module " << ThisModule << " (BlockProtocols)" << std::endl;
 				continue;
 			}
-			// also skip if source protocol blocks target (reverse direction)
 			bool reverseBlocked = false;
-			EProtocol dstProto = (*it)->GetProtocolType();
 			for (auto sit=m_Protocols.begin(); sit!=m_Protocols.end(); sit++)
 			{
 				if ((*sit)->GetProtocolType() == srcProto && (*sit)->IsSourceBlocked(dstProto))
@@ -378,7 +377,7 @@ void CReflector::RouterThread(const char ThisModule)
 			if (reverseBlocked)
 			{
 				if (packet->IsDvHeader())
-					std::cout << "Router: blocked " << (int)srcProto << " <-> " << (int)dstProto << " on module " << ThisModule << " (reverse)" << std::endl;
+					std::cout << "Router: blocked on module " << ThisModule << " (BlockProtocols, reverse)" << std::endl;
 				continue;
 			}
 
