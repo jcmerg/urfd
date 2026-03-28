@@ -17,6 +17,8 @@
 
 #include <openssl/hmac.h>
 #include <regex>
+#include <sstream>
+#include <map>
 
 #include "SvxReflectorProtocol.h"
 #include "SvxReflectorClient.h"
@@ -47,7 +49,8 @@ static std::string ExtractCallsign(const std::string &svxCallsign)
 // constructor / destructor
 
 CSvxReflectorProtocol::CSvxReflectorProtocol()
-	: m_State(EState::disconnected)
+	: m_FallbackDmrId(0)
+	, m_State(EState::disconnected)
 	, m_TcpFd(-1)
 	, m_ReconnectBackoff(SVX_RECONNECT_PERIOD)
 	, m_ClientId(0)
@@ -427,6 +430,37 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 	m_Host = g_Configure.GetString(g_Keys.svx.host);
 	m_Password = g_Configure.GetString(g_Keys.svx.password);
 	m_Callsign = g_Configure.GetString(g_Keys.svx.callsign);
+	if (g_Configure.Contains(g_Keys.svx.fallbackdmrid))
+		m_FallbackDmrId = g_Configure.GetUnsigned(g_Keys.svx.fallbackdmrid);
+
+	// Parse BlockProtocols (comma-separated, e.g. "MMDVMClient,USRP")
+	if (g_Configure.Contains(g_Keys.svx.blockprotocols))
+	{
+		const std::map<std::string, EProtocol> protoMap = {
+			{"MMDVMClient", EProtocol::mmdvmclient}, {"DExtra", EProtocol::dextra},
+			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
+			{"DMRPlus", EProtocol::dmrplus}, {"DMRMMDVM", EProtocol::dmrmmdvm},
+			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
+			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
+			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},
+			{"BM", EProtocol::bm}, {"G3", EProtocol::g3},
+		};
+		std::istringstream ss(g_Configure.GetString(g_Keys.svx.blockprotocols));
+		std::string token;
+		while (std::getline(ss, token, ','))
+		{
+			token.erase(0, token.find_first_not_of(" \t"));
+			token.erase(token.find_last_not_of(" \t") + 1);
+			auto it = protoMap.find(token);
+			if (it != protoMap.end())
+			{
+				m_BlockedSources.insert(it->second);
+				std::cout << "SvxReflector: blocking protocol " << token << std::endl;
+			}
+			else if (!token.empty())
+				std::cerr << "SvxReflector: unknown protocol in BlockProtocols: " << token << std::endl;
+		}
+	}
 
 	LoadTGMap();
 
@@ -632,11 +666,12 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 		talkerCs = ExtractCallsign(raw);
 	}
 
-	// Loop detection: if we are currently sending audio TO SVX on this module,
+	// Loop detection: if we recently sent audio TO SVX on this module,
 	// ignore incoming TalkerStart (it's our own audio echoed back)
-	if (m_OutStreamTG.count(module) > 0)
+	auto oit = m_OutLastSend.find(module);
+	if (oit != m_OutLastSend.end() && oit->second.time() < 2.0)
 	{
-		std::cout << "SvxReflector: ignoring TalkerStart on module " << module << " (outgoing stream active, loop)" << std::endl;
+		std::cout << "SvxReflector: ignoring TalkerStart on module " << module << " (echo, last send " << oit->second.time() << "s ago)" << std::endl;
 		return;
 	}
 
@@ -710,6 +745,19 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		std::string userCs = m_InStream.talkerCallsign.empty() ? m_Callsign : m_InStream.talkerCallsign;
 		CCallsign my;
 		my.SetCallsign(userCs, true); // true = lookup DMR ID
+		// Fallback DMR ID for callsigns not in the database
+		if (my.GetDmrid() == 0)
+		{
+			if (m_FallbackDmrId != 0)
+			{
+				my.SetDmrid(m_FallbackDmrId, false);
+				std::cout << "SvxReflector: using fallback DMR ID " << m_FallbackDmrId << " for " << userCs << std::endl;
+			}
+			else
+			{
+				std::cerr << "SvxReflector: no DMR ID found for " << userCs << " and no FallbackDmrId configured" << std::endl;
+			}
+		}
 		CCallsign rpt1(g_Reflector.GetCallsign());
 		rpt1.SetCSModule(m_InStream.module);
 		CCallsign rpt2 = m_ReflectorCallsign;
@@ -718,7 +766,7 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 			new CDvHeaderPacket(my, CCallsign("CQCQCQ"), rpt1, rpt2, m_InStream.streamId, true));
 		OnDvHeaderPacketIn(header, m_ServerIp);
 		m_InStream.open = true;
-		std::cout << "SvxReflector: stream opened for " << userCs << " on module " << m_InStream.module << std::endl;
+		std::cout << "SvxReflector: stream opened for " << userCs << " (DMR ID " << my.GetDmrid() << ") on module " << m_InStream.module << std::endl;
 	}
 
 	// Create frame and push directly to stream
@@ -836,6 +884,7 @@ void CSvxReflectorProtocol::HandleQueue(void)
 				if (pcm)
 				{
 					EncodeAndSendAudio(pcm, tg);
+					m_OutLastSend[module].start();
 				}
 			}
 		}

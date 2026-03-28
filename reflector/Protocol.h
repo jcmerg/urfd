@@ -22,6 +22,7 @@
 #include "PacketStream.h"
 #include "DVHeaderPacket.h"
 #include "DVFramePacket.h"
+#include <set>
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -82,6 +83,10 @@ public:
 	// pass-through
 	void Push(std::unique_ptr<CPacket> p) { m_Queue.Push(std::move(p)); }
 
+	// protocol blocking (bidirectional)
+	bool IsSourceBlocked(EProtocol src) const { return m_BlockedSources.count(src) > 0; }
+	EProtocol GetProtocolType(void) const { return m_ProtocolType; }
+
 protected:
 	// stream helpers
 	virtual void OnDvFramePacketIn(std::unique_ptr<CDvFramePacket> &, const CIp * = nullptr);
@@ -134,6 +139,10 @@ protected:
 
 	// identity
 	CCallsign       m_ReflectorCallsign;
+
+	// protocol type and blocking
+	EProtocol m_ProtocolType = EProtocol::none;
+	std::set<EProtocol> m_BlockedSources;
 
 	// data
 	uint16_t m_Port;
