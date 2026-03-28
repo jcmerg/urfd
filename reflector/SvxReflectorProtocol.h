@@ -136,4 +136,7 @@ protected:
 
 	// outgoing stream state per module
 	std::unordered_map<char, uint32_t> m_OutStreamTG;
+
+	// DMR ID fallback for unknown SVX callsigns
+	uint32_t m_FallbackDmrId;
 };

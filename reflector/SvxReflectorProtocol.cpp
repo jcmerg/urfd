@@ -17,6 +17,8 @@
 
 #include <openssl/hmac.h>
 #include <regex>
+#include <sstream>
+#include <map>
 
 #include "SvxReflectorProtocol.h"
 #include "SvxReflectorClient.h"
@@ -47,7 +49,8 @@ static std::string ExtractCallsign(const std::string &svxCallsign)
 // constructor / destructor
 
 CSvxReflectorProtocol::CSvxReflectorProtocol()
-	: m_State(EState::disconnected)
+	: m_FallbackDmrId(0)
+	, m_State(EState::disconnected)
 	, m_TcpFd(-1)
 	, m_ReconnectBackoff(SVX_RECONNECT_PERIOD)
 	, m_ClientId(0)
@@ -425,6 +428,40 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 	m_Host = g_Configure.GetString(g_Keys.svx.host);
 	m_Password = g_Configure.GetString(g_Keys.svx.password);
 	m_Callsign = g_Configure.GetString(g_Keys.svx.callsign);
+	m_FallbackDmrId = g_Configure.GetUnsigned(g_Keys.svx.fallbackdmrid);
+
+	// Parse BlockProtocols (comma-separated list, e.g. "MMDVMClient,USRP")
+	{
+		std::string bp = g_Configure.GetString(g_Keys.svx.blockprotocols);
+		// Protocol name to EProtocol mapping
+		const std::map<std::string, EProtocol> protoMap = {
+			{"MMDVMClient", EProtocol::mmdvmclient}, {"DExtra", EProtocol::dextra},
+			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
+			{"DMRPlus", EProtocol::dmrplus}, {"DMRMMDVM", EProtocol::dmrmmdvm},
+			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
+			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
+			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},
+			{"BM", EProtocol::bm}, {"G3", EProtocol::g3},
+		};
+		std::istringstream ss(bp);
+		std::string token;
+		while (std::getline(ss, token, ','))
+		{
+			// trim whitespace
+			token.erase(0, token.find_first_not_of(" \t"));
+			token.erase(token.find_last_not_of(" \t") + 1);
+			auto it = protoMap.find(token);
+			if (it != protoMap.end())
+			{
+				m_BlockedSources.insert(it->second);
+				std::cout << "SvxReflector: blocking protocol " << token << std::endl;
+			}
+			else if (!token.empty())
+			{
+				std::cerr << "SvxReflector: unknown protocol in BlockProtocols: " << token << std::endl;
+			}
+		}
+	}
 
 	LoadTGMap();
 
@@ -689,6 +726,9 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		std::string userCs = m_InStream.talkerCallsign.empty() ? m_Callsign : m_InStream.talkerCallsign;
 		CCallsign my;
 		my.SetCallsign(userCs, true); // true = lookup DMR ID
+		// Fallback DMR ID for callsigns not in the database
+		if (my.GetDmrid() == 0 && m_FallbackDmrId != 0)
+			my.SetDmrid(m_FallbackDmrId, false);
 		CCallsign rpt1(g_Reflector.GetCallsign());
 		rpt1.SetCSModule(m_InStream.module);
 		CCallsign rpt2 = m_ReflectorCallsign;

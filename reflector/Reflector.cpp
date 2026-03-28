@@ -350,10 +350,30 @@ void CReflector::RouterThread(const char ThisModule)
 
 		packet->SetPacketModule(ThisModule);
 
+		// get source protocol type from stream owner
+		EProtocol srcProto = EProtocol::none;
+		auto ownerClient = streamIn->GetOwnerClient();
+		if (ownerClient)
+			srcProto = ownerClient->GetProtocol();
+
 		// iterate on all protocols
 		m_Protocols.Lock();
 		for ( auto it=m_Protocols.begin(); it!=m_Protocols.end(); it++ )
 		{
+			// bidirectional block: skip if target blocks source
+			if ((*it)->IsSourceBlocked(srcProto))
+				continue;
+			// also skip if source protocol blocks target (reverse direction)
+			bool reverseBlocked = false;
+			EProtocol dstProto = (*it)->GetProtocolType();
+			for (auto sit=m_Protocols.begin(); sit!=m_Protocols.end(); sit++)
+			{
+				if ((*sit)->GetProtocolType() == srcProto && (*sit)->IsSourceBlocked(dstProto))
+				{ reverseBlocked = true; break; }
+			}
+			if (reverseBlocked)
+				continue;
+
 			auto copy = packet->Copy();
 
 			// if packet is header, update RPT2 according to protocol
