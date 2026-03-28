@@ -801,11 +801,11 @@ void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> 
 	CCallsign rpt1(Header->GetRpt1Callsign());
 	CCallsign rpt2(Header->GetRpt2Callsign());
 
-	// Find or create client — use configured node callsign, not the talker
+	// Find or create client — use configured node callsign
 	CClients *clients = g_Reflector.GetClients();
 	char module = Header->GetRpt2Module();
 	CCallsign cs;
-	cs.SetCallsign(m_Callsign, false);
+	cs.SetCallsign(ExtractCallsign(m_Callsign), false); // "DL4JC-HS" -> "DL4JC"
 	cs.SetCSModule(module);
 	std::shared_ptr<CClient> client = clients->FindClient(cs, module, Ip, EProtocol::svxreflector);
 	if (client == nullptr)
