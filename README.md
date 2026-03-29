@@ -62,7 +62,7 @@ DCS002 dcs002.xreflector.net S          # native DCS protocol (default)
 DCS002 dcs002.xreflector.net S XLX      # XLX peering on port 10002
 ```
 
-DCS entries support two peering modes: native DCS protocol (port 30051, default) or XLX peering (port 10002, append `XLX`). URF peers use port 10017, XLX peers use port 10002.
+DCS entries support two peering modes: native DCS protocol (port 30051, default) or XLX peering (port 10002, append `XLX`). The protocol field is only supported for DCS entries. URF peers use port 10017, XLX peers use port 10002.
 
 ### Echo Module
 Built-in echo/parrot function. Assign it to any module - audio is recorded and played back after 3 seconds of silence.
