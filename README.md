@@ -144,20 +144,34 @@ This build supports dual-stack operation (IPv4 + IPv6).
 
 ## Docker Deployment
 
-This fork includes Docker support for easy deployment. See the `docker/` directory for all deployment files.
+This fork includes Docker support for easy deployment. See [`docker/README.md`](docker/README.md) for full details.
 
-### Build and run
+### Deployment options
+
+| Scenario | Compose file | Description |
+|---|---|---|
+| urfd + tcd combined | `docker-compose.combined.yml` | Both on one host, tcd uses md380 software vocoder |
+| urfd only | `docker-compose.urfd-only.yml` | Transcoder runs on a separate host |
+| tcd only | `docker-compose.tcd-only.yml` | Reflector runs on a separate host |
+
+Each variant is also available as `.nas.yml` for Synology NAS (pre-built images, absolute paths).
+
+The tcd container uses [md380_vocoder_dynarmic](https://github.com/jcmerg/md380_vocoder_dynarmic) — only one DVSI hardware device is needed, the second vocoder runs in software on x86_64. See the [tcd fork](https://github.com/jcmerg/tcd) for details.
+
+### Quick start
 
 ```bash
-cd /opt/urfd
-bash build.sh
-```
+cd docker
+cp ../docker-tcd/tcd.ini.example tcd.ini
+# Edit tcd.ini: set Modules and ServerAddress
 
-The `build.sh` script builds the Docker image and restarts the container. It uses `docker-compose.yml` with `network_mode: host`.
+docker compose -f docker-compose.combined.yml build
+docker compose -f docker-compose.combined.yml up -d
+```
 
 ### Container architecture
 
-The container runs three services via supervisord:
+The urfd container runs three services via supervisord:
 - **urfd** - The reflector daemon
 - **nginx + php-fpm** - Dashboard on port 8363
 - **callhome** - Automatic CallingHome every 5 minutes
