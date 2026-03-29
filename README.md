@@ -157,28 +157,15 @@ This build supports dual-stack operation (IPv4 + IPv6).
 
 This fork includes Docker support for easy deployment. See [`docker/README.md`](docker/README.md) for full details.
 
-### Deployment options
-
-| Scenario | Compose file | Description |
-|---|---|---|
-| urfd + tcd combined | `docker-compose.combined.yml` | Both on one host, tcd uses md380 software vocoder |
-| urfd only | `docker-compose.urfd-only.yml` | Transcoder runs on a separate host |
-| tcd only | `docker-compose.tcd-only.yml` | Reflector runs on a separate host |
-
-Each variant is also available as `.nas.yml` for Synology NAS (pre-built images, absolute paths).
-
-The tcd container uses [md380_vocoder_dynarmic](https://github.com/jcmerg/md380_vocoder_dynarmic) — only one DVSI hardware device is needed, the second vocoder runs in software on x86_64. See the [tcd fork](https://github.com/jcmerg/tcd) for details.
-
 ### Quick start
 
 ```bash
 cd docker
-cp ../docker-tcd/tcd.ini.example tcd.ini
-# Edit tcd.ini: set Modules and ServerAddress
-
-docker compose -f docker-compose.combined.yml build
-docker compose -f docker-compose.combined.yml up -d
+docker compose build
+docker compose up -d
 ```
+
+The transcoder ([tcd](https://github.com/jcmerg/tcd)) runs on a separate host with a DVSI AMBE device attached via USB. With the [md380_vocoder](https://github.com/jcmerg/md380_vocoder) library, only one DVSI device is needed — DMR/YSF runs in software.
 
 ### Container architecture
 
