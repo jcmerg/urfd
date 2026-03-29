@@ -365,7 +365,7 @@ void CReflector::RouterThread(const char ThisModule)
 			if ((*it)->IsSourceBlocked(srcProto))
 			{
 				if (packet->IsDvHeader())
-					std::cout << "Router: blocked on module " << ThisModule << " (BlockProtocols)" << std::endl;
+					std::cout << "Router: " << g_GateKeeper.ProtocolName(srcProto) << " -> " << g_GateKeeper.ProtocolName(dstProto) << " blocked on module " << ThisModule << std::endl;
 				continue;
 			}
 			bool reverseBlocked = false;
@@ -377,7 +377,7 @@ void CReflector::RouterThread(const char ThisModule)
 			if (reverseBlocked)
 			{
 				if (packet->IsDvHeader())
-					std::cout << "Router: blocked on module " << ThisModule << " (BlockProtocols, reverse)" << std::endl;
+					std::cout << "Router: " << g_GateKeeper.ProtocolName(srcProto) << " -> " << g_GateKeeper.ProtocolName(dstProto) << " blocked on module " << ThisModule << std::endl;
 				continue;
 			}
 

@@ -304,6 +304,12 @@ const std::string CGateKeeper::ProtocolName(const EProtocol p) const
 			return "XLXPeer";
 		case EProtocol::g3:
 			return "Icom G3";
+		case EProtocol::svxreflector:
+			return "SvxReflector";
+		case EProtocol::m17:
+			return "M17";
+		case EProtocol::dplus:
+			return "DPlus";
 		default:
 			return "NONE";
 	}
