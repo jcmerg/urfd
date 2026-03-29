@@ -22,6 +22,8 @@ TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
 # BlockProtocols = SvxReflector,YSF  # Block audio from these protocols (comma-separated)
 ```
 
+**FallbackDmrId**: When a callsign cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped to prevent the repeater's own DMR ID from appearing as the caller on DMR.
+
 Static talkgroups may need to be configured on the master server.
 
 ### SvxReflector Client
@@ -37,8 +39,6 @@ Password = yourpassword
 TG26363 = S              # SvxReflector TG -> Module S
 # BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols (comma-separated)
 ```
-
-**FallbackDmrId** (MMDVMClient): When a callsign cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped to prevent the repeater's own DMR ID from appearing as the caller on DMR.
 
 **BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `BM`, `G3`. Comma-separated.
 
