@@ -528,25 +528,30 @@ void CSvxReflectorProtocol::Task(void)
 		{
 			if (m_State == EState::connected)
 			{
-				// UDP first: drain all pending audio packets before processing TCP
-				// This ensures audio frames arrive before TalkerStop closes the stream
+				// Drain all pending UDP audio packets (non-blocking)
 				CBuffer buffer;
 				CIp ip;
-				while (Receive4(buffer, ip, 0))
+				if (!Receive4(buffer, ip, 20))
 				{
-					m_UdpLastReceiveTimer.start();
-					if (buffer.size() >= 2)
-					{
-						uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
-						if (type == SVX_UDP_MSG_AUDIO)
-							OnUdpAudio(buffer);
-						else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
-							OnUdpFlush();
-						else if (type == SVX_UDP_MSG_HEARTBEAT)
-						{} // heartbeat OK
-						else if (type == SVX_UDP_MSG_ALL_FLUSHED)
-						{} // acknowledge flush
-					}
+					// No UDP data within 20ms — skip to TCP/timers
+				}
+				else
+				{
+					do {
+						m_UdpLastReceiveTimer.start();
+						if (buffer.size() >= 2)
+						{
+							uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
+							if (type == SVX_UDP_MSG_AUDIO)
+								OnUdpAudio(buffer);
+							else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
+								OnUdpFlush();
+							else if (type == SVX_UDP_MSG_HEARTBEAT)
+							{} // heartbeat OK
+							else if (type == SVX_UDP_MSG_ALL_FLUSHED)
+							{} // acknowledge flush
+						}
+					} while (Receive4(buffer, ip, 0));
 				}
 			}
 
