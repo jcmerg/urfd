@@ -11,7 +11,7 @@ services:
       - /volume1/docker/urfd/config:/usr/local/etc/urfd
       - /volume1/docker/urfd/dashboard/config.inc.php:/var/www/urfd-dashboard/pgs/config.inc.php
       - /volume1/docker/urfd/xlxd-ch:/var/lib/xlxd-ch
-      - urfd-xml:/var/log
+      - /volume1/docker/urfd/log:/var/log
     healthcheck:
       test: ["CMD", "pgrep", "urfd"]
       interval: 30s
@@ -37,5 +37,3 @@ services:
       urfd:
         condition: service_healthy
 
-volumes:
-  urfd-xml:
