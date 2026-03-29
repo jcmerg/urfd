@@ -156,7 +156,7 @@ Header and text message alternate every superframe (~420ms), so D-Star radios di
 
 The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN, USRP (AllStar) and SvxReflector (SvxLink FM).
 
-A key part of this is the hybrid transcoder, [tcd](https://github.com/n7tae/tcd), in a separate repository. The reflector can be built without a transcoder, but clients will only hear other clients using the same codec.
+A key part of this is the hybrid transcoder, [tcd](https://github.com/jcmerg/tcd), in a separate repository. The reflector can be built without a transcoder, but clients will only hear other clients using the same codec.
 
 This build supports dual-stack operation (IPv4 + IPv6).
 
