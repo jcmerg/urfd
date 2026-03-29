@@ -58,8 +58,10 @@ Port = 10002
 # Format: <Callsign> <Address> <Modules> [Port] [Protocol]
 URF270 urf270.example.com EF
 XLX269 xlx269.example.com A
-DCS002 dcs002.xreflector.net S          # native DCS protocol (default)
-DCS002 dcs002.xreflector.net S XLX      # XLX peering on port 10002
+DCS002 dcs002.xreflector.net S              # native DCS (port 30051)
+DCS002 dcs002.xreflector.net S 31000       # native DCS on custom port
+DCS002 dcs002.xreflector.net S XLX         # XLX peering (port 10002)
+DCS002 dcs002.xreflector.net S 10002 XLX   # XLX on explicit port
 ```
 
 DCS entries support two peering modes: native DCS protocol (port 30051, default) or XLX peering (port 10002, append `XLX`). The protocol field is only supported for DCS entries. URF peers use port 10017, XLX peers use port 10002.

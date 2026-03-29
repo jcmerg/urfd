@@ -15,12 +15,13 @@
 #    XLX269 xlx269.example.com A
 #
 #  DCS Peering (two modes, optional protocol field — DCS entries only):
-#    DCS002 dcs002.xreflector.net S         # native DCS protocol (port 30051)
-#    DCS002 dcs002.xreflector.net S XLX     # XLX protocol (port 10002)
+#    DCS002 dcs002.xreflector.net S             # native DCS (port 30051)
+#    DCS002 dcs002.xreflector.net S 31000       # native DCS on custom port
+#    DCS002 dcs002.xreflector.net S XLX         # XLX protocol (port 10002)
+#    DCS002 dcs002.xreflector.net S 10002 XLX   # XLX on explicit port
 #
 #    Default for DCS entries is native DCS protocol on port 30051.
 #    Add "XLX" to use XLX peering instead (requires [XLXPeer] Enable = true).
 #    The protocol field is only supported for DCS entries.
-#    Port can be overridden: DCS002 dcs002.net S 10002 XLX
 #
 #############################################################################
