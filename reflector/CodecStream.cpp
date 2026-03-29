@@ -114,7 +114,7 @@ void CCodecStream::Thread()
 void CCodecStream::Task(void)
 {
 	STCPacket pack;
-	if (g_TCServer.Receive(m_CSModule, &pack, 8))
+	if (g_TCServer.Receive(m_CSModule, &pack, 0))
 	{
 		if (m_IsOpen && pack.streamid == m_uiStreamId && !m_LocalQueue.IsEmpty())
 		{
@@ -167,9 +167,6 @@ void CCodecStream::Task(void)
 
 		if (m_IsOpen)
 		{
-			static uint32_t send_cnt = 0;
-			if (++send_cnt % 500 == 1)
-				std::cout << "CodecStream[" << m_CSModule << "]: sending packet #" << send_cnt << " sid=0x" << std::hex << m_uiStreamId << std::dec << " to transcoder" << std::endl;
 			// update important stuff in Frame->m_TCPack for the transcoder
 			// sets the packet counter, stream id, last_packet, module and start the trip timer
 			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);

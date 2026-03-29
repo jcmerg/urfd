@@ -757,15 +757,7 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 	{
 		it->second->Push(std::move(frame));
 	}
-	else
-	{
-		static int drop_count = 0;
-		if (drop_count++ < 5)
-			std::cerr << "SvxReflector: frame dropped, sid=0x" << std::hex << m_InStream.streamId << std::dec << " m_Streams.size=" << m_Streams.size() << std::endl;
-	}
-	static uint32_t frame_cnt = 0;
-	if (++frame_cnt % 500 == 0)
-		std::cout << "SvxReflector: pushed " << frame_cnt << " audio frames total" << std::endl;
+}
 }
 
 void CSvxReflectorProtocol::OnUdpFlush(void)
@@ -847,22 +839,11 @@ void CSvxReflectorProtocol::HandleQueue(void)
 				if (stream)
 				{
 					auto owner = stream->GetOwnerClient();
-					if (owner)
+					if (owner && owner->GetProtocol() == EProtocol::svxreflector)
 					{
-						if (owner->GetProtocol() == EProtocol::svxreflector)
-						{
-							m_OutStreamTG.erase(module);
-							continue;
-						}
+						m_OutStreamTG.erase(module);
+						continue;
 					}
-					else
-					{
-						std::cout << "SvxReflector: HandleQueue header on module " << module << " - stream has no owner" << std::endl;
-					}
-				}
-				else
-				{
-					std::cout << "SvxReflector: HandleQueue header on module " << module << " - no active stream found" << std::endl;
 				}
 			}
 
