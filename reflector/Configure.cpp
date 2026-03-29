@@ -567,8 +567,6 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.svx.callsign] = value;
 				else if (0 == key.compare("Password"))
 					data[g_Keys.svx.password] = value;
-				else if (0 == key.compare("FallbackDmrId"))
-					data[g_Keys.svx.fallbackdmrid] = getUnsigned(value, "SvxReflector FallbackDmrId", 0, 999999999, 0);
 				else if (0 == key.compare("BlockProtocols"))
 					data[g_Keys.svx.blockprotocols] = value;
 				else if (0 == key.compare(0, 2, "TG"))

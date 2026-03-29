@@ -35,11 +35,10 @@ Port = 5300
 Callsign = YOURCALL-HS
 Password = yourpassword
 TG26363 = S              # SvxReflector TG -> Module S
-# FallbackDmrId = 1234567  # For SVX callers not in DMR database (omit = drop stream)
 # BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols (comma-separated)
 ```
 
-**FallbackDmrId** (MMDVMClient and SvxReflector): When a callsign from YSF, D-Star or other modes cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped to prevent the repeater's own DMR ID from appearing as the caller on DMR.
+**FallbackDmrId** (MMDVMClient): When a callsign cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped to prevent the repeater's own DMR ID from appearing as the caller on DMR.
 
 **BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `BM`, `G3`. Comma-separated.
 
