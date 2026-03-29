@@ -598,13 +598,6 @@ void CSvxReflectorProtocol::Task(void)
 					m_ReconnectTimer.start();
 				}
 
-				// Close stream if flushed and no new audio within 1s
-				if (m_Flushed && m_FlushTime.time() > 1.0)
-				{
-					CloseInStream();
-					m_Flushed = false;
-				}
-
 				// Handle end of streaming timeout
 				CheckStreamsTimeout();
 
@@ -706,10 +699,6 @@ void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 {
-	// New audio after flush — cancel the pending close
-	if (m_Flushed)
-		m_Flushed = false;
-
 	// Ignore audio if no active talker (no TalkerStart received or after TalkerStop)
 	if (m_InStream.module == ' ' || m_InStream.tg == 0)
 		return;
@@ -768,15 +757,20 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 	{
 		it->second->Push(std::move(frame));
 	}
+	else
+	{
+		static int drop_count = 0;
+		if (drop_count++ < 5)
+			std::cerr << "SvxReflector: frame dropped, sid=0x" << std::hex << m_InStream.streamId << std::dec << " m_Streams.size=" << m_Streams.size() << std::endl;
+	}
+	static uint32_t frame_cnt = 0;
+	if (++frame_cnt % 500 == 0)
+		std::cout << "SvxReflector: pushed " << frame_cnt << " audio frames total" << std::endl;
 }
 
 void CSvxReflectorProtocol::OnUdpFlush(void)
 {
-	// Don't close the stream immediately — a new TalkerStart may follow shortly.
-	// Just mark the flush time. The stream will be closed by CheckStreamsTimeout
-	// or by the next Task() iteration if no audio arrives.
-	m_FlushTime.start();
-	m_Flushed = true;
+	CloseInStream();
 }
 
 void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip)
@@ -808,6 +802,11 @@ void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> 
 
 	if (client)
 	{
+		// Force clear master status from previous stream
+		if (client->IsAMaster())
+		{
+			client->NotAMaster();
+		}
 		client->Alive();
 		client->SetReflectorModule(module);
 		if ((stream = g_Reflector.OpenStream(Header, client)) != nullptr)

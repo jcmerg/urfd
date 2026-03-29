@@ -136,8 +136,4 @@ protected:
 
 	// outgoing stream state per module
 	std::unordered_map<char, uint32_t> m_OutStreamTG;
-
-	// deferred flush
-	bool m_Flushed = false;
-	CTimer m_FlushTime;
 };
