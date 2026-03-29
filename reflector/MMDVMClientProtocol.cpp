@@ -6,6 +6,7 @@
 
 #include <string.h>
 #include <cstdlib>
+#include <sstream>
 
 #include "Global.h"
 #include "MMDVMClientPeer.h"
@@ -44,6 +45,35 @@ bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, c
 	// Resolve master address
 	auto addr = g_Configure.GetString(g_Keys.mmdvmclient.address);
 	m_MasterIp = CIp(addr.c_str(), AF_INET, SOCK_DGRAM, m_MasterPort);
+
+	// Parse BlockProtocols (comma-separated, e.g. "SvxReflector,YSF")
+	if (g_Configure.Contains(g_Keys.mmdvmclient.blockprotocols))
+	{
+		const std::map<std::string, EProtocol> protoMap = {
+			{"SvxReflector", EProtocol::svxreflector}, {"DExtra", EProtocol::dextra},
+			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
+			{"DMRPlus", EProtocol::dmrplus}, {"DMRMMDVM", EProtocol::dmrmmdvm},
+			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
+			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
+			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},
+			{"BM", EProtocol::bm}, {"G3", EProtocol::g3},
+		};
+		std::istringstream ss(g_Configure.GetString(g_Keys.mmdvmclient.blockprotocols));
+		std::string token;
+		while (std::getline(ss, token, ','))
+		{
+			token.erase(0, token.find_first_not_of(" \t"));
+			token.erase(token.find_last_not_of(" \t") + 1);
+			auto it = protoMap.find(token);
+			if (it != protoMap.end())
+			{
+				m_BlockedSources.insert(it->second);
+				std::cout << "MMDVMClient: blocking protocol " << token << std::endl;
+			}
+			else if (!token.empty())
+				std::cerr << "MMDVMClient: unknown protocol in BlockProtocols: " << token << std::endl;
+		}
+	}
 
 	// Load TG mappings
 	if (!m_TGMap.LoadFromConfig())
