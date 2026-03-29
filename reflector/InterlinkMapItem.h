@@ -53,6 +53,8 @@ public:
 	const std::string &GetModules(void) const { return m_Mods; }
 	bool UsesDHT(void) const                  { return m_UsesDHT; }
 	uint16_t GetPort(void) const              { return m_Port; }
+	const std::string &GetProtocol(void) const { return m_Protocol; }
+	void SetProtocol(const std::string &p)    { m_Protocol = p; }
 #ifndef NO_DHT
 	const std::string &GetIPv4(void) const    { return m_IPv4; }
 	const std::string &GetIPv6(void) const    { return m_IPv6; }
@@ -66,6 +68,7 @@ private:
 	std::string m_Mods;
 	uint16_t    m_Port;
 	bool        m_UsesDHT;
+	std::string m_Protocol;
 
 #ifndef NO_DHT
 	bool m_Updated;

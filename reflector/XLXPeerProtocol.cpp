@@ -326,7 +326,7 @@ void CXlxPeerProtocol::HandlePeerLinks(void)
 	for ( auto it=ilmap->begin(); it!=ilmap->end(); it++ )
 	{
 		const auto cs = it->first;
-		if ((0 == cs.substr(0, 2).compare("BM") || 0 == cs.substr(0, 3).compare("XLX") || 0 == cs.substr(0, 3).compare("DCS")) && (nullptr==peers->FindPeer(CCallsign(cs), EProtocol::xlxpeer)))
+		if ((0 == cs.substr(0, 2).compare("BM") || 0 == cs.substr(0, 3).compare("XLX") || (0 == cs.substr(0, 3).compare("DCS") && it->second.GetProtocol() != "DCS")) && (nullptr==peers->FindPeer(CCallsign(cs), EProtocol::xlxpeer)))
 		{
 			// send connect packet to re-initiate peer link
 			EncodeConnectPacket(&buffer, it->second.GetModules().c_str());

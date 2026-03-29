@@ -53,7 +53,7 @@ bool CInterlinkMap::LoadFromFile(const std::string &filename)
 		// fill with file content
 		while ( file.getline(line, sizeof(line)).good() )
 		{
-			char *token[4];
+			char *token[5];
 			// remove leading & trailing spaces
 			token[0] = ToUpper(TrimWhiteSpaces(line));
 			// crack it
@@ -65,14 +65,25 @@ bool CInterlinkMap::LoadFromFile(const std::string &filename)
 				{
 					if (strcmp(token[0], g_Configure.GetString(g_Keys.names.callsign).c_str()))
 					{
-						// the default port depends on the protocol type (URF or BM)
-						int default_port = (0 == memcmp(token[0], "URF", 3)) ? 10017 : 10002;
+						// default port and protocol depend on callsign prefix
+						int default_port;
+						std::string default_proto;
+						if (0 == memcmp(token[0], "URF", 3)) {
+							default_port = 10017;
+							default_proto = "URF";
+						} else if (0 == memcmp(token[0], "DCS", 3)) {
+							default_port = 30051;
+							default_proto = "DCS";
+						} else {
+							default_port = 10002;
+							default_proto = "XLX";
+						}
 						if (m_InterlinkMap.end() == m_InterlinkMap.find(token[0]))
 						{
 							// read remaining tokens
-							// 1=IP 2=Modules 3=Port Port is optional and defaults to 10017
+							// 1=IP 2=Modules 3=Port 4=Protocol (Port and Protocol optional)
 							// OR... 1=Modules and the dht will be used
-							for (int i=1; i<4; i++)
+							for (int i=1; i<5; i++)
 							{
 								token[i] = strtok(nullptr, delim);
 							}
@@ -80,16 +91,30 @@ bool CInterlinkMap::LoadFromFile(const std::string &filename)
 							if (token[2])
 							{
 								int port = default_port;
+								std::string proto = default_proto;
 								if (token[3])
 								{
-									port = std::atoi(token[3]);
-									if (port < 1024 || port > 49000)
+									// token[3] could be a port number or a protocol name
+									if (std::isdigit(token[3][0]))
 									{
-										std::cout << token[0] << " Port " << port << " is out of range, resetting to " << default_port << std::endl;
-										port = default_port;
+										port = std::atoi(token[3]);
+										if (port < 1024 || port > 49000)
+										{
+											std::cout << token[0] << " Port " << port << " is out of range, resetting to " << default_port << std::endl;
+											port = default_port;
+										}
+										// token[4] is protocol if present
+										if (token[4])
+											proto = token[4];
+									}
+									else
+									{
+										// token[3] is protocol (no port specified)
+										proto = token[3];
 									}
 								}
-								m_InterlinkMap[token[0]] = CInterlinkMapItem(token[1], token[2], (uint16_t)port);
+								auto &item = m_InterlinkMap[token[0]] = CInterlinkMapItem(token[1], token[2], (uint16_t)port);
+								item.SetProtocol(proto);
 							}
 #ifndef NO_DHT
 							else if (token[1])

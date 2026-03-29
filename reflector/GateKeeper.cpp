@@ -140,7 +140,9 @@ bool CGateKeeper::MayTransmit(const CCallsign &callsign, const CIp &ip, const EP
 	case EProtocol::g3:
 		// first check is IP & callsigned listed OK
 		ok = IsNodeListedOk(base);
-		// todo: then apply any protocol specific authorisation for the operation
+		// if not a node, check if it's a DCS peer
+		if ( !ok && protocol == EProtocol::dcs )
+			ok = IsPeerListedOk(base, module);
 		break;
 
 	// URF interlinks

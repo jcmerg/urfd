@@ -55,13 +55,14 @@ Port = 10002
 
 ```
 # urfd.interlink - supports DNS hostnames
-XLX269 xlx269.example.com A
-XLX100 44.10.20.30 AFS
-DCS002 dcs002.xreflector.net S    # DCS reflectors via XLX protocol
+# Format: <Callsign> <Address> <Modules> [Port] [Protocol]
 URF270 urf270.example.com EF
+XLX269 xlx269.example.com A
+DCS002 dcs002.xreflector.net S          # native DCS protocol (default)
+DCS002 dcs002.xreflector.net S XLX      # XLX peering on port 10002
 ```
 
-URF peers use port 10017, XLX/DCS peers use port 10002 (auto-detected by callsign prefix). DCS reflectors support XLX peering on port 10002 — this is not the DCS protocol (port 30051).
+DCS entries support two peering modes: native DCS protocol (port 30051, default) or XLX peering (port 10002, append `XLX`). URF peers use port 10017, XLX peers use port 10002.
 
 ### Echo Module
 Built-in echo/parrot function. Assign it to any module - audio is recorded and played back after 3 seconds of silence.
@@ -249,7 +250,8 @@ Three types of peering are supported in `urfd.interlink`:
 |------|--------|-------------|----------|----------|
 | URF Peer | `URF` | 10017 | URF native | - |
 | XLX Peer | `XLX` | 10002 | XLX | `[XLXPeer] Enable = true` |
-| DCS Peer | `DCS` | 10002 | XLX | `[XLXPeer] Enable = true` |
+| DCS Peer | `DCS` | 30051 | DCS native | - |
+| DCS Peer (XLX) | `DCS` + `XLX` | 10002 | XLX | `[XLXPeer] Enable = true` |
 
 DNS hostnames are resolved via `getaddrinfo()` at load time. Both sides must list each other in their interlink files. DHT-based peering (no IP needed) is supported for URF peers when OpenDHT is enabled.
 

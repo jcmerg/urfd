@@ -82,6 +82,7 @@ enum class EProtocol { any, none, dextra, dplus, dcs, g3, xlxpeer, urf, dmrplus,
 // DCS
 #define DCS_KEEPALIVE_PERIOD            1                                   // in seconds
 #define DCS_KEEPALIVE_TIMEOUT           (DCS_KEEPALIVE_PERIOD*30)           // in seconds
+#define DCS_RECONNECT_PERIOD            5                                   // in seconds
 
 // XLX Peer
 #define XLXPEER_KEEPALIVE_PERIOD        1                                   // in seconds

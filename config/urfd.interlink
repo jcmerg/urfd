@@ -5,25 +5,21 @@
 #  DNS hostnames and IP addresses are both supported.
 #  Remote reflector must also list this reflector in its interlink file.
 #
-#  URF Peering (port 10017 default):
-#    <URF-Callsign> <Address> <Shared-Modules> [Port]
+#  Format: <Callsign> <Address> <Modules> [Port] [Protocol]
+#
+#  URF Peering (port 10017):
 #    URF270 urf270.example.com EF
-#    URF280 192.168.1.100 ABC
 #    URF290 ABC                       # DHT only (no address needed)
 #
-#  XLX Peering (port 10002 default, XLX interlink protocol):
-#    <XLX-Callsign> <Address> <Shared-Modules> [Port]
+#  XLX Peering (port 10002, requires [XLXPeer] Enable = true):
 #    XLX269 xlx269.example.com A
-#    XLX100 44.10.20.30 AFS
 #
-#  DCS Peering (port 10002 default, uses XLX interlink protocol):
-#    <DCS-Callsign> <Address> <Shared-Modules> [Port]
-#    DCS002 dcs002.xreflector.net S
-#    NOTE: This is NOT a DCS protocol connection (port 30051).
-#          DCS reflectors support XLX peering on port 10002.
+#  DCS Peering (two modes):
+#    DCS002 dcs002.xreflector.net S         # native DCS protocol (port 30051)
+#    DCS002 dcs002.xreflector.net S XLX     # XLX protocol (port 10002)
 #
-#  NOTE: XLX and DCS entries use the same protocol on port 10002.
-#        This requires [XLXPeer] Enable = true in urfd.ini.
-#        For direct DMR master TG mapping, use [MMDVMClient] in urfd.ini.
+#    Default for DCS entries is native DCS protocol on port 30051.
+#    Add "XLX" to use XLX peering instead (requires [XLXPeer] Enable = true).
+#    Port can be overridden: DCS002 dcs002.net S 10002 XLX
 #
 #############################################################################

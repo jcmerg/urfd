@@ -20,6 +20,7 @@
 
 #include "Global.h"
 #include "DCSClient.h"
+#include "DCSPeer.h"
 #include "DCSProtocol.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -33,6 +34,7 @@ bool CDcsProtocol::Initialize(const char *type, const EProtocol ptype, const uin
 
 	// update time
 	m_LastKeepaliveTime.start();
+	m_LastPeersLinkTime.start();
 
 	// done
 	return true;
@@ -126,6 +128,29 @@ void CDcsProtocol::Task(void)
 			}
 			g_Reflector.ReleaseClients();
 		}
+		else if ( IsValidConnectAckPacket(Buffer, &Callsign, &ToLinkModule) )
+		{
+			std::cout << "DCS ACK for module " << ToLinkModule << " from " << Callsign << " at " << Ip << std::endl;
+
+			auto ilmap = g_GateKeeper.GetInterlinkMap();
+			const std::string base(Callsign.GetBase());
+			auto *mapitem = ilmap->FindMapItem(base);
+			if ( mapitem != nullptr )
+			{
+				CPeers *peers = g_Reflector.GetPeers();
+				if ( peers->FindPeer(Callsign, Ip, EProtocol::dcs) == nullptr )
+				{
+					const char *modules = mapitem->GetModules().c_str();
+					peers->AddPeer(std::make_shared<CDcsPeer>(Callsign, Ip, modules, CVersion(0, 0, 0)));
+				}
+				g_Reflector.ReleasePeers();
+			}
+			g_GateKeeper.ReleaseInterlinkMap();
+		}
+		else if ( IsValidConnectNackPacket(Buffer, &Callsign, &ToLinkModule) )
+		{
+			std::cout << "DCS NAK from " << Callsign << " at " << Ip << std::endl;
+		}
 		else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
 		{
 			//std::cout << "DCS keepalive packet from " << Callsign << " at " << Ip << std::endl;
@@ -139,6 +164,15 @@ void CDcsProtocol::Task(void)
 				client->Alive();
 			}
 			g_Reflector.ReleaseClients();
+
+			// also keep peers alive
+			CPeers *peers = g_Reflector.GetPeers();
+			std::shared_ptr<CPeer>peer = peers->FindPeer(Ip, EProtocol::dcs);
+			if ( peer != nullptr )
+			{
+				peer->Alive();
+			}
+			g_Reflector.ReleasePeers();
 		}
 		else if ( IsIgnorePacket(Buffer) )
 		{
@@ -169,6 +203,13 @@ void CDcsProtocol::Task(void)
 		// update time
 		m_LastKeepaliveTime.start();
 	}
+
+	// peer connections
+	if ( m_LastPeersLinkTime.time() > DCS_RECONNECT_PERIOD )
+	{
+		HandlePeerLinks();
+		m_LastPeersLinkTime.start();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -191,8 +232,10 @@ void CDcsProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, 
 		CCallsign rpt1(Header->GetRpt1Callsign());
 		CCallsign rpt2(Header->GetRpt2Callsign());
 
-		// find this client
+		// find this client (regular or peer)
 		std::shared_ptr<CClient>client = g_Reflector.GetClients()->FindClient(Ip, EProtocol::dcs);
+		if ( !client )
+			client = g_Reflector.GetClients()->FindClient(Ip, EProtocol::dcs, Header->GetRpt2Module());
 		if ( client )
 		{
 			// get client callsign
@@ -316,6 +359,80 @@ void CDcsProtocol::HandleKeepalives(void)
 
 	}
 	g_Reflector.ReleaseClients();
+
+	// iterate on peers
+	CBuffer peerkeepalive;
+	EncodeKeepAlivePacket(&peerkeepalive);
+
+	CPeers *peers = g_Reflector.GetPeers();
+	auto pit = peers->begin();
+	std::shared_ptr<CPeer>peer = nullptr;
+	while ( (peer = peers->FindNextPeer(EProtocol::dcs, pit)) != nullptr )
+	{
+		Send(peerkeepalive, peer->GetIp());
+
+		if ( peer->IsAMaster() )
+		{
+			peer->Alive();
+		}
+		else if ( !peer->IsAlive() )
+		{
+			CBuffer disconnect;
+			EncodePeerDisconnectPacket(&disconnect);
+			Send(disconnect, peer->GetIp());
+
+			std::cout << "DCS peer " << peer->GetCallsign() << " keepalive timeout" << std::endl;
+			peers->RemovePeer(peer);
+		}
+	}
+	g_Reflector.ReleasePeers();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Peers helpers
+
+void CDcsProtocol::HandlePeerLinks(void)
+{
+	CBuffer buffer;
+
+	auto ilmap = g_GateKeeper.GetInterlinkMap();
+	CPeers *peers = g_Reflector.GetPeers();
+
+	// disconnect peers no longer in interlink map
+	auto pit = peers->begin();
+	std::shared_ptr<CPeer>peer = nullptr;
+	while ( nullptr != (peer = peers->FindNextPeer(EProtocol::dcs, pit)) )
+	{
+		if ( nullptr == ilmap->FindMapItem(peer->GetCallsign().GetBase()) )
+		{
+			EncodePeerDisconnectPacket(&buffer);
+			Send(buffer, peer->GetIp());
+			std::cout << "Sending disconnect packet to DCS peer " << peer->GetCallsign() << std::endl;
+			peers->RemovePeer(peer);
+		}
+	}
+
+	// connect peers from interlink map (DCS entries on DCS port only)
+	for ( auto it=ilmap->begin(); it!=ilmap->end(); it++ )
+	{
+		const auto cs = it->first;
+		if ( (0 == cs.substr(0, 3).compare("DCS")) && (it->second.GetProtocol() == "DCS") && (nullptr==peers->FindPeer(CCallsign(cs), EProtocol::dcs)) )
+		{
+			const std::string &modules = it->second.GetModules();
+			for ( char mod : modules )
+			{
+				if ( g_Reflector.IsValidModule(mod) )
+				{
+					EncodeConnectPacket(&buffer, mod);
+					Send(buffer, it->second.GetIp());
+					std::cout << "Sending DCS connect packet to DCS peer " << cs << " @ " << it->second.GetIp() << " for module " << mod << std::endl;
+				}
+			}
+		}
+	}
+
+	g_Reflector.ReleasePeers();
+	g_GateKeeper.ReleaseInterlinkMap();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -358,6 +475,30 @@ bool CDcsProtocol::IsValidKeepAlivePacket(const CBuffer &Buffer, CCallsign *call
 	if ( (Buffer.size() == 17) || (Buffer.size() == 15) || (Buffer.size() == 22) )
 	{
 		callsign->SetCallsign(Buffer.data(), 8);
+		valid = callsign->IsValid();
+	}
+	return valid;
+}
+
+bool CDcsProtocol::IsValidConnectAckPacket(const CBuffer &Buffer, CCallsign *callsign, char *reflectormodule)
+{
+	bool valid = false;
+	if ( (Buffer.size() == 14) && (0 == Buffer.Compare((uint8_t *)"ACK", 3, 11)) )
+	{
+		callsign->SetCallsign(Buffer.data(), 8);
+		*reflectormodule = Buffer.data()[10];
+		valid = callsign->IsValid();
+	}
+	return valid;
+}
+
+bool CDcsProtocol::IsValidConnectNackPacket(const CBuffer &Buffer, CCallsign *callsign, char *reflectormodule)
+{
+	bool valid = false;
+	if ( (Buffer.size() == 14) && (0 == Buffer.Compare((uint8_t *)"NAK", 3, 11)) )
+	{
+		callsign->SetCallsign(Buffer.data(), 8);
+		*reflectormodule = Buffer.data()[10];
 		valid = callsign->IsValid();
 	}
 	return valid;
@@ -437,6 +578,26 @@ void CDcsProtocol::EncodeConnectNackPacket(const CCallsign &Callsign, char Refle
 	Buffer->Append((uint8_t)Callsign.GetCSModule());
 	Buffer->Append((uint8_t)ReflectorModule);
 	Buffer->Append(tag, sizeof(tag));
+}
+
+void CDcsProtocol::EncodeConnectPacket(CBuffer *Buffer, char reflectormodule)
+{
+	uint8_t cs[CALLSIGN_LEN];
+	GetReflectorCallsign().GetCallsign(cs);
+	Buffer->Set(cs, CALLSIGN_LEN-1);
+	Buffer->Append((uint8_t)reflectormodule);
+	Buffer->Append((uint8_t)reflectormodule);
+	Buffer->Append((uint8_t)0x00, 509);
+}
+
+void CDcsProtocol::EncodePeerDisconnectPacket(CBuffer *Buffer)
+{
+	uint8_t cs[CALLSIGN_LEN];
+	GetReflectorCallsign().GetCallsign(cs);
+	Buffer->Set(cs, CALLSIGN_LEN-1);
+	Buffer->Append((uint8_t)' ');
+	Buffer->Append((uint8_t)' ');
+	Buffer->Append((uint8_t)0x00);
 }
 
 void CDcsProtocol::EncodeDisconnectPacket(CBuffer *Buffer, std::shared_ptr<CClient>Client)

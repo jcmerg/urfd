@@ -55,6 +55,9 @@ protected:
 	// keepalive helpers
 	void HandleKeepalives(void);
 
+	// peer link helpers
+	void HandlePeerLinks(void);
+
 	// stream helpers
 	void OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &, const CIp &);
 
@@ -62,6 +65,8 @@ protected:
 	bool IsValidConnectPacket(const CBuffer &, CCallsign *, char *);
 	bool IsValidDisconnectPacket(const CBuffer &, CCallsign *);
 	bool IsValidKeepAlivePacket(const CBuffer &, CCallsign *);
+	bool IsValidConnectAckPacket(const CBuffer &, CCallsign *, char *);
+	bool IsValidConnectNackPacket(const CBuffer &, CCallsign *, char *);
 	bool IsValidDvPacket(const CBuffer &, std::unique_ptr<CDvHeaderPacket> &, std::unique_ptr<CDvFramePacket> &);
 	bool IsIgnorePacket(const CBuffer &);
 
@@ -70,13 +75,16 @@ protected:
 	void EncodeKeepAlivePacket(CBuffer *, std::shared_ptr<CClient>);
 	void EncodeConnectAckPacket(const CCallsign &, char, CBuffer *);
 	void EncodeConnectNackPacket(const CCallsign &, char, CBuffer *);
+	void EncodeConnectPacket(CBuffer *, char);
 	void EncodeDisconnectPacket(CBuffer *, std::shared_ptr<CClient>);
+	void EncodePeerDisconnectPacket(CBuffer *);
 	void EncodeDCSPacket(const CDvHeaderPacket &, const CDvFramePacket &, uint32_t, CBuffer *) const;
 	void EncodeLastDCSPacket(const CDvHeaderPacket &, const CDvFramePacket &, uint32_t, CBuffer *) const;
 
 protected:
 	// for keep alive
 	CTimer          m_LastKeepaliveTime;
+	CTimer          m_LastPeersLinkTime;
 
 	// for queue header caches
 	std::unordered_map<char, CDcsStreamCacheItem> m_StreamsCache;
