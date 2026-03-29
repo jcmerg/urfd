@@ -27,6 +27,7 @@
 #include "PacketStream.h"
 #include "CodecStream.h"
 #include "Reflector.h"
+#include "DStarSlowData.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
@@ -90,6 +91,86 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 	m_RTCount = 0;
 	m_uiTotalPackets = 0;
 	m_uiMismatchCount = 0;
+	m_uiSuperframeCount = 0;
+
+	// Initialize D-Star slow data for transcoded (non-D-Star) streams
+	if (type != ECodecType::dstar && m_PacketStream)
+	{
+		CCallsign my = m_PacketStream->GetUserCallsign();
+		CCallsign rpt1 = g_Reflector.GetCallsign();
+		rpt1.SetCSModule(m_CSModule);
+		CCallsign rpt2 = g_Reflector.GetCallsign();
+		rpt2.SetCSModule('G');
+
+		// Build message: "via <Protocol> <TG/info>"
+		std::string msg;
+		auto owner = m_PacketStream->GetOwnerClient();
+		if (owner)
+		{
+			EProtocol proto = owner->GetProtocol();
+			// Short protocol names to fit 20-char D-Star text
+			const char *shortName;
+			switch (proto) {
+				case EProtocol::svxreflector: shortName = "SVX"; break;
+				case EProtocol::mmdvmclient: shortName = "DMR"; break;
+				case EProtocol::ysf:         shortName = "YSF"; break;
+				case EProtocol::dmrmmdvm:    shortName = "DMR"; break;
+				case EProtocol::dmrplus:     shortName = "DMR+"; break;
+				case EProtocol::m17:         shortName = "M17"; break;
+				case EProtocol::p25:         shortName = "P25"; break;
+				case EProtocol::nxdn:        shortName = "NXDN"; break;
+				case EProtocol::usrp:        shortName = "USRP"; break;
+				default:                     shortName = owner->GetProtocolName(); break;
+			}
+			msg = std::string("via ") + shortName;
+
+			// Append TG/DG-ID info from config mappings
+			const auto &cfg = g_Configure.GetData();
+			if (proto == EProtocol::svxreflector)
+			{
+				for (auto it = cfg.begin(); it != cfg.end(); ++it)
+				{
+					const std::string &key = it.key();
+					if (key.substr(0, 5) == "svxTG" && it->is_string())
+					{
+						std::string val = it->get<std::string>();
+						if (!val.empty() && val[0] == m_CSModule)
+						{
+							msg += " TG" + key.substr(5);
+							break;
+						}
+					}
+				}
+			}
+			else if (proto == EProtocol::mmdvmclient)
+			{
+				for (auto it = cfg.begin(); it != cfg.end(); ++it)
+				{
+					const std::string &key = it.key();
+					if (key.substr(0, 10) == "mmdvmcliTG" && it->is_string())
+					{
+						std::string val = it->get<std::string>();
+						if (!val.empty() && val[0] == m_CSModule)
+						{
+							msg += " TG" + key.substr(10);
+							break;
+						}
+					}
+				}
+			}
+			else if (proto == EProtocol::ysf)
+			{
+				int dgid = 10 + (m_CSModule - 'A');
+				msg += " DG" + std::to_string(dgid);
+			}
+
+			// D-Star text message is max 20 chars
+			if (msg.size() > 20)
+				msg.resize(20);
+		}
+
+		m_SlowData.Init(my, rpt1, rpt2, msg);
+	}
 }
 
 void CCodecStream::ReportStats()
@@ -165,10 +246,20 @@ void CCodecStream::Task(void)
 				m_RTCount++;
 
 				Packet->SetCodecData(&pack);
-				if (ECodecType::dstar!=Packet->GetCodecIn() && 0==Packet->GetPacketId()%21)
+				// Set D-Star sync and slow data for transcoded streams
+				if (ECodecType::dstar != Packet->GetCodecIn())
 				{
-					const uint8_t DStarSync[] = { 0x55, 0x2D, 0x16 };
-					Packet->SetDvData(DStarSync);
+					uint8_t frameInSuper = Packet->GetPacketId() % 21;
+					if (frameInSuper == 0)
+					{
+						const uint8_t DStarSync[] = { 0x55, 0x2D, 0x16 };
+						Packet->SetDvData(DStarSync);
+						m_uiSuperframeCount++;
+					}
+					else if (m_SlowData.IsReady())
+					{
+						Packet->SetDvData(m_SlowData.GetSlowData(frameInSuper, m_uiSuperframeCount));
+					}
 				}
 
 				m_PacketStream->ReturnPacket(std::move(Packet));

@@ -131,6 +131,13 @@ Complete redesign with dark mode theme.
 - Reflector list: client-side search and pagination (25 per page) with CSS status dots
 - QRZ links use callsign without module suffix
 
+### D-Star Slow Data for Transcoded Streams
+Transcoded streams (DMR, YSF, SVX, M17, P25, USRP → D-Star) now include proper D-Star slow data:
+- **Header**: Caller callsign (MY), reflector callsign (RPT1/RPT2)
+- **Text message**: Source protocol and TG/DG-ID, e.g. `via SVX TG317424`, `via DMR TG26363`, `via YSF DG28`
+
+Header and text message alternate every superframe (~420ms), so D-Star radios display both callsign info and source routing info.
+
 ### Bug Fixes
 - Fix options string per-timeslot indexing for multi-TG configs
 - Fix `Mode=both` DB loader failbit when file is empty

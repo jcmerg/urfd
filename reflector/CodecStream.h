@@ -24,6 +24,7 @@
 
 #include "DVFramePacket.h"
 #include "SafePacketQueue.h"
+#include "DStarSlowData.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // class
@@ -74,6 +75,10 @@ protected:
 	std::atomic<bool> keep_running;
 	std::future<void> m_Future;
 	int m_EventFD;
+
+	// D-Star slow data for transcoded streams
+	CDStarSlowData m_SlowData;
+	uint32_t     m_uiSuperframeCount;
 
 	// statistics
 	double       m_RTMin;

@@ -57,31 +57,18 @@ void CTCSocket::Close(char mod)
 void CTCSocket::Close(int fd)
 {
 	if (fd < 0)
-	{
 		return;
-	}
+
 	for (auto &p : m_Pfd)
 	{
 		if (fd == p.fd)
 		{
-			if (shutdown(p.fd, SHUT_RDWR))
-			{
-				perror("shutdown");
-			}
-			else
-			{
-				if (close(p.fd))
-				{
-					std::cerr << "Error while closing " << fd << ": ";
-					perror("close");
-				}
-				else
-					p.fd = -1;
-			}
+			shutdown(p.fd, SHUT_RDWR); // may fail if already disconnected, that's OK
+			close(p.fd);
+			p.fd = -1;
 			return;
 		}
 	}
-	std::cerr << "Could not find a file descriptor with a value of " << fd << std::endl;
 }
 
 int CTCSocket::GetFD(char module) const
@@ -156,8 +143,6 @@ bool CTCSocket::receive(int fd, STCPacket *packet)
 	auto n = recv(fd, packet, sizeof(STCPacket), MSG_WAITALL);
 	if (n < 0)
 	{
-		perror("Receive recv");
-		Close(fd);
 		return true;
 	}
 
@@ -526,12 +511,11 @@ void CTCClient::Receive(std::queue<std::unique_ptr<STCPacket>> &queue, int ms)
 
 		if (pfd.revents & POLLERR || pfd.revents & POLLHUP)
 		{
-			std::cerr << "IO ERROR on Receive module " << GetMod(pfd.fd) << std::endl;
+			std::cerr << "Connection lost on module " << GetMod(pfd.fd) << ", reconnecting..." << std::endl;
 			Close(pfd.fd);
 		}
 		if (pfd.revents & POLLNVAL)
 		{
-			std::cerr << "POLLNVAL received on fd " << pfd.fd << ", resetting to -1" << std::endl;
 			pfd.fd = -1;
 		}
 	}
