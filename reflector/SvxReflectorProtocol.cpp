@@ -629,14 +629,13 @@ void CSvxReflectorProtocol::CloseInStream(void)
 {
 	if (m_InStream.open)
 	{
-		// Send a silent last-frame to close the stream cleanly
-		int16_t silence[160] = {};
-		auto lastFrame = std::unique_ptr<CDvFramePacket>(
-			new CDvFramePacket(silence, m_InStream.streamId, true));
-		lastFrame->SetPacketModule(m_InStream.module);
 		auto it = m_Streams.find(m_InStream.streamId);
 		if (it != m_Streams.end() && it->second)
 		{
+			// Send last-frame using the cached last audio to avoid codec artifacts
+			auto lastFrame = std::unique_ptr<CDvFramePacket>(
+				new CDvFramePacket(m_InStream.lastPcm, m_InStream.streamId, true));
+			lastFrame->SetPacketModule(m_InStream.module);
 			it->second->Push(std::move(lastFrame));
 			g_Reflector.CloseStream(it->second);
 			m_Streams.erase(it);
@@ -750,6 +749,9 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		m_InStream.open = true;
 		std::cout << "SvxReflector: stream opened for " << userCs << " (DMR ID " << my.GetDmrid() << ") on module " << m_InStream.module << std::endl;
 	}
+
+	// Cache last PCM for clean last-frame on close
+	memcpy(m_InStream.lastPcm, pcm, sizeof(m_InStream.lastPcm));
 
 	// Create frame and push directly to stream
 	auto frame = std::unique_ptr<CDvFramePacket>(

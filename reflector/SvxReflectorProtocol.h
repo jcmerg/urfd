@@ -131,6 +131,7 @@ protected:
 		uint16_t streamId;
 		bool open;
 		std::string talkerCallsign;
+		int16_t lastPcm[160] = {};
 	};
 	SIncomingStream m_InStream;
 
