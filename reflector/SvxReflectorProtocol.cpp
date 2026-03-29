@@ -755,7 +755,8 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 			}
 			else
 			{
-				std::cerr << "SvxReflector: no DMR ID found for " << userCs << " and no FallbackDmrId configured" << std::endl;
+				std::cout << "SvxReflector: dropping stream from " << userCs << " - no DMR ID found and no FallbackDmrId configured" << std::endl;
+				return;
 			}
 		}
 		CCallsign rpt1(g_Reflector.GetCallsign());

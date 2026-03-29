@@ -107,6 +107,7 @@ protected:
 
 private:
 	// Config
+	uint32_t        m_FallbackDmrId;
 	uint32_t        m_uiDmrId;
 	uint8_t         m_uiId[4];         // DMR ID as big-endian 4 bytes
 	std::string     m_Password;

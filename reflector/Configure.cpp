@@ -542,6 +542,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.mmdvmclient.software] = value;
 				else if (0 == key.compare("Firmware"))
 					data[g_Keys.mmdvmclient.firmware] = value;
+				else if (0 == key.compare("FallbackDmrId"))
+					data[g_Keys.mmdvmclient.fallbackdmrid] = getUnsigned(value, "MMDVMClient FallbackDmrId", 0, 999999999, 0);
 				else if (0 == key.compare(0, 2, "TG"))
 				{
 					// TG<number> = <Module>[,TS<1|2>]

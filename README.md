@@ -18,6 +18,7 @@ DmrId = 123456701
 Password = yourpassword
 Callsign = YOURCALL
 TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
+# FallbackDmrId = 1234567  # For callers not in DMR database (omit = drop stream)
 ```
 
 Static talkgroups may need to be configured on the master server.
@@ -33,9 +34,11 @@ Port = 5300
 Callsign = YOURCALL-HS
 Password = yourpassword
 TG26363 = S              # SvxReflector TG -> Module S
-# FallbackDmrId = 1234567  # For SVX callers not in DMR database
+# FallbackDmrId = 1234567  # For SVX callers not in DMR database (omit = drop stream)
 # BlockProtocols = MMDVMClient  # Block audio between SVX and DMR
 ```
+
+**FallbackDmrId** (MMDVMClient and SvxReflector): When a callsign from YSF, D-Star or other modes cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped to prevent the repeater's own DMR ID from appearing as the caller on DMR.
 
 **BlockProtocols** prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `BM`, `G3`. Comma-separated.
 

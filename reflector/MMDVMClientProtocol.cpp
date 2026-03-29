@@ -28,6 +28,9 @@ static uint8_t g_DmrSyncBSData[]  = { 0x0D,0xFF,0x57,0xD7,0x5D,0xF5,0xD0 };
 bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
 {
 	m_uiDmrId = g_Configure.GetUnsigned(g_Keys.mmdvmclient.dmrid);
+	m_FallbackDmrId = 0;
+	if (g_Configure.Contains(g_Keys.mmdvmclient.fallbackdmrid))
+		m_FallbackDmrId = g_Configure.GetUnsigned(g_Keys.mmdvmclient.fallbackdmrid);
 	m_Password = g_Configure.GetString(g_Keys.mmdvmclient.password);
 	m_Callsign = g_Configure.GetString(g_Keys.mmdvmclient.callsign);
 	m_MasterPort = (uint16_t)g_Configure.GetUnsigned(g_Keys.mmdvmclient.port);
@@ -604,7 +607,18 @@ void CMMDVMClientProtocol::HandleQueue(void)
 			if (userSrcId == 0U)
 				userSrcId = header.GetMyCallsign().GetDmrid();
 			if (userSrcId == 0U)
-				userSrcId = m_uiDmrId;
+			{
+				if (m_FallbackDmrId != 0)
+				{
+					userSrcId = m_FallbackDmrId;
+					std::cout << "MMDVMClient: using fallback DMR ID " << m_FallbackDmrId << " for " << header.GetMyCallsign() << std::endl;
+				}
+				else
+				{
+					std::cout << "MMDVMClient: dropping stream from " << header.GetMyCallsign() << " - no DMR ID found" << std::endl;
+					continue;
+				}
+			}
 
 			SMMDVMClientStreamCache cache;
 			cache.header = header;
@@ -634,19 +648,25 @@ void CMMDVMClientProtocol::HandleQueue(void)
 				if (tg == 0)
 					continue;
 
+				uint32_t srcId = m_FallbackDmrId;
+				if (srcId == 0)
+				{
+					std::cout << "MMDVMClient: dropping late-entry frame on module " << module << " - no DMR ID available" << std::endl;
+					continue;
+				}
+
 				SMMDVMClientStreamCache cache;
 				cache.frameCount = 0;
 				cache.seqNo = 0;
 				cache.pktSeqNo = 0;
 				cache.streamId = (uint32_t)::rand();
-				cache.srcId = m_uiDmrId;
+				cache.srcId = srcId;
 				m_OutboundCache[module] = cache;
 				it = m_OutboundCache.find(module);
 
 				CBuffer buf;
 				buf.Set((uint8_t *)"DMRD", 4);
 				buf.Append(cache.pktSeqNo++);
-				uint32_t srcId = m_uiDmrId;
 				buf.Append((uint8_t)(srcId >> 16));
 				buf.Append((uint8_t)(srcId >> 8));
 				buf.Append((uint8_t)(srcId));
