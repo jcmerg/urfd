@@ -137,6 +137,7 @@ protected:
 	// outgoing stream state per module
 	std::unordered_map<char, uint32_t> m_OutStreamTG;
 
-	// loop detection: time of last outgoing audio per module
-	std::unordered_map<char, CTimer> m_OutLastSend;
+	// deferred flush
+	bool m_Flushed = false;
+	CTimer m_FlushTime;
 };

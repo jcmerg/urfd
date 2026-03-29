@@ -450,7 +450,7 @@ void CTCClient::ReConnect() // and sometimes ping
 	static std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 	auto now = std::chrono::system_clock::now();
 	std::chrono::duration<double> secs = now - start;
-	
+
 	for (char m : m_Modules)
 	{
 		if (0 > GetFD(m))
@@ -458,7 +458,7 @@ void CTCClient::ReConnect() // and sometimes ping
 			std::cout << "Reconnecting module " << m << "..." << std::endl;
 			if (Connect(m))
 			{
-				raise(SIGINT);
+				std::this_thread::sleep_for(std::chrono::seconds(5));
 			}
 		}
 	}

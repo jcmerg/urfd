@@ -49,6 +49,10 @@ CCodecStream::~CCodecStream()
 
 void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 {
+	// Drain stale packets from previous stream
+	while (!m_LocalQueue.IsEmpty())
+		m_LocalQueue.Pop();
+
 	m_IsOpen = true;
 	keep_running = true;
 	m_uiStreamId = streamid;
@@ -112,58 +116,59 @@ void CCodecStream::Task(void)
 	STCPacket pack;
 	if (g_TCServer.Receive(m_CSModule, &pack, 8))
 	{
-		if ( m_LocalQueue.IsEmpty() )
-		{
-			std::cout << "Unexpected transcoded packet received from transcoder: Module='" << pack.module << "' StreamID=" << std::hex << std::showbase << ntohs(pack.streamid) << std::endl;
-		}
-		else if (m_IsOpen)
-		{
-			// pop the original packet
-			auto Packet = m_LocalQueue.Pop();
+		if (!m_IsOpen)
+			return;
 
-			// make sure this is the correct packet
-			if ((pack.streamid == Packet->GetCodecPacket()->streamid) && (pack.sequence == Packet->GetCodecPacket()->sequence))
+		// Discard stale packets from previous stream
+		if (pack.streamid != m_uiStreamId)
+		{
+			if (m_uiMismatchCount++ == 0)
+				std::cerr << "Transcoder mismatch on module " << m_CSModule << " (draining stale packets)" << std::endl;
+			// Drain all available stale packets without waiting
+			while (g_TCServer.Receive(m_CSModule, &pack, 0))
 			{
-				// update statistics
-				auto rt =Packet->m_rtTimer.time();	// the round-trip time
-				if (0 == m_RTCount)
-				{
-					m_RTMin = rt;
-					m_RTMax = rt;
-				}
-				else
-				{
-					if (rt < m_RTMin)
-						m_RTMin = rt;
-					else if (rt > m_RTMax)
-						m_RTMax = rt;
-				}
-				m_RTSum += rt;
-				m_RTCount++;
+				if (pack.streamid == m_uiStreamId)
+					goto matched;
+			}
+			return;
+		}
+matched:
 
-				// update content with transcoded data
-				Packet->SetCodecData(&pack);
-				// mark the DStar sync frames if the source isn't dstar
-				if (ECodecType::dstar!=Packet->GetCodecIn() && 0==Packet->GetPacketId()%21)
-				{
-					const uint8_t DStarSync[] = { 0x55, 0x2D, 0x16 };
-					Packet->SetDvData(DStarSync);
-				}
+		if (m_LocalQueue.IsEmpty())
+			return;
 
-				// and push it back to client
-				m_PacketStream->ReturnPacket(std::move(Packet));
+		auto Packet = m_LocalQueue.Pop();
+
+		if ((pack.streamid == Packet->GetCodecPacket()->streamid) && (pack.sequence == Packet->GetCodecPacket()->sequence))
+		{
+			// update statistics
+			auto rt = Packet->m_rtTimer.time();
+			if (0 == m_RTCount)
+			{
+				m_RTMin = rt;
+				m_RTMax = rt;
 			}
 			else
 			{
-				// Stale packet from previous stream — log once, then suppress
-				if (m_uiMismatchCount++ == 0)
-					std::cerr << "Transcoder mismatch on module " << m_CSModule << " (stale packets from previous stream)" << std::endl;
+				if (rt < m_RTMin)
+					m_RTMin = rt;
+				else if (rt > m_RTMax)
+					m_RTMax = rt;
 			}
-		}
-		else
-		{
-			// Likewise, this packet will be ignored
-			std::cout << "Transcoder packet received but CodecStream[" << m_CSModule << "] is closed: Module='" << pack.module << "' StreamID=" << std::hex << std::showbase << ntohs(pack.streamid) << std::endl;
+			m_RTSum += rt;
+			m_RTCount++;
+
+			// update content with transcoded data
+			Packet->SetCodecData(&pack);
+			// mark the DStar sync frames if the source isn't dstar
+			if (ECodecType::dstar!=Packet->GetCodecIn() && 0==Packet->GetPacketId()%21)
+			{
+				const uint8_t DStarSync[] = { 0x55, 0x2D, 0x16 };
+				Packet->SetDvData(DStarSync);
+			}
+
+			// and push it back to client
+			m_PacketStream->ReturnPacket(std::move(Packet));
 		}
 	}
 
