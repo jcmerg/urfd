@@ -1,0 +1,49 @@
+## Combined: urfd reflector + tcd transcoder on the same host
+## Uses md380 software vocoder (no second DVSI chip needed)
+
+services:
+  urfd:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      additional_contexts:
+        optfiles: .
+    image: urfd:latest
+    container_name: urfd
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - /opt/urfd/config:/usr/local/etc/urfd
+      - /opt/urfd/dashboard/config.inc.php:/var/www/urfd-dashboard/pgs/config.inc.php
+      - /opt/urfd/xlxd-ch:/var/lib/xlxd-ch
+      - urfd-xml:/var/log
+    healthcheck:
+      test: ["CMD", "pgrep", "urfd"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  tcd:
+    build:
+      context: ../docker-tcd
+      dockerfile: Dockerfile
+    image: tcd:latest
+    container_name: tcd
+    network_mode: host
+    restart: unless-stopped
+    privileged: true
+    cpu_shares: 1024
+    ulimits:
+      rtprio: 99
+      nice: -20
+    volumes:
+      - ./tcd.ini:/etc/tcd/tcd.ini:ro
+      - /sys:/sys
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    depends_on:
+      urfd:
+        condition: service_healthy
+
+volumes:
+  urfd-xml:

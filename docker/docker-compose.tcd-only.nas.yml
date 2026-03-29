@@ -1,0 +1,20 @@
+## tcd transcoder only on Synology NAS (connects to urfd on a remote host)
+## Pre-built image, no build step
+## Set ServerAddress in tcd.ini to the IP of the urfd host
+
+services:
+  tcd:
+    image: tcd:latest
+    container_name: tcd
+    network_mode: host
+    restart: unless-stopped
+    privileged: true
+    cpu_shares: 1024
+    ulimits:
+      rtprio: 99
+      nice: -20
+    volumes:
+      - /volume1/docker/tcd/tcd.ini:/etc/tcd/tcd.ini:ro
+      - /sys:/sys
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
