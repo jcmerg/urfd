@@ -8,5 +8,15 @@ Type=simple
 ExecStart=/usr/local/bin/urfd /usr/local/etc/urfd/urfd.ini
 Restart=always
 
+# Voice/Realtime Optimierungen
+Nice=-15
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=50
+IOSchedulingClass=realtime
+IOSchedulingPriority=0
+LimitRTPRIO=infinity
+LimitMEMLOCK=infinity
+LimitNICE=-15
+
 [Install]
 WantedBy=multi-user.target
