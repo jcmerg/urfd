@@ -352,6 +352,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.dcs.port] = getUnsigned(value, "DCS Port", 1024, 65535, 30051);
 				else if (0 == key.compare(JENABLE))
 					data[g_Keys.dcs.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.dcs.peercallsign] = value;
 				else
 					badParam(key);
 				break;

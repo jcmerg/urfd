@@ -85,6 +85,8 @@ protected:
 	// for keep alive
 	CTimer          m_LastKeepaliveTime;
 	CTimer          m_LastPeersLinkTime;
+	// peer callsign override
+	CCallsign       m_PeerCallsign;
 
 	// for queue header caches
 	std::unordered_map<char, CDcsStreamCacheItem> m_StreamsCache;

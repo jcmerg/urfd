@@ -42,29 +42,33 @@ TG26363 = S              # SvxReflector TG -> Module S
 
 **BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
 
-### XLX Interlink Support
-Peer with XLX reflectors using the native XLX protocol (port 10002). DNS hostnames are supported in interlink entries.
+### Reflector Interlinking
+Peer with URF, XLX and DCS reflectors. DNS hostnames are supported. Configure interlinking in `urfd.interlink`:
+
+```
+# urfd.interlink
+# Format: <Callsign> <Address> <Modules> [Port] [Protocol]
+URF270 urf270.example.com EF
+XLX269 xlx269.example.com A
+DCS002 dcs002.xreflector.net S             # native DCS protocol (default)
+DCS002 dcs002.xreflector.net S XLX         # XLX protocol instead
+```
+
+DCS entries default to native DCS protocol (port 30051). Append `XLX` to use XLX peering (port 10002) instead. The protocol field is only supported for DCS entries.
+
+XLX and DCS peering support optional callsign overrides (e.g. present as XLX363 instead of URF363):
 
 ```ini
 # urfd.ini
 [XLXPeer]
-Enable = true
+Enable = true               # required for XLX peers and DCS peers with XLX protocol
 Port = 10002
-# Callsign = XLX363  # Optional: present as XLX instead of URF to peers
-```
+# Callsign = XLX363         # optional: callsign for XLX peering
 
+[DCS]
+Port = 30051
+# Callsign = DCS363         # optional: callsign for native DCS peering
 ```
-# urfd.interlink - supports DNS hostnames
-# Format: <Callsign> <Address> <Modules> [Port] [Protocol]
-URF270 urf270.example.com EF
-XLX269 xlx269.example.com A
-DCS002 dcs002.xreflector.net S              # native DCS (port 30051)
-DCS002 dcs002.xreflector.net S 31000       # native DCS on custom port
-DCS002 dcs002.xreflector.net S XLX         # XLX peering (port 10002)
-DCS002 dcs002.xreflector.net S 10002 XLX   # XLX on explicit port
-```
-
-DCS entries support two peering modes: native DCS protocol (port 30051, default) or XLX peering (port 10002, append `XLX`). The protocol field is only supported for DCS entries. URF peers use port 10017, XLX peers use port 10002.
 
 ### Echo Module
 Built-in echo/parrot function. Assign it to any module - audio is recorded and played back after 3 seconds of silence.

@@ -22,8 +22,10 @@
 
 // configuration key names
 struct SJsonKeys {
+	struct DCS { const std::string port, enable, peercallsign; }
+	dcs { "DCSPort", "DCSEnable", "DCSPeerCallsign" };
+
 	struct PORTENABLE { const std::string port, enable; }
-	dcs { "DCSPort", "DCSEnable" },
 	dextra { "DExtraPort", "DExtraEnable" },
 	dmrplus { "DMRPlusPort", "DMRPlusEnable" },
 	dplus { "DPlusPort", "DPlusEnable" },

@@ -32,6 +32,17 @@ bool CDcsProtocol::Initialize(const char *type, const EProtocol ptype, const uin
 	if (! CProtocol::Initialize(type, ptype, port, has_ipv4, has_ipv6))
 		return false;
 
+	// optional peer callsign override for DCS interlinking
+	if (g_Configure.Contains(g_Keys.dcs.peercallsign))
+	{
+		m_PeerCallsign.SetCallsign(g_Configure.GetString(g_Keys.dcs.peercallsign), false);
+		std::cout << "DCS peer callsign: " << m_PeerCallsign << std::endl;
+	}
+	else
+	{
+		m_PeerCallsign = m_ReflectorCallsign;
+	}
+
 	// update time
 	m_LastKeepaliveTime.start();
 	m_LastPeersLinkTime.start();
@@ -583,7 +594,7 @@ void CDcsProtocol::EncodeConnectNackPacket(const CCallsign &Callsign, char Refle
 void CDcsProtocol::EncodeConnectPacket(CBuffer *Buffer, char reflectormodule)
 {
 	uint8_t cs[CALLSIGN_LEN];
-	GetReflectorCallsign().GetCallsign(cs);
+	m_PeerCallsign.GetCallsign(cs);
 	Buffer->Set(cs, CALLSIGN_LEN-1);
 	Buffer->Append((uint8_t)reflectormodule);
 	Buffer->Append((uint8_t)reflectormodule);
@@ -593,7 +604,7 @@ void CDcsProtocol::EncodeConnectPacket(CBuffer *Buffer, char reflectormodule)
 void CDcsProtocol::EncodePeerDisconnectPacket(CBuffer *Buffer)
 {
 	uint8_t cs[CALLSIGN_LEN];
-	GetReflectorCallsign().GetCallsign(cs);
+	m_PeerCallsign.GetCallsign(cs);
 	Buffer->Set(cs, CALLSIGN_LEN-1);
 	Buffer->Append((uint8_t)' ');
 	Buffer->Append((uint8_t)' ');
