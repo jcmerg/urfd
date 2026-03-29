@@ -220,9 +220,12 @@ void CCodecStream::Thread()
 
 void CCodecStream::Task(void)
 {
+	// Drain all pending transcoder responses (prevents TCP buffer buildup / deadlock)
 	STCPacket pack;
-	if (g_TCServer.Receive(m_CSModule, &pack, 0))
+	bool receivedAny = false;
+	while (g_TCServer.Receive(m_CSModule, &pack, 0))
 	{
+		receivedAny = true;
 		if (m_IsOpen && pack.streamid == m_uiStreamId && !m_LocalQueue.IsEmpty())
 		{
 			auto Packet = m_LocalQueue.Pop();
@@ -271,7 +274,8 @@ void CCodecStream::Task(void)
 				std::cerr << "Transcoder mismatch on module " << m_CSModule << " (stale packet discarded)" << std::endl;
 		}
 	}
-	else if (m_Queue.IsEmpty())
+
+	if (!receivedAny && m_Queue.IsEmpty())
 	{
 		// Nothing to receive and nothing to send — wait for eventfd signal
 		struct pollfd pfd = { m_EventFD, POLLIN, 0 };
