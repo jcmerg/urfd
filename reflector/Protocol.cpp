@@ -397,5 +397,6 @@ void CProtocol::Dump(const char *title, const uint8_t *data, int length)
 		else
 			length = 0;
 	}
+	std::cout << std::dec << std::setfill(' ');
 }
 #endif

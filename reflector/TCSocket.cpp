@@ -228,6 +228,23 @@ bool CTCServer::Receive(char module, STCPacket *packet, int ms)
 		return !rv;
 }
 
+bool CTCServer::ReceiveNoPoll(char module, STCPacket *packet)
+{
+	const auto pos = m_Modules.find(module);
+	if (pos == std::string::npos || m_Pfd[pos].fd < 0)
+		return false;
+
+	int fd = m_Pfd[pos].fd;
+	if (receive(fd, packet))
+	{
+		Close(fd);
+		return false;
+	}
+	if (packet->codec_in == ECodecType::ping)
+		return false;
+	return true;
+}
+
 bool CTCServer::Open(const std::string &address, const std::string &modules, uint16_t port)
 {
 	m_Modules.assign(modules);
@@ -450,7 +467,7 @@ void CTCClient::ReConnect() // and sometimes ping
 	static std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 	auto now = std::chrono::system_clock::now();
 	std::chrono::duration<double> secs = now - start;
-	
+
 	for (char m : m_Modules)
 	{
 		if (0 > GetFD(m))
@@ -458,7 +475,7 @@ void CTCClient::ReConnect() // and sometimes ping
 			std::cout << "Reconnecting module " << m << "..." << std::endl;
 			if (Connect(m))
 			{
-				raise(SIGINT);
+				std::this_thread::sleep_for(std::chrono::seconds(5));
 			}
 		}
 	}

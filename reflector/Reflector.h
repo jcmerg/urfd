@@ -82,6 +82,9 @@ public:
 	void GetDHTConfig(const std::string &cs);
 #endif
 
+	// stream access
+	std::shared_ptr<CPacketStream> GetStream(char);
+
 protected:
 #ifndef NO_DHT
 	// Publish DHT
@@ -91,9 +94,6 @@ protected:
 	// threads
 	void RouterThread(const char);
 	void MaintenanceThread(void);
-
-	// streams
-	std::shared_ptr<CPacketStream> GetStream(char);
 	bool IsStreamOpen(const std::unique_ptr<CDvHeaderPacket> &);
 	char GetStreamModule(std::shared_ptr<CPacketStream>);
 

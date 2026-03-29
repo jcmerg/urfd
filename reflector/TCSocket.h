@@ -58,6 +58,7 @@ public:
 	bool Open(const std::string &address, const std::string &modules, uint16_t port);
 	// Returns true if there is data
 	bool Receive(char module, STCPacket *packet, int ms);
+	bool ReceiveNoPoll(char module, STCPacket *packet);
 	bool AnyAreClosed() const;
 	bool Accept();
 

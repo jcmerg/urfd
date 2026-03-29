@@ -528,25 +528,30 @@ void CSvxReflectorProtocol::Task(void)
 		{
 			if (m_State == EState::connected)
 			{
-				// UDP first: drain all pending audio packets before processing TCP
-				// This ensures audio frames arrive before TalkerStop closes the stream
+				// Drain all pending UDP audio packets (non-blocking)
 				CBuffer buffer;
 				CIp ip;
-				while (Receive4(buffer, ip, 0))
+				if (!Receive4(buffer, ip, 20))
 				{
-					m_UdpLastReceiveTimer.start();
-					if (buffer.size() >= 2)
-					{
-						uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
-						if (type == SVX_UDP_MSG_AUDIO)
-							OnUdpAudio(buffer);
-						else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
-							OnUdpFlush();
-						else if (type == SVX_UDP_MSG_HEARTBEAT)
-						{} // heartbeat OK
-						else if (type == SVX_UDP_MSG_ALL_FLUSHED)
-						{} // acknowledge flush
-					}
+					// No UDP data within 20ms — skip to TCP/timers
+				}
+				else
+				{
+					do {
+						m_UdpLastReceiveTimer.start();
+						if (buffer.size() >= 2)
+						{
+							uint16_t type = ((uint16_t)buffer.data()[0] << 8) | buffer.data()[1];
+							if (type == SVX_UDP_MSG_AUDIO)
+								OnUdpAudio(buffer);
+							else if (type == SVX_UDP_MSG_FLUSH_SAMPLES)
+								OnUdpFlush();
+							else if (type == SVX_UDP_MSG_HEARTBEAT)
+							{} // heartbeat OK
+							else if (type == SVX_UDP_MSG_ALL_FLUSHED)
+							{} // acknowledge flush
+						}
+					} while (Receive4(buffer, ip, 0));
 				}
 			}
 
@@ -663,15 +668,6 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 		talkerCs = ExtractCallsign(raw);
 	}
 
-	// Loop detection: if we recently sent audio TO SVX on this module,
-	// ignore incoming TalkerStart (it's our own audio echoed back)
-	auto oit = m_OutLastSend.find(module);
-	if (oit != m_OutLastSend.end() && oit->second.time() < 2.0)
-	{
-		std::cout << "SvxReflector: ignoring TalkerStart on module " << module << " (echo, last send " << oit->second.time() << "s ago)" << std::endl;
-		return;
-	}
-
 	m_InStream.tg = tg;
 	m_InStream.talkerCallsign = talkerCs;
 
@@ -695,15 +691,15 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 {
-	// Read TG from payload (not from m_InStream which may already be cleared by Flush)
+	// TalkerStop is informational only — the UDP audio stream continues.
+	// The stream is closed by OnUdpFlush when audio actually stops.
 	uint32_t tg = 0;
 	if (payload.size() >= 6)
 	{
 		size_t pos = 2;
 		tg = UnpackUint32(payload, pos);
 	}
-	CloseInStream();
-	std::cout << "SvxReflector: talker stop on TG" << tg << std::endl;
+	std::cout << "SvxReflector: talker stop on TG" << tg << " (stream stays open)" << std::endl;
 }
 
 void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
@@ -802,6 +798,11 @@ void CSvxReflectorProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> 
 
 	if (client)
 	{
+		// Force clear master status from previous stream
+		if (client->IsAMaster())
+		{
+			client->NotAMaster();
+		}
 		client->Alive();
 		client->SetReflectorModule(module);
 		if ((stream = g_Reflector.OpenStream(Header, client)) != nullptr)
@@ -836,6 +837,20 @@ void CSvxReflectorProtocol::HandleQueue(void)
 
 		if (packet->IsDvHeader())
 		{
+			// Check if this stream originated from SVX — don't echo back
+			{
+				auto stream = g_Reflector.GetStream(module);
+				if (stream)
+				{
+					auto owner = stream->GetOwnerClient();
+					if (owner && owner->GetProtocol() == EProtocol::svxreflector)
+					{
+						m_OutStreamTG.erase(module);
+						continue;
+					}
+				}
+			}
+
 			// Look up TG for this module
 			uint32_t tg = ModuleToTG(module);
 			if (tg != 0)
@@ -869,7 +884,6 @@ void CSvxReflectorProtocol::HandleQueue(void)
 				if (pcm)
 				{
 					EncodeAndSendAudio(pcm, tg);
-					m_OutLastSend[module].start();
 				}
 			}
 		}
