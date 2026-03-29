@@ -90,8 +90,11 @@ bool CGateKeeper::MayLink(const CCallsign &callsign, const CIp &ip, EProtocol pr
 	case EProtocol::usrp:
 	case EProtocol::nxdn:
 	case EProtocol::g3:
-		// is callsign listed OK
-		ok = IsNodeListedOk(base);
+		// DCS reflectors (prefix "DCS") must be in interlink map
+		if ( protocol == EProtocol::dcs && base.substr(0, 3) == "DCS" )
+			ok = IsPeerListedOk(base, ip, modules);
+		else
+			ok = IsNodeListedOk(base);
 		break;
 
 	// URF and XLX peer interlinks
