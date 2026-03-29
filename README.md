@@ -40,7 +40,7 @@ TG26363 = S              # SvxReflector TG -> Module S
 # BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols (comma-separated)
 ```
 
-**BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `BM`, `G3`. Comma-separated.
+**BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
 
 ### XLX Interlink Support
 Peer with XLX reflectors using the native XLX protocol (port 10002). DNS hostnames are supported in interlink entries.
@@ -50,17 +50,18 @@ Peer with XLX reflectors using the native XLX protocol (port 10002). DNS hostnam
 [XLXPeer]
 Enable = true
 Port = 10002
+# Callsign = XLX363  # Optional: present as XLX instead of URF to peers
 ```
 
 ```
 # urfd.interlink - supports DNS hostnames
 XLX269 xlx269.example.com A
 XLX100 44.10.20.30 AFS
-BM3104 bm3104.example.com E
+DCS002 dcs002.xreflector.net S    # DCS reflectors via XLX protocol
 URF270 urf270.example.com EF
 ```
 
-The XLX interlink protocol has been verified compatible with [LX3JL/xlxd](https://github.com/LX3JL/xlxd). URF peers use port 10017, XLX/BM peers use port 10002 (auto-detected by callsign prefix).
+URF peers use port 10017, XLX/DCS peers use port 10002 (auto-detected by callsign prefix). DCS reflectors support XLX peering on port 10002 — this is not the DCS protocol (port 30051).
 
 ### Echo Module
 Built-in echo/parrot function. Assign it to any module - audio is recorded and played back after 3 seconds of silence.
@@ -183,7 +184,7 @@ The urfd container runs three services via supervisord:
 
 All configuration is in `/opt/urfd/config/` (mounted as volume):
 - `urfd.ini` - Main reflector configuration
-- `urfd.interlink` - Peer linking (URF, XLX, BM peers with DNS support)
+- `urfd.interlink` - Peer linking (URF, XLX, DCS peers with DNS support)
 - `urfd.blacklist` / `urfd.whitelist` - Access control
 - `urfd.terminal` - G3 terminal configuration
 
@@ -247,8 +248,8 @@ Three types of peering are supported in `urfd.interlink`:
 | Type | Prefix | Default Port | Protocol | Requires |
 |------|--------|-------------|----------|----------|
 | URF Peer | `URF` | 10017 | URF native | - |
-| XLX Peer | `XLX` | 10002 | XLX/BM | `[XLXPeer] Enable = true` |
-| BM Peer | `BM` | 10002 | XLX/BM | `[XLXPeer] Enable = true` |
+| XLX Peer | `XLX` | 10002 | XLX | `[XLXPeer] Enable = true` |
+| DCS Peer | `DCS` | 10002 | XLX | `[XLXPeer] Enable = true` |
 
 DNS hostnames are resolved via `getaddrinfo()` at load time. Both sides must list each other in their interlink files. DHT-based peering (no IP needed) is supported for URF peers when OpenDHT is enabled.
 
@@ -261,7 +262,7 @@ Required ports (only open ports for enabled protocols):
 | 80/tcp | HTTP | Dashboard |
 | 8363/tcp | HTTP | Dashboard (Docker) |
 | 8880/udp | DMR+ | DMO mode |
-| 10002/udp | XLXPeer | XLX/BM peering |
+| 10002/udp | XLXPeer | XLX/DCS peering |
 | 10017/udp | URF | URF interlinking |
 | 10100/tcp | TC | Transcoder |
 | 12345-12346/udp | G3 | Icom Terminal |

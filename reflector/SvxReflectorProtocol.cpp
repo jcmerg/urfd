@@ -440,7 +440,7 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
 			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
 			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},
-			{"BM", EProtocol::bm}, {"G3", EProtocol::g3},
+			{"XLXPeer", EProtocol::xlxpeer}, {"G3", EProtocol::g3},
 		};
 		std::istringstream ss(g_Configure.GetString(g_Keys.svx.blockprotocols));
 		std::string token;

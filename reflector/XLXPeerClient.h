@@ -1,6 +1,6 @@
-//  Copyright © 2016 Jean-Luc Deltombe (LX3JL). All rights reserved.
+//  Copyright © 2015 Jean-Luc Deltombe (LX3JL). All rights reserved.
 
-// urfd -- The universal reflector
+// urfd -- The universal Reflector
 // Copyright © 2021 Thomas A. Early N7TAE
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,31 +18,29 @@
 
 #pragma once
 
-#include "Peer.h"
-#include "BMClient.h"
+#include "Defines.h"
+#include "Client.h"
 
-////////////////////////////////////////////////////////////////////////////////////////
-// define
-
-
-////////////////////////////////////////////////////////////////////////////////////////
-// class
-
-class CBmPeer : public CPeer
+class CXlxPeerClient : public CClient
 {
 public:
 	// constructors
-	CBmPeer();
-	CBmPeer(const CCallsign &, const CIp &, const char *, const CVersion &);
-	CBmPeer(const CBmPeer &) = delete;
+	CXlxPeerClient();
+	CXlxPeerClient(const CCallsign &, const CIp &, char = ' ');
+	CXlxPeerClient(const CXlxPeerClient &);
+
+	// destructor
+	virtual ~CXlxPeerClient() {};
+
+	// identity
+	EProtocol GetProtocol(void) const            { return EProtocol::xlxpeer; }
+	EProtoRev GetProtocolRevision(void) const    { return EProtoRev::ambe; }
+	const char *GetProtocolName(void) const      { return "XLX"; }
+	bool IsPeer(void) const                      { return true; }
 
 	// status
 	bool IsAlive(void) const;
 
-	// identity
-	EProtocol GetProtocol(void) const           { return EProtocol::bm; }
-	const char *GetProtocolName(void) const     { return "XLX"; }
-
-	// revision helper
-	static EProtoRev GetProtocolRevision(const CVersion &);
+	// reporting
+	void WriteXml(std::ofstream &) {}
 };

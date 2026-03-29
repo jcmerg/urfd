@@ -1,6 +1,6 @@
 //  Copyright © 2015 Jean-Luc Deltombe (LX3JL). All rights reserved.
 
-// urfd -- The universal Reflector
+// urfd -- The universal reflector
 // Copyright © 2021 Thomas A. Early N7TAE
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,31 +16,32 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#pragma once
+#include <string.h>
 
-#include "Defines.h"
-#include "Client.h"
+#include "XLXPeerClient.h"
 
-class CBmClient : public CClient
+
+////////////////////////////////////////////////////////////////////////////////////////
+// constructors
+
+CXlxPeerClient::CXlxPeerClient()
 {
-public:
-	// constructors
-	CBmClient();
-	CBmClient(const CCallsign &, const CIp &, char = ' ');
-	CBmClient(const CBmClient &);
+}
 
-	// destructor
-	virtual ~CBmClient() {};
+CXlxPeerClient::CXlxPeerClient(const CCallsign &callsign, const CIp &ip, char reflectorModule)
+	: CClient(callsign, ip, reflectorModule)
+{
+}
 
-	// identity
-	EProtocol GetProtocol(void) const            { return EProtocol::bm; }
-	EProtoRev GetProtocolRevision(void) const    { return EProtoRev::ambe; }
-	const char *GetProtocolName(void) const      { return "XLX"; }
-	bool IsPeer(void) const                      { return true; }
+CXlxPeerClient::CXlxPeerClient(const CXlxPeerClient &client)
+	: CClient(client)
+{
+}
 
-	// status
-	bool IsAlive(void) const;
+////////////////////////////////////////////////////////////////////////////////////////
+// status
 
-	// reporting
-	void WriteXml(std::ofstream &) {}
-};
+bool CXlxPeerClient::IsAlive(void) const
+{
+	return (m_LastKeepaliveTime.time() < XLXPEER_KEEPALIVE_TIMEOUT);
+}

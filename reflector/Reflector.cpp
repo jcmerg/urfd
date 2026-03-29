@@ -715,8 +715,8 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		xmlFile << "<Protocol><Name>NXDN</Name><Port>" << g_Configure.GetUnsigned(g_Keys.nxdn.port) << "</Port></Protocol>" << std::endl;
 	if (XML_PROTO_ENABLED(g_Keys.urf.enable))
 		xmlFile << "<Protocol><Name>URF</Name><Port>" << g_Configure.GetUnsigned(g_Keys.urf.port) << "</Port></Protocol>" << std::endl;
-	if (g_Configure.Contains(g_Keys.bm.enable) && g_Configure.GetBoolean(g_Keys.bm.enable))
-		xmlFile << "<Protocol><Name>XLXPeer</Name><Port>" << g_Configure.GetUnsigned(g_Keys.bm.port) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.xlxpeer.enable) && g_Configure.GetBoolean(g_Keys.xlxpeer.enable))
+		xmlFile << "<Protocol><Name>XLXPeer</Name><Port>" << g_Configure.GetUnsigned(g_Keys.xlxpeer.port) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.usrp.enable) && g_Configure.GetBoolean(g_Keys.usrp.enable))
 		xmlFile << "<Protocol><Name>USRP</Name><Port>" << g_Configure.GetUnsigned(g_Keys.usrp.rxport) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))

@@ -33,8 +33,8 @@ struct SJsonKeys {
 	struct G3 { const std::string enable; }
 	g3 { "G3Enable" };
 
-	struct BM { const std::string enable, port; }
-	bm { "bmEnable", "bmPort" };
+	struct XLXPEER { const std::string enable, port, peercallsign; }
+	xlxpeer { "bmEnable", "bmPort", "bmPeerCallsign" };
 
 	struct MMDVM { const std::string port, defaultid, enable; }
 	mmdvm { "MMDVMPort", "mmdvmdefaultid", "MMDVMEnable" };

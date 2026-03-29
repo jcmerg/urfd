@@ -16,47 +16,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#pragma once
 
+#include "Peer.h"
+#include "XLXPeerClient.h"
 
-#include <string.h>
-#include "Reflector.h"
-#include "BMPeer.h"
-#include "BMClient.h"
+////////////////////////////////////////////////////////////////////////////////////////
+// define
 
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// constructor
+// class
 
-
-CBmPeer::CBmPeer()
+class CXlxPeer : public CPeer
 {
-}
+public:
+	// constructors
+	CXlxPeer();
+	CXlxPeer(const CCallsign &, const CIp &, const char *, const CVersion &);
+	CXlxPeer(const CXlxPeer &) = delete;
 
-CBmPeer::CBmPeer(const CCallsign &callsign, const CIp &ip, const char *modules, const CVersion &version)
-	: CPeer(callsign, ip, modules, version)
-{
-	std::cout << "Adding BM peer" << std::endl;
+	// status
+	bool IsAlive(void) const;
 
-	// and construct all xlx clients
-	for ( unsigned i = 0; i < ::strlen(modules); i++ )
-	{
-		// create and append to vector
-		m_Clients.push_back(std::make_shared<CBmClient>(callsign, ip, modules[i]));
-	}
-}
+	// identity
+	EProtocol GetProtocol(void) const           { return EProtocol::xlxpeer; }
+	const char *GetProtocolName(void) const     { return "XLX"; }
 
-////////////////////////////////////////////////////////////////////////////////////////
-// status
-
-bool CBmPeer::IsAlive(void) const
-{
-	return (m_LastKeepaliveTime.time() < BM_KEEPALIVE_TIMEOUT);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-// revision helper
-
-EProtoRev CBmPeer::GetProtocolRevision(const CVersion &version)
-{
-	return EProtoRev::ambe;
-}
+	// revision helper
+	static EProtoRev GetProtocolRevision(const CVersion &);
+};

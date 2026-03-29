@@ -25,7 +25,7 @@
 #include "DMRMMDVMProtocol.h"
 #include "YSFProtocol.h"
 #include "M17Protocol.h"
-#include "BMProtocol.h"
+#include "XLXPeerProtocol.h"
 #include "MMDVMClientProtocol.h"
 #include "P25Protocol.h"
 #include "NXDNProtocol.h"
@@ -81,10 +81,10 @@ bool CProtocols::Init(void)
 				return false;
 		}
 
-		if (g_Configure.Contains(g_Keys.bm.enable) && g_Configure.GetBoolean(g_Keys.bm.enable))
+		if (g_Configure.Contains(g_Keys.xlxpeer.enable) && g_Configure.GetBoolean(g_Keys.xlxpeer.enable))
 		{
-			m_Protocols.emplace_back(std::unique_ptr<CBMProtocol>(new CBMProtocol));
-			if (! m_Protocols.back()->Initialize("XLX", EProtocol::bm, uint16_t(g_Configure.GetUnsigned(g_Keys.bm.port)), DMR_IPV4, DMR_IPV6))
+			m_Protocols.emplace_back(std::unique_ptr<CXlxPeerProtocol>(new CXlxPeerProtocol));
+			if (! m_Protocols.back()->Initialize("XLX", EProtocol::xlxpeer, uint16_t(g_Configure.GetUnsigned(g_Keys.xlxpeer.port)), DMR_IPV4, DMR_IPV6))
 				return false;
 		}
 

@@ -339,9 +339,11 @@ bool CConfigure::ReadData(const std::string &path)
 				break;
 			case ESection::bm:
 				if (0 == key.compare(JPORT))
-					data[g_Keys.bm.port] = getUnsigned(value, "XLXPeer Port", 1024, 65535, 10002);
+					data[g_Keys.xlxpeer.port] = getUnsigned(value, "XLXPeer Port", 1024, 65535, 10002);
 				else if (0 == key.compare(JENABLE))
-					data[g_Keys.bm.enable] = IS_TRUE(value[0]);
+					data[g_Keys.xlxpeer.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.xlxpeer.peercallsign] = value;
 				else
 					badParam(key);
 				break;
@@ -798,11 +800,11 @@ bool CConfigure::ReadData(const std::string &path)
 	isDefined(ErrorLevel::fatal, JURF, JPORT, g_Keys.urf.port, rval);
 
 	// XLXPeer (legacy: Brandmeister)
-	if (isDefined(ErrorLevel::fatal, JXLXPEER, JENABLE, g_Keys.bm.enable, rval))
+	if (isDefined(ErrorLevel::fatal, JXLXPEER, JENABLE, g_Keys.xlxpeer.enable, rval))
 	{
-		if (GetBoolean(g_Keys.bm.enable))
+		if (GetBoolean(g_Keys.xlxpeer.enable))
 		{
-			isDefined(ErrorLevel::fatal, JXLXPEER, JPORT, g_Keys.bm.port, rval);
+			isDefined(ErrorLevel::fatal, JXLXPEER, JPORT, g_Keys.xlxpeer.port, rval);
 		}
 	}
 

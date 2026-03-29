@@ -1,4 +1,4 @@
-//  Copyright © 2015 Jean-Luc Deltombe (LX3JL). All rights reserved.
+//  Copyright © 2016 Jean-Luc Deltombe (LX3JL). All rights reserved.
 
 // urfd -- The universal reflector
 // Copyright © 2021 Thomas A. Early N7TAE
@@ -16,32 +16,47 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include <string.h>
 
-#include "BMClient.h"
+
+#include <string.h>
+#include "Reflector.h"
+#include "XLXPeer.h"
+#include "XLXPeerClient.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////////
-// constructors
+// constructor
 
-CBmClient::CBmClient()
+
+CXlxPeer::CXlxPeer()
 {
 }
 
-CBmClient::CBmClient(const CCallsign &callsign, const CIp &ip, char reflectorModule)
-	: CClient(callsign, ip, reflectorModule)
+CXlxPeer::CXlxPeer(const CCallsign &callsign, const CIp &ip, const char *modules, const CVersion &version)
+	: CPeer(callsign, ip, modules, version)
 {
-}
+	std::cout << "Adding BM peer" << std::endl;
 
-CBmClient::CBmClient(const CBmClient &client)
-	: CClient(client)
-{
+	// and construct all xlx clients
+	for ( unsigned i = 0; i < ::strlen(modules); i++ )
+	{
+		// create and append to vector
+		m_Clients.push_back(std::make_shared<CXlxPeerClient>(callsign, ip, modules[i]));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // status
 
-bool CBmClient::IsAlive(void) const
+bool CXlxPeer::IsAlive(void) const
 {
-	return (m_LastKeepaliveTime.time() < BM_KEEPALIVE_TIMEOUT);
+	return (m_LastKeepaliveTime.time() < XLXPEER_KEEPALIVE_TIMEOUT);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// revision helper
+
+EProtoRev CXlxPeer::GetProtocolRevision(const CVersion &version)
+{
+	return EProtoRev::ambe;
 }

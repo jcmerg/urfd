@@ -16,11 +16,13 @@
 #    XLX269 xlx269.example.com A
 #    XLX100 44.10.20.30 AFS
 #
-#  BM Peering (port 10002 default, same protocol as XLX):
-#    <BM-Callsign> <Address> <Shared-Modules>
-#    BM3104 bm3104.example.com E
+#  DCS Peering (port 10002 default, uses XLX interlink protocol):
+#    <DCS-Callsign> <Address> <Shared-Modules> [Port]
+#    DCS002 dcs002.xreflector.net S
+#    NOTE: This is NOT a DCS protocol connection (port 30051).
+#          DCS reflectors support XLX peering on port 10002.
 #
-#  NOTE: XLX and BM entries use the same protocol on port 10002.
+#  NOTE: XLX and DCS entries use the same protocol on port 10002.
 #        This requires [XLXPeer] Enable = true in urfd.ini.
 #        For direct DMR master TG mapping, use [MMDVMClient] in urfd.ini.
 #

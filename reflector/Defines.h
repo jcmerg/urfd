@@ -68,7 +68,7 @@
 
 // protocols ---------------------------------------------------
 
-enum class EProtocol { any, none, dextra, dplus, dcs, g3, bm, urf, dmrplus, dmrmmdvm, nxdn, p25, usrp, ysf, m17, mmdvmclient, svxreflector };
+enum class EProtocol { any, none, dextra, dplus, dcs, g3, xlxpeer, urf, dmrplus, dmrmmdvm, nxdn, p25, usrp, ysf, m17, mmdvmclient, svxreflector };
 
 // DExtra
 #define DEXTRA_KEEPALIVE_PERIOD         3                                   // in seconds
@@ -83,10 +83,10 @@ enum class EProtocol { any, none, dextra, dplus, dcs, g3, bm, urf, dmrplus, dmrm
 #define DCS_KEEPALIVE_PERIOD            1                                   // in seconds
 #define DCS_KEEPALIVE_TIMEOUT           (DCS_KEEPALIVE_PERIOD*30)           // in seconds
 
-// XLX, used for BM
-#define BM_KEEPALIVE_PERIOD             1                                   // in seconds
-#define BM_KEEPALIVE_TIMEOUT            (BM_KEEPALIVE_PERIOD*30)           // in seconds
-#define BM_RECONNECT_PERIOD             5                                   // in seconds
+// XLX Peer
+#define XLXPEER_KEEPALIVE_PERIOD        1                                   // in seconds
+#define XLXPEER_KEEPALIVE_TIMEOUT       (XLXPEER_KEEPALIVE_PERIOD*30)      // in seconds
+#define XLXPEER_RECONNECT_PERIOD        5                                   // in seconds
 
 // URF
 #define URF_KEEPALIVE_PERIOD            1                                   // in seconds

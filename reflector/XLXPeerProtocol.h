@@ -31,7 +31,7 @@ class CPeer;
 ////////////////////////////////////////////////////////////////////////////////////////
 // class
 
-class CBMProtocol : public CSEProtocol
+class CXlxPeerProtocol : public CSEProtocol
 {
 public:
 	// initialization
@@ -75,4 +75,5 @@ protected:
 	CTimer m_LastPeersLinkTime;
 	// config data;
 	bool m_HasTranscoder;
+	CCallsign m_PeerCallsign;
 };

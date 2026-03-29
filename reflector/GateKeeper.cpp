@@ -94,8 +94,8 @@ bool CGateKeeper::MayLink(const CCallsign &callsign, const CIp &ip, EProtocol pr
 		ok = IsNodeListedOk(base);
 		break;
 
-	// URF and BM interlinks
-	case EProtocol::bm:
+	// URF and XLX peer interlinks
+	case EProtocol::xlxpeer:
 	case EProtocol::urf:
 		ok = IsPeerListedOk(base, ip, modules);
 		break;
@@ -145,7 +145,7 @@ bool CGateKeeper::MayTransmit(const CCallsign &callsign, const CIp &ip, const EP
 
 	// URF interlinks
 	case EProtocol::urf:
-	case EProtocol::bm:
+	case EProtocol::xlxpeer:
 		ok = IsPeerListedOk(base, module);
 		break;
 
@@ -295,8 +295,8 @@ const std::string CGateKeeper::ProtocolName(const EProtocol p) const
 			return "NXDN";
 		case EProtocol::usrp:
 			return "USRP";
-		case EProtocol::bm:
-			return "Brandmeister";
+		case EProtocol::xlxpeer:
+			return "XLXPeer";
 		case EProtocol::g3:
 			return "Icom G3";
 		default:
