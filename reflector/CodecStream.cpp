@@ -18,6 +18,9 @@
 
 
 #include <string.h>
+#include <unistd.h>
+#include <poll.h>
+#include <sys/eventfd.h>
 
 #include "Global.h"
 #include "DVFramePacket.h"
@@ -28,23 +31,46 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
 
-CCodecStream::CCodecStream(CPacketStream *PacketStream, char module) : m_CSModule(module), m_IsOpen(false)
+CCodecStream::CCodecStream(CPacketStream *PacketStream, char module) : m_CSModule(module), m_IsOpen(false), m_EventFD(-1)
 {
 	m_PacketStream = PacketStream;
+	m_EventFD = eventfd(0, EFD_NONBLOCK);
+	if (m_EventFD < 0)
+		std::cerr << "CodecStream[" << module << "]: eventfd creation failed" << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // destructor
 
+void CCodecStream::Push(std::unique_ptr<CDvFramePacket> p)
+{
+	m_Queue.Push(std::move(p));
+	if (m_EventFD >= 0)
+	{
+		uint64_t val = 1;
+		write(m_EventFD, &val, sizeof(val));
+	}
+}
+
 CCodecStream::~CCodecStream()
 {
 	// kill the thread
 	keep_running = false;
+	// wake up poll in Task
+	if (m_EventFD >= 0)
+	{
+		uint64_t val = 1;
+		write(m_EventFD, &val, sizeof(val));
+	}
 	if ( m_Future.valid() )
 	{
 		m_Future.get();
 	}
-	// and close the socket
+	if (m_EventFD >= 0)
+	{
+		close(m_EventFD);
+		m_EventFD = -1;
+	}
 }
 
 void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
@@ -122,7 +148,6 @@ void CCodecStream::Task(void)
 
 			if ((pack.streamid == Packet->GetCodecPacket()->streamid) && (pack.sequence == Packet->GetCodecPacket()->sequence))
 			{
-				// update statistics
 				auto rt = Packet->m_rtTimer.time();
 				if (0 == m_RTCount)
 				{
@@ -139,57 +164,56 @@ void CCodecStream::Task(void)
 				m_RTSum += rt;
 				m_RTCount++;
 
-				// update content with transcoded data
 				Packet->SetCodecData(&pack);
-				// mark the DStar sync frames if the source isn't dstar
 				if (ECodecType::dstar!=Packet->GetCodecIn() && 0==Packet->GetPacketId()%21)
 				{
 					const uint8_t DStarSync[] = { 0x55, 0x2D, 0x16 };
 					Packet->SetDvData(DStarSync);
 				}
 
-				// and push it back to client
 				m_PacketStream->ReturnPacket(std::move(Packet));
 			}
 		}
 		else if (m_IsOpen && pack.streamid != m_uiStreamId)
 		{
-			// Stale packet from previous stream — discard
 			if (m_uiMismatchCount++ == 0)
 				std::cerr << "Transcoder mismatch on module " << m_CSModule << " (stale packet discarded)" << std::endl;
 		}
 	}
+	else if (m_Queue.IsEmpty())
+	{
+		// Nothing to receive and nothing to send — wait for eventfd signal
+		struct pollfd pfd = { m_EventFD, POLLIN, 0 };
+		poll(&pfd, 1, 20);
+		if (pfd.revents & POLLIN)
+		{
+			uint64_t val;
+			read(m_EventFD, &val, sizeof(val));
+		}
+	}
 
-	// anything in our queue, then get it to the transcoder!
-	while (! m_Queue.IsEmpty())
+	// Send queued packets to transcoder
+	while (!m_Queue.IsEmpty())
 	{
 		auto &Frame = m_Queue.Front();
 
 		if (m_IsOpen)
 		{
-			// update important stuff in Frame->m_TCPack for the transcoder
-			// sets the packet counter, stream id, last_packet, module and start the trip timer
 			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);
 
-			// now send to transcoder
 			int fd = g_TCServer.GetFD(Frame->GetCodecPacket()->module);
 			if (fd < 0)
-			{
-				// Crap! We've lost connection to the transcoder!
-				// we'll try to fix this on the next pass
 				return;
-			}
 
-			Frame->m_rtTimer.start();	// start the round-trip timer
+			Frame->m_rtTimer.start();
 			if (g_TCServer.Send(Frame->GetCodecPacket()))
-			{
-				// ditto, we'll try to fix this on the next pass
 				return;
-			}
-			// the fd was good and then the send was successful, so...
-			// push the frame to our local queue where it can wait for the transcoder
 
 			m_LocalQueue.Push(std::move(m_Queue.Pop()));
+		}
+		else
+		{
+			m_Queue.Pop();
 		}
 	}
 }

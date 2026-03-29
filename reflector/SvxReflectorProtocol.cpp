@@ -758,7 +758,6 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 		it->second->Push(std::move(frame));
 	}
 }
-}
 
 void CSvxReflectorProtocol::OnUdpFlush(void)
 {

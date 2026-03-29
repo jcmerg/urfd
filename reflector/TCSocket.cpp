@@ -228,6 +228,23 @@ bool CTCServer::Receive(char module, STCPacket *packet, int ms)
 		return !rv;
 }
 
+bool CTCServer::ReceiveNoPoll(char module, STCPacket *packet)
+{
+	const auto pos = m_Modules.find(module);
+	if (pos == std::string::npos || m_Pfd[pos].fd < 0)
+		return false;
+
+	int fd = m_Pfd[pos].fd;
+	if (receive(fd, packet))
+	{
+		Close(fd);
+		return false;
+	}
+	if (packet->codec_in == ECodecType::ping)
+		return false;
+	return true;
+}
+
 bool CTCServer::Open(const std::string &address, const std::string &modules, uint16_t port)
 {
 	m_Modules.assign(modules);

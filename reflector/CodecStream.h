@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <future>
+#include <sys/eventfd.h>
 
 #include "DVFramePacket.h"
 #include "SafePacketQueue.h"
@@ -49,8 +50,8 @@ public:
 	void Thread(void);
 	void Task(void);
 
-	// pass-through
-	void Push(std::unique_ptr<CDvFramePacket> p) { m_Queue.Push(std::move(p)); }
+	// pass-through (signals eventfd to wake up Task)
+	void Push(std::unique_ptr<CDvFramePacket> p);
 
 protected:
 	// identity
@@ -72,6 +73,7 @@ protected:
 	// thread
 	std::atomic<bool> keep_running;
 	std::future<void> m_Future;
+	int m_EventFD;
 
 	// statistics
 	double       m_RTMin;
