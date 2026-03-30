@@ -63,6 +63,7 @@ CSvxReflectorProtocol::CSvxReflectorProtocol()
 	m_InStream.module = ' ';
 	m_InStream.streamId = 0;
 	m_InStream.open = false;
+	m_InStream.talkerActive = false;
 }
 
 CSvxReflectorProtocol::~CSvxReflectorProtocol()
@@ -687,6 +688,7 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 
 	m_InStream.tg = tg;
 	m_InStream.talkerCallsign = talkerCs;
+	m_InStream.talkerActive = true;
 
 	if (m_InStream.open && m_InStream.module == module)
 	{
@@ -716,13 +718,14 @@ void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 		size_t pos = 2;
 		tg = UnpackUint32(payload, pos);
 	}
+	m_InStream.talkerActive = false;
 	std::cout << "SvxReflector: talker stop on TG" << tg << " (stream stays open)" << std::endl;
 }
 
 void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 {
 	// Ignore audio if no active talker (no TalkerStart received or after TalkerStop)
-	if (m_InStream.module == ' ' || m_InStream.tg == 0)
+	if (m_InStream.module == ' ' || m_InStream.tg == 0 || !m_InStream.talkerActive)
 		return;
 
 	// V2 UDP audio: type(2) + client_id(2) + seq(2) + opus_len(2) + opus_data
