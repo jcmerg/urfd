@@ -38,8 +38,8 @@ Callsign = YOURCALL-HS
 Password = yourpassword
 TG26363 = S              # SvxReflector TG -> Module S
 # BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols (comma-separated)
-RxGain = 0               # Incoming audio gain in dB (-40 to +24, default 0)
-TxGain = 0               # Outgoing audio gain in dB (-40 to +24, default 0)
+RxGain = 0               # Incoming audio gain in dB (-40 to +40, default 0)
+TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 ```
 
 **BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.

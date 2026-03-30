@@ -465,14 +465,14 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 	if (g_Configure.Contains(g_Keys.svx.rxgain))
 	{
 		int db = std::stoi(g_Configure.GetString(g_Keys.svx.rxgain));
-		if (db < -40) db = -40; else if (db > 24) db = 24;
+		if (db < -40) db = -40; else if (db > 40) db = 40;
 		m_RxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
 		std::cout << "SvxReflector: RxGain = " << db << " dB" << std::endl;
 	}
 	if (g_Configure.Contains(g_Keys.svx.txgain))
 	{
 		int db = std::stoi(g_Configure.GetString(g_Keys.svx.txgain));
-		if (db < -40) db = -40; else if (db > 24) db = 24;
+		if (db < -40) db = -40; else if (db > 40) db = 40;
 		m_TxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
 		std::cout << "SvxReflector: TxGain = " << db << " dB" << std::endl;
 	}
