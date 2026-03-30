@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <sstream>
 #include <unistd.h>
 #include <thread>
 #include <chrono>
@@ -349,7 +350,7 @@ bool CTCServer::acceptone(int fd)
 		return true;
 	}
 
-	std::cout << "File descriptor " << newfd << " opened TCP port for module '" << mod << "' on " << their_addr << std::endl;
+	{ std::ostringstream s; s << "File descriptor " << newfd << " opened TCP port for module '" << mod << "' on " << their_addr; std::cout << s.str() << std::endl; }
 
 	m_Pfd[pos].fd = newfd;
 
@@ -440,7 +441,7 @@ bool CTCClient::Connect(char module)
 		return true;
 	}
 
-	std::cout << "File descriptor " << fd << " on " << ip << " opened for module '" << module << "'" << std::endl;
+	{ std::ostringstream s; s << "File descriptor " << fd << " on " << ip << " opened for module '" << module << "'"; std::cout << s.str() << std::endl; }
 
 	m_Pfd[pos].fd = fd;
 
