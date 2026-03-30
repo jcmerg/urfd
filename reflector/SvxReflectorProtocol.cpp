@@ -651,9 +651,10 @@ void CSvxReflectorProtocol::CloseInStream(void)
 		auto it = m_Streams.find(m_InStream.streamId);
 		if (it != m_Streams.end() && it->second)
 		{
-			// Send last-frame using the cached last audio to avoid codec artifacts
+			// Send silent last-frame to give D-Star radios a clean end-of-transmission
+			int16_t silence[160] = {};
 			auto lastFrame = std::unique_ptr<CDvFramePacket>(
-				new CDvFramePacket(m_InStream.lastPcm, m_InStream.streamId, true, ECodecType::svx));
+				new CDvFramePacket(silence, m_InStream.streamId, true, ECodecType::svx));
 			lastFrame->SetPacketModule(m_InStream.module);
 			it->second->Push(std::move(lastFrame));
 			g_Reflector.CloseStream(it->second);
