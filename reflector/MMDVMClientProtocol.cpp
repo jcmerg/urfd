@@ -75,6 +75,10 @@ bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, c
 		}
 	}
 
+	// Always block self-routing: prevent echoing MMDVM-originated traffic
+	// back to the master (which confuses BrandMeister and blocks other TS)
+	m_BlockedSources.insert(EProtocol::mmdvmclient);
+
 	// Load TG mappings
 	if (!m_TGMap.LoadFromConfig())
 	{

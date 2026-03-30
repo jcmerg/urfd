@@ -364,7 +364,7 @@ void CReflector::RouterThread(const char ThisModule)
 			EProtocol dstProto = (*it)->GetProtocolType();
 			if ((*it)->IsSourceBlocked(srcProto))
 			{
-				if (packet->IsDvHeader())
+				if (packet->IsDvHeader() && srcProto != dstProto)
 					std::cout << "Router: " << g_GateKeeper.ProtocolName(srcProto) << " -> " << g_GateKeeper.ProtocolName(dstProto) << " blocked on module " << ThisModule << std::endl;
 				continue;
 			}
