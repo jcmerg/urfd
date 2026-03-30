@@ -134,7 +134,6 @@ protected:
 		char module;
 		uint16_t streamId;
 		bool open;
-		bool talkerActive;
 		std::string talkerCallsign;
 		int16_t lastPcm[160] = {};
 	};
