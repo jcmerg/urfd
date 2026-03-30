@@ -693,13 +693,15 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 
 	if (m_InStream.open && m_InStream.module == module)
 	{
-		// Reuse existing open stream on same module (like USRP does)
-		std::cout << "SvxReflector: reusing stream 0x" << std::hex << m_InStream.streamId << std::dec
-		          << " on module " << module << std::endl;
+		// Reuse existing open stream on same module
+		// TalkerStart/Stop are informational — the UDP audio stream is continuous
+		// Closing here would cut off audio that's still in-flight via UDP
 	}
 	else
 	{
 		// New module or no open stream - will open on first audio frame
+		if (m_InStream.open)
+			CloseInStream();
 		m_InStream.module = module;
 		m_InStream.open = false;
 		static uint8_t counter = 0;
@@ -725,8 +727,8 @@ void CSvxReflectorProtocol::OnTalkerStop(const std::vector<uint8_t> &payload)
 
 void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 {
-	// Ignore audio if no active talker (no TalkerStart received or after TalkerStop)
-	if (m_InStream.module == ' ' || m_InStream.tg == 0 || !m_InStream.talkerActive)
+	// Ignore audio if no active talker
+	if (m_InStream.module == ' ' || m_InStream.tg == 0)
 		return;
 
 	// V2 UDP audio: type(2) + client_id(2) + seq(2) + opus_len(2) + opus_data
