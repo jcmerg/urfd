@@ -650,10 +650,16 @@ void CSvxReflectorProtocol::CloseInStream(void)
 		auto it = m_Streams.find(m_InStream.streamId);
 		if (it != m_Streams.end() && it->second)
 		{
-			// Send silent last-frame to give D-Star radios a clean end-of-transmission
-			int16_t silence[160] = {};
+			// Flush OPUS decoder to reset state (like svxlink's flushEncodedSamples)
+			// Output is discarded — the flush just cleans up internal decoder buffers
+			if (m_OpusDecoder)
+			{
+				int16_t dummy[160];
+				[[maybe_unused]] int ret = opus_decode(m_OpusDecoder, NULL, 0, dummy, 160, 0);
+			}
+			// Close with cached last audio (not silence, not flush output)
 			auto lastFrame = std::unique_ptr<CDvFramePacket>(
-				new CDvFramePacket(silence, m_InStream.streamId, true, ECodecType::svx));
+				new CDvFramePacket(m_InStream.lastPcm, m_InStream.streamId, true, ECodecType::svx));
 			lastFrame->SetPacketModule(m_InStream.module);
 			it->second->Push(std::move(lastFrame));
 			g_Reflector.CloseStream(it->second);
