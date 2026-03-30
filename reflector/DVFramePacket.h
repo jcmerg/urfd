@@ -56,8 +56,8 @@ public:
 	CDvFramePacket(const uint8_t *imbe, uint16_t streamid, bool islast);
 	// NXDN Frame
 	CDvFramePacket(const uint8_t *ambe, uint16_t streamid, uint8_t pid, bool islast);
-	// USRP Frame
-	CDvFramePacket(const int16_t *usrp, uint16_t streamid, bool islast);
+	// USRP/SVX Frame (PCM)
+	CDvFramePacket(const int16_t *usrp, uint16_t streamid, bool islast, ECodecType type = ECodecType::usrp);
 	// URF Network
 	CDvFramePacket(const CBuffer &buf);
 

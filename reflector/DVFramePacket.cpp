@@ -150,8 +150,8 @@ CDvFramePacket::CDvFramePacket(const uint8_t *ambe, uint16_t sid, uint8_t pid, b
 	m_TCPack.codec_in = ECodecType::dmr;
 }
 
-// usrp constructor
-CDvFramePacket::CDvFramePacket(const int16_t *usrp, uint16_t streamid, bool islast)
+// usrp/svx constructor
+CDvFramePacket::CDvFramePacket(const int16_t *usrp, uint16_t streamid, bool islast, ECodecType type)
 	: CPacket(streamid, true, islast)
 {
 	for(int i = 0; i < 160; ++i){
@@ -164,7 +164,7 @@ CDvFramePacket::CDvFramePacket(const int16_t *usrp, uint16_t streamid, bool isla
 	memset(m_uiDvSync,     0, sizeof(m_uiDvSync));
 	memset(m_uiDvData,     0, sizeof(m_uiDvData));
 	memset(m_Nonce,        0, sizeof(m_Nonce));
-	m_TCPack.codec_in = ECodecType::usrp;
+	m_TCPack.codec_in = type;
 }
 
 std::unique_ptr<CPacket> CDvFramePacket::Copy(void)
@@ -233,6 +233,7 @@ const uint8_t *CDvFramePacket::GetCodecData(ECodecType type) const
 	case ECodecType::p25:
 		return m_TCPack.p25;
 	case ECodecType::usrp:
+	case ECodecType::svx:
 		return (uint8_t*)m_TCPack.usrp;
 	default:
 		return nullptr;

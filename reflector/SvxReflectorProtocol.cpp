@@ -56,6 +56,8 @@ CSvxReflectorProtocol::CSvxReflectorProtocol()
 	, m_UdpSeq(0)
 	, m_OpusEncoder(nullptr)
 	, m_OpusDecoder(nullptr)
+	, m_RxGainNum(256)
+	, m_TxGainNum(256)
 {
 	m_InStream.tg = 0;
 	m_InStream.module = ' ';
@@ -459,6 +461,22 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 		}
 	}
 
+	// Parse gain settings (dB, range -24 to +24, default 0)
+	if (g_Configure.Contains(g_Keys.svx.rxgain))
+	{
+		int db = std::stoi(g_Configure.GetString(g_Keys.svx.rxgain));
+		if (db < -40) db = -40; else if (db > 24) db = 24;
+		m_RxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
+		std::cout << "SvxReflector: RxGain = " << db << " dB" << std::endl;
+	}
+	if (g_Configure.Contains(g_Keys.svx.txgain))
+	{
+		int db = std::stoi(g_Configure.GetString(g_Keys.svx.txgain));
+		if (db < -40) db = -40; else if (db > 24) db = 24;
+		m_TxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
+		std::cout << "SvxReflector: TxGain = " << db << " dB" << std::endl;
+	}
+
 	LoadTGMap();
 
 	// OPUS encoder at 16kHz (SvxReflector expects 16kHz OPUS)
@@ -634,7 +652,7 @@ void CSvxReflectorProtocol::CloseInStream(void)
 		{
 			// Send last-frame using the cached last audio to avoid codec artifacts
 			auto lastFrame = std::unique_ptr<CDvFramePacket>(
-				new CDvFramePacket(m_InStream.lastPcm, m_InStream.streamId, true));
+				new CDvFramePacket(m_InStream.lastPcm, m_InStream.streamId, true, ECodecType::svx));
 			lastFrame->SetPacketModule(m_InStream.module);
 			it->second->Push(std::move(lastFrame));
 			g_Reflector.CloseStream(it->second);
@@ -730,6 +748,13 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 	for (int i = samples; i < 160; i++)
 		pcm[i] = 0;
 
+	// Apply RX gain
+	if (m_RxGainNum != 256)
+	{
+		for (int i = 0; i < 160; i++)
+			pcm[i] = (int16_t)((pcm[i] * m_RxGainNum) >> 8);
+	}
+
 	// On first audio frame, open a stream with a header packet
 	if (!m_InStream.open)
 	{
@@ -755,7 +780,7 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 
 	// Create frame and push directly to stream
 	auto frame = std::unique_ptr<CDvFramePacket>(
-		new CDvFramePacket(pcm, m_InStream.streamId, false));
+		new CDvFramePacket(pcm, m_InStream.streamId, false, ECodecType::svx));
 	frame->SetPacketModule(m_InStream.module);
 
 	// Look up stream by ID only (skip IP check)
@@ -885,7 +910,17 @@ void CSvxReflectorProtocol::HandleQueue(void)
 				const int16_t *pcm = (const int16_t *)frame.GetCodecData(ECodecType::usrp);
 				if (pcm)
 				{
-					EncodeAndSendAudio(pcm, tg);
+					if (m_TxGainNum != 256)
+					{
+						int16_t gained[160];
+						for (int i = 0; i < 160; i++)
+							gained[i] = (int16_t)((pcm[i] * m_TxGainNum) >> 8);
+						EncodeAndSendAudio(gained, tg);
+					}
+					else
+					{
+						EncodeAndSendAudio(pcm, tg);
+					}
 				}
 			}
 		}

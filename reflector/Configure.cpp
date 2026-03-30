@@ -573,6 +573,10 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.svx.password] = value;
 				else if (0 == key.compare("BlockProtocols"))
 					data[g_Keys.svx.blockprotocols] = value;
+				else if (0 == key.compare("RxGain"))
+					data[g_Keys.svx.rxgain] = value;
+				else if (0 == key.compare("TxGain"))
+					data[g_Keys.svx.txgain] = value;
 				else if (0 == key.compare(0, 2, "TG"))
 				{
 					std::string tgkey = "svxTG" + key.substr(2);

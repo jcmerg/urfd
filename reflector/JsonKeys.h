@@ -78,6 +78,6 @@ struct SJsonKeys {
 	files { "pidFilePath", "xmlFilePath", "jsonFilePath", "whitelistFilePath", "blacklistFilePath", "interlinkFilePath", "g3TerminalFilePath" };
 	struct MMDVMCLIENT { const std::string enable, address, port, localport, dmrid, password, callsign, latitude, longitude, location, description, url, rxfreq, txfreq, software, firmware, fallbackdmrid, blockprotocols; }
 	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware", "mmdvmcliFallbackDmrId", "mmdvmcliBlockProtocols" };
-	struct SVX { const std::string enable, host, port, callsign, password, blockprotocols; }
-	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword", "svxBlockProtocols" };
+	struct SVX { const std::string enable, host, port, callsign, password, blockprotocols, rxgain, txgain; }
+	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword", "svxBlockProtocols", "svxRxGain", "svxTxGain" };
 };

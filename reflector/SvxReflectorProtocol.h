@@ -120,6 +120,10 @@ protected:
 	OpusEncoder *m_OpusEncoder;
 	OpusDecoder *m_OpusDecoder;
 
+	// gain (linear numerator, 256 = 0dB)
+	int32_t m_RxGainNum;
+	int32_t m_TxGainNum;
+
 	// TG mapping
 	std::unordered_map<uint32_t, char> m_TGToModule;
 	std::unordered_map<char, uint32_t> m_ModuleToTG;

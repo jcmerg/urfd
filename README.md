@@ -38,9 +38,13 @@ Callsign = YOURCALL-HS
 Password = yourpassword
 TG26363 = S              # SvxReflector TG -> Module S
 # BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols (comma-separated)
+RxGain = 0               # Incoming audio gain in dB (-40 to +24, default 0)
+TxGain = 0               # Outgoing audio gain in dB (-40 to +24, default 0)
 ```
 
 **BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
+
+**RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
 
 ### Reflector Interlinking
 Peer with URF, XLX and DCS reflectors. DNS hostnames are supported. Configure interlinking in `urfd.interlink`:
