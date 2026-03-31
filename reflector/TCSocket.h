@@ -43,6 +43,8 @@ public:
 
 	int GetFD(char module) const; // can return -1!
 	char GetMod(int fd) const;
+	const std::string &GetModules(void) const { return m_Modules; }
+	bool IsModuleConnected(char module) const { return GetFD(module) >= 0; }
 
 protected:
 	bool receive(int fd, STCPacket *packet);

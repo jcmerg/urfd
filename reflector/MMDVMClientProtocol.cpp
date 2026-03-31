@@ -79,12 +79,8 @@ bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, c
 	// back to the master (which confuses BrandMeister and blocks other TS)
 	m_BlockedSources.insert(EProtocol::mmdvmclient);
 
-	// Load TG mappings
-	if (!m_TGMap.LoadFromConfig())
-	{
-		std::cerr << "MMDVMClient: failed to load TG mappings" << std::endl;
-		return false;
-	}
+	// Load TG mappings (empty map is OK — dynamic TGs can be added via admin API)
+	m_TGMap.LoadFromConfig();
 
 	m_State = EHBState::DISCONNECTED;
 
@@ -112,6 +108,35 @@ void CMMDVMClientProtocol::Task(void)
 	if (Receive4(Buffer, Ip, 20))
 	{
 		HandleIncoming(Buffer, Ip);
+	}
+
+	// Handle admin-requested reconnect (for dynamic TG changes)
+	if (m_ReconnectRequested.exchange(false))
+	{
+		std::cout << "MMDVMClient: reconnect requested (TG mapping changed)" << std::endl;
+		SendClose();
+		m_State = EHBState::DISCONNECTED;
+		m_RetryTimer.start();
+	}
+
+	// Handle pending kerchunk (only when RUNNING — waits for reconnect to complete)
+	if (m_State == EHBState::RUNNING && m_PendingKerchunk.load() != 0)
+	{
+		uint32_t kerchunkTG = m_PendingKerchunk.exchange(0);
+		if (kerchunkTG != 0)
+			SendKerchunk(kerchunkTG);
+	}
+
+	// Purge expired dynamic TGs periodically
+	{
+		auto expired = m_TGMap.PurgeExpired();
+		if (!expired.empty())
+		{
+			std::cout << "MMDVMClient: " << expired.size() << " dynamic TG(s) expired, reconnecting" << std::endl;
+			SendClose();
+			m_State = EHBState::DISCONNECTED;
+			m_RetryTimer.start();
+		}
 	}
 
 	HandleStateMachine();
@@ -409,6 +434,110 @@ void CMMDVMClientProtocol::SendClose(void)
 	Send(buf, m_MasterIp);
 }
 
+void CMMDVMClientProtocol::SendKerchunk(uint32_t tg)
+{
+	// Send a minimal Voice LC Header + Terminator on the given TG
+	// This activates the TG on BrandMeister (dynamic subscription)
+	uint8_t ts = m_TGMap.TGToTimeslot(tg);
+	uint8_t slotFlag = (ts == 1) ? MMDVMCLI_FLAG_SLOT1 : MMDVMCLI_FLAG_SLOT2;
+	uint32_t streamId = (uint32_t)::rand();
+
+	// Source ID must be a valid 24-bit DMR user ID (not the 9-digit repeater ID)
+	// Look up the callsign's personal DMR ID, fall back to FallbackDmrId
+	CCallsign cs;
+	cs.SetCallsign(m_Callsign, false);
+	uint32_t srcId = CallsignToDmrId(cs);
+	if (srcId == 0)
+		srcId = m_FallbackDmrId;
+	if (srcId == 0 || srcId > 16777215)
+	{
+		std::cerr << "MMDVMClient: kerchunk aborted - no valid 24-bit DMR ID available" << std::endl;
+		return;
+	}
+
+	// Voice LC Header
+	{
+		CBuffer buf;
+		buf.Set((uint8_t *)"DMRD", 4);
+		buf.Append((uint8_t)0);  // seq
+		buf.Append((uint8_t)(srcId >> 16));
+		buf.Append((uint8_t)(srcId >> 8));
+		buf.Append((uint8_t)(srcId));
+		buf.Append((uint8_t)(tg >> 16));
+		buf.Append((uint8_t)(tg >> 8));
+		buf.Append((uint8_t)(tg));
+		buf.Append(m_uiId, 4);
+		buf.Append((uint8_t)(slotFlag | MMDVMCLI_FLAG_DATA_SYNC | DMR_DT_VOICE_LC_HEADER));
+		buf.Append((uint8_t *)&streamId, 4);
+		AppendVoiceLCToBuffer(&buf, srcId, tg);
+		buf.Append((uint8_t)0);
+		buf.Append((uint8_t)0x32);
+		Send(buf, m_MasterIp);
+	}
+
+	// Send a few silent AMBE voice frames (BM may ignore header-only kerchunks)
+	{
+		// Silent AMBE frame (DMR silence pattern)
+		static const uint8_t silentAmbe[9] = { 0xB9, 0xE8, 0x81, 0x52, 0x61, 0x73, 0x00, 0x2A, 0x6B };
+		uint8_t pktSeq = 1;
+		for (int voiceSeq = 0; voiceSeq < 3; voiceSeq++)
+		{
+			CBuffer buf;
+			buf.Set((uint8_t *)"DMRD", 4);
+			buf.Append(pktSeq++);
+			buf.Append((uint8_t)(srcId >> 16));
+			buf.Append((uint8_t)(srcId >> 8));
+			buf.Append((uint8_t)(srcId));
+			buf.Append((uint8_t)(tg >> 16));
+			buf.Append((uint8_t)(tg >> 8));
+			buf.Append((uint8_t)(tg));
+			buf.Append(m_uiId, 4);
+
+			uint8_t flags;
+			if (voiceSeq == 0)
+				flags = slotFlag | MMDVMCLI_FLAG_VOICE_SYNC | 0;
+			else
+				flags = slotFlag | voiceSeq;
+			buf.Append(flags);
+			buf.Append((uint8_t *)&streamId, 4);
+
+			// 33-byte payload: 3x silent AMBE frames
+			uint8_t payload[33];
+			::memset(payload, 0, sizeof(payload));
+			::memcpy(payload, silentAmbe, 9);
+			::memcpy(payload + 12, silentAmbe, 9);
+			::memcpy(payload + 24, silentAmbe, 9);
+			buf.Append(payload, 33);
+			buf.Append((uint8_t)0);
+			buf.Append((uint8_t)0x32);
+			Send(buf, m_MasterIp);
+			usleep(60000);  // 60ms between frames
+		}
+	}
+
+	// Terminator with LC
+	{
+		CBuffer buf;
+		buf.Set((uint8_t *)"DMRD", 4);
+		buf.Append((uint8_t)4);  // seq (after 3 voice frames)
+		buf.Append((uint8_t)(srcId >> 16));
+		buf.Append((uint8_t)(srcId >> 8));
+		buf.Append((uint8_t)(srcId));
+		buf.Append((uint8_t)(tg >> 16));
+		buf.Append((uint8_t)(tg >> 8));
+		buf.Append((uint8_t)(tg));
+		buf.Append(m_uiId, 4);
+		buf.Append((uint8_t)(slotFlag | MMDVMCLI_FLAG_DATA_SYNC | DMR_DT_TERMINATOR_WITH_LC));
+		buf.Append((uint8_t *)&streamId, 4);
+		AppendTerminatorLCToBuffer(&buf, srcId, tg);
+		buf.Append((uint8_t)0);
+		buf.Append((uint8_t)0x32);
+		Send(buf, m_MasterIp);
+	}
+
+	std::cout << "MMDVMClient: kerchunk sent on TG" << tg << " srcId=" << srcId << " (stream 0x" << std::hex << streamId << std::dec << ")" << std::endl;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // DMRD incoming: Master -> Reflector
 
@@ -455,6 +584,9 @@ void CMMDVMClientProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t s
 	char module = m_TGMap.TGToModule(dstId);
 	if (module == ' ')
 		return;
+
+	// Refresh dynamic TG TTL on activity
+	m_TGMap.RefreshActivity(dstId);
 
 	CCallsign rpt1;
 	rpt1.SetCallsign(m_Callsign, false);

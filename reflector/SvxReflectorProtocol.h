@@ -16,6 +16,8 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <mutex>
+#include "TGModuleMap.h"
 
 // TCP message types
 #define SVX_TCP_MSG_HEARTBEAT            1
@@ -50,6 +52,12 @@ public:
 
 	// task
 	void Task(void);
+
+	// dynamic TG management (called from admin socket thread)
+	bool AddDynamicTG(uint32_t tg, char module, int ttlSeconds);
+	bool RemoveDynamicTG(uint32_t tg);
+	std::vector<CTGModuleMap::STGInfo> GetTGMappings(void) const;
+	void RequestReconnect(void) { m_ReconnectRequested = true; }
 
 protected:
 	// queue helper
@@ -124,9 +132,24 @@ protected:
 	int32_t m_RxGainNum;
 	int32_t m_TxGainNum;
 
-	// TG mapping
+	// TG mapping (static + dynamic)
+	mutable std::mutex m_TGMutex;
 	std::unordered_map<uint32_t, char> m_TGToModule;
 	std::unordered_map<char, uint32_t> m_ModuleToTG;
+
+	// Dynamic TG tracking
+	struct SDynTG {
+		std::chrono::steady_clock::time_point expires;
+	};
+	std::unordered_map<uint32_t, SDynTG> m_DynTGs;  // dynamic TG expiry info
+
+	// Pending SELECT_TG commands (set from admin thread, consumed in Task thread)
+	mutable std::mutex m_PendingMutex;
+	std::vector<uint32_t> m_PendingSelectTG;
+	std::vector<uint32_t> m_PendingDeselectTG;
+
+	// Reconnect flag (set by admin API, checked in Task loop)
+	std::atomic<bool> m_ReconnectRequested{false};
 
 	// incoming stream state
 	struct SIncomingStream {

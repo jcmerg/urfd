@@ -76,6 +76,11 @@ public:
 	// check
 	bool IsValidModule(char c) const                { return m_Modules.npos!=m_Modules.find(c); }
 
+	// protocol access (for admin socket)
+	CProtocols &GetProtocols(void)                  { return m_Protocols; }
+	const std::string &GetModules(void) const       { return m_Modules; }
+	const std::string &GetTCModules(void) const     { return m_TCmodules; }
+
 	// notifications
 
 #ifndef NO_DHT

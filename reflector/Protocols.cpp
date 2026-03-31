@@ -168,6 +168,16 @@ bool CProtocols::Init(void)
 	return true;
 }
 
+CProtocol *CProtocols::FindByType(EProtocol type)
+{
+	for (auto &p : m_Protocols)
+	{
+		if (p->GetProtocolType() == type)
+			return p.get();
+	}
+	return nullptr;
+}
+
 void CProtocols::Close(void)
 {
 	m_Mutex.lock();

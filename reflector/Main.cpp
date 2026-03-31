@@ -19,20 +19,22 @@
 #include <sys/stat.h>
 
 #include "Global.h"
+#include "LogBuffer.h"
 
 #ifndef UTILITY
 ////////////////////////////////////////////////////////////////////////////////////////
 // global objects
 
-SJsonKeys   g_Keys;
-CReflector  g_Reflector;
-CGateKeeper g_GateKeeper;
-CConfigure  g_Configure;
-CVersion    g_Version(3,2,1); // The major byte should only change if the interlink packet changes!
-CLookupDmr  g_LDid;
-CLookupNxdn g_LNid;
-CLookupYsf  g_LYtr;
-CTCServer   g_TCServer;
+SJsonKeys    g_Keys;
+CReflector   g_Reflector;
+CGateKeeper  g_GateKeeper;
+CConfigure   g_Configure;
+CVersion     g_Version(3,2,1); // The major byte should only change if the interlink packet changes!
+CLookupDmr   g_LDid;
+CLookupNxdn  g_LNid;
+CLookupYsf   g_LYtr;
+CTCServer    g_TCServer;
+CAdminSocket g_AdminSocket;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -46,6 +48,9 @@ int main(int argc, char *argv[])
 
 	if (g_Configure.ReadData(argv[1]))
 		return EXIT_FAILURE;
+
+	// Install log buffer to capture console output for admin interface
+	g_LogBuffer.Install();
 
 	std::cout << "IPv4 binding address is '" << g_Configure.GetString(g_Keys.ip.ipv4bind) << "'" << std::endl;
 	// remove pidfile
@@ -74,6 +79,7 @@ int main(int argc, char *argv[])
 
 	g_Reflector.Stop();
 	std::cout << "Reflector stopped" << std::endl;
+	g_LogBuffer.Uninstall();
 
 	// done
 	return EXIT_SUCCESS;

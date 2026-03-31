@@ -12,12 +12,11 @@ CTGModuleMap::CTGModuleMap()
 
 bool CTGModuleMap::LoadFromConfig(void)
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	m_TGtoEntry.clear();
 	m_ModuleToTG.clear();
+	m_ModuleToAllTGs.clear();
 
-	// Read TG mappings from the JSON config
-	// Format: "mmdvmcliTG<number>" = "<module>[,TS<1|2>]"
-	// e.g. "mmdvmcliTG26363" = "F" or "mmdvmcliTG26363" = "F,TS2"
 	const auto &jdata = g_Configure.GetData();
 	for (auto it = jdata.begin(); it != jdata.end(); ++it)
 	{
@@ -29,16 +28,12 @@ bool CTGModuleMap::LoadFromConfig(void)
 				uint32_t tg = std::stoul(key.substr(10));
 				std::string val = it.value().get<std::string>();
 
-				// Parse "F" or "F,TS2"
 				char mod = ' ';
-				uint8_t ts = 2;  // default TS2
+				uint8_t ts = 2;
 
 				if (val.size() >= 1 && val[0] >= 'A' && val[0] <= 'Z')
-				{
 					mod = val[0];
-				}
 
-				// Check for ,TS1 or ,TS2
 				auto comma = val.find(',');
 				if (comma != std::string::npos)
 				{
@@ -51,17 +46,21 @@ bool CTGModuleMap::LoadFromConfig(void)
 
 				if (mod >= 'A' && mod <= 'Z')
 				{
-					// Reject duplicate module assignments
-					auto existing = m_ModuleToTG.find(mod);
-					if (existing != m_ModuleToTG.end())
+					// First TG for a module becomes primary, additional ones become secondary
+					bool isPrimary = (m_ModuleToTG.find(mod) == m_ModuleToTG.end());
+
+					m_TGtoEntry[tg] = { mod, ts, true, isPrimary, {} };
+					m_ModuleToAllTGs[mod].insert(tg);
+
+					if (isPrimary)
 					{
-						std::cerr << "MMDVMClient: module " << mod << " already mapped to TG" << existing->second
-						          << ", cannot also map TG" << tg << " — each module may only have one TG" << std::endl;
-						continue;
+						m_ModuleToTG[mod] = tg;
+						std::cout << "MMDVMClient TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << " (primary)" << std::endl;
 					}
-					m_TGtoEntry[tg] = { mod, ts };
-					m_ModuleToTG[mod] = tg;
-					std::cout << "MMDVMClient TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << std::endl;
+					else
+					{
+						std::cout << "MMDVMClient TG mapping: TG" << tg << " -> Module " << mod << " on TS" << (int)ts << " (secondary, inbound only)" << std::endl;
+					}
 				}
 				else
 				{
@@ -76,16 +75,14 @@ bool CTGModuleMap::LoadFromConfig(void)
 	}
 
 	if (m_TGtoEntry.empty())
-	{
-		std::cerr << "MMDVMClient: no TG mappings configured!" << std::endl;
-		return false;
-	}
+		std::cout << "MMDVMClient: no static TG mappings configured (dynamic mappings can be added via admin API)" << std::endl;
 
 	return true;
 }
 
 char CTGModuleMap::TGToModule(uint32_t tg) const
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	auto it = m_TGtoEntry.find(tg);
 	if (it != m_TGtoEntry.end())
 		return it->second.module;
@@ -94,6 +91,7 @@ char CTGModuleMap::TGToModule(uint32_t tg) const
 
 uint32_t CTGModuleMap::ModuleToTG(char module) const
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	auto it = m_ModuleToTG.find(module);
 	if (it != m_ModuleToTG.end())
 		return it->second;
@@ -102,6 +100,7 @@ uint32_t CTGModuleMap::ModuleToTG(char module) const
 
 uint8_t CTGModuleMap::TGToTimeslot(uint32_t tg) const
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	auto it = m_TGtoEntry.find(tg);
 	if (it != m_TGtoEntry.end())
 		return it->second.timeslot;
@@ -110,21 +109,160 @@ uint8_t CTGModuleMap::TGToTimeslot(uint32_t tg) const
 
 uint8_t CTGModuleMap::ModuleToTimeslot(char module) const
 {
-	uint32_t tg = ModuleToTG(module);
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	uint32_t tg = 0;
+	auto it = m_ModuleToTG.find(module);
+	if (it != m_ModuleToTG.end())
+		tg = it->second;
 	if (tg != 0)
-		return TGToTimeslot(tg);
+	{
+		auto it2 = m_TGtoEntry.find(tg);
+		if (it2 != m_TGtoEntry.end())
+			return it2->second.timeslot;
+	}
 	return 2;
 }
 
 bool CTGModuleMap::IsTGMapped(uint32_t tg) const
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	return m_TGtoEntry.find(tg) != m_TGtoEntry.end();
+}
+
+bool CTGModuleMap::IsModuleInUse(char module) const
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	return m_ModuleToTG.find(module) != m_ModuleToTG.end();
+}
+
+bool CTGModuleMap::AddDynamic(uint32_t tg, char module, uint8_t timeslot, int ttlSeconds)
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	auto expiry = std::chrono::steady_clock::now() + std::chrono::seconds(ttlSeconds);
+
+	// Check if TG is already mapped
+	auto tgIt = m_TGtoEntry.find(tg);
+	if (tgIt != m_TGtoEntry.end())
+	{
+		if (tgIt->second.is_static)
+		{
+			std::cerr << "Admin: TG" << tg << " is statically mapped, cannot override" << std::endl;
+			return false;
+		}
+		// Already dynamic — update TTL
+		tgIt->second.expires = expiry;
+		std::cout << "Admin: refreshed dynamic TG" << tg << " TTL=" << ttlSeconds << "s" << std::endl;
+		return true;
+	}
+
+	// Check if module has a primary TG
+	auto modIt = m_ModuleToTG.find(module);
+	if (modIt != m_ModuleToTG.end())
+	{
+		// Module has a primary — add as secondary (inbound only)
+		m_TGtoEntry[tg] = { module, timeslot, false, false, expiry };
+		m_ModuleToAllTGs[module].insert(tg);
+		std::cout << "Admin: added secondary TG" << tg << " -> Module " << module
+		          << " TS" << (int)timeslot << " TTL=" << ttlSeconds << "s (inbound only)" << std::endl;
+		return true;
+	}
+
+	// Module is free — add as primary
+	m_TGtoEntry[tg] = { module, timeslot, false, true, expiry };
+	m_ModuleToTG[module] = tg;
+	m_ModuleToAllTGs[module].insert(tg);
+	std::cout << "Admin: added dynamic TG" << tg << " -> Module " << module
+	          << " TS" << (int)timeslot << " TTL=" << ttlSeconds << "s (primary)" << std::endl;
+	return true;
+}
+
+bool CTGModuleMap::RemoveDynamic(uint32_t tg)
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+
+	auto it = m_TGtoEntry.find(tg);
+	if (it == m_TGtoEntry.end())
+		return false;
+	if (it->second.is_static)
+	{
+		std::cerr << "Admin: cannot remove static TG" << tg << std::endl;
+		return false;
+	}
+
+	char mod = it->second.module;
+	bool wasPrimary = it->second.is_primary;
+
+	// Remove from maps
+	m_TGtoEntry.erase(it);
+	m_ModuleToAllTGs[mod].erase(tg);
+	if (m_ModuleToAllTGs[mod].empty())
+		m_ModuleToAllTGs.erase(mod);
+
+	if (wasPrimary)
+	{
+		m_ModuleToTG.erase(mod);
+		// Don't promote secondaries — they are inbound-only and have no outbound TG
+		std::cout << "Admin: removed primary dynamic TG" << tg << " from Module " << mod << std::endl;
+	}
+	else
+	{
+		std::cout << "Admin: removed secondary dynamic TG" << tg << " from Module " << mod << std::endl;
+	}
+	return true;
+}
+
+void CTGModuleMap::RefreshActivity(uint32_t tg)
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	auto it = m_TGtoEntry.find(tg);
+	if (it != m_TGtoEntry.end() && !it->second.is_static)
+	{
+		auto newExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(900);
+		if (newExpiry > it->second.expires)
+			it->second.expires = newExpiry;
+	}
+}
+
+std::vector<uint32_t> CTGModuleMap::PurgeExpired(void)
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	std::vector<uint32_t> expired;
+	auto now = std::chrono::steady_clock::now();
+
+	for (auto it = m_TGtoEntry.begin(); it != m_TGtoEntry.end(); )
+	{
+		if (!it->second.is_static && now >= it->second.expires)
+		{
+			uint32_t tg = it->first;
+			char mod = it->second.module;
+			bool wasPrimary = it->second.is_primary;
+
+			m_ModuleToAllTGs[mod].erase(tg);
+			if (m_ModuleToAllTGs[mod].empty())
+				m_ModuleToAllTGs.erase(mod);
+
+			if (wasPrimary)
+				m_ModuleToTG.erase(mod);
+
+			it = m_TGtoEntry.erase(it);
+			expired.push_back(tg);
+
+			std::cout << "Admin: dynamic TG" << tg << " expired ("
+			          << (wasPrimary ? "primary" : "secondary")
+			          << " on Module " << mod << ")" << std::endl;
+		}
+		else
+		{
+			++it;
+		}
+	}
+	return expired;
 }
 
 std::string CTGModuleMap::GetOptionsString(void) const
 {
-	// Generate BM-compatible static TG subscription options
-	// Format: "TS<slot>_<idx>=<tg>;..." with per-timeslot indexing
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	// Includes ALL TGs (primary + secondary) for BM subscription
 	std::ostringstream oss;
 	int idxTS1 = 0, idxTS2 = 0;
 	bool first = true;
@@ -137,4 +275,28 @@ std::string CTGModuleMap::GetOptionsString(void) const
 		oss << "TS" << (int)pair.second.timeslot << "_" << idx << "=" << pair.first;
 	}
 	return oss.str();
+}
+
+std::vector<CTGModuleMap::STGInfo> CTGModuleMap::GetAllMappings(void) const
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	std::vector<STGInfo> result;
+	auto now = std::chrono::steady_clock::now();
+
+	for (const auto &pair : m_TGtoEntry)
+	{
+		int remaining = -1;
+		if (!pair.second.is_static)
+			remaining = (int)std::chrono::duration_cast<std::chrono::seconds>(pair.second.expires - now).count();
+
+		result.push_back({
+			pair.first,
+			pair.second.module,
+			pair.second.timeslot,
+			pair.second.is_static,
+			pair.second.is_primary,
+			remaining
+		});
+	}
+	return result;
 }

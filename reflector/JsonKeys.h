@@ -80,4 +80,6 @@ struct SJsonKeys {
 	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware", "mmdvmcliFallbackDmrId", "mmdvmcliBlockProtocols" };
 	struct SVX { const std::string enable, host, port, callsign, password, blockprotocols, rxgain, txgain; }
 	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword", "svxBlockProtocols", "svxRxGain", "svxTxGain" };
+	struct ADMIN { const std::string enable, port, password, bindaddress; }
+	admin { "adminEnable", "adminPort", "adminPassword", "adminBindAddress" };
 };

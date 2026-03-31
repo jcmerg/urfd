@@ -36,6 +36,10 @@ public:
 	std::list<std::unique_ptr<CProtocol>>::iterator begin() { return m_Protocols.begin(); }
 	std::list<std::unique_ptr<CProtocol>>::iterator end()   { return m_Protocols.end(); }
 
+	// Find protocol by type
+	CProtocol *FindByType(EProtocol type);
+
+
 protected:
 	// data
 	std::mutex m_Mutex;

@@ -162,6 +162,13 @@ bool CReflector::Start(void)
 		}
 	}
 
+	// start admin socket
+	if (!g_AdminSocket.Start())
+	{
+		std::cerr << "Admin socket failed to start" << std::endl;
+		// non-fatal, continue without admin interface
+	}
+
 #ifndef NO_DHT
 	PutDHTConfig();
 #endif
@@ -171,6 +178,9 @@ bool CReflector::Start(void)
 
 void CReflector::Stop(void)
 {
+	// stop admin socket
+	g_AdminSocket.Stop();
+
 	// stop & delete all threads
 	keep_running = false;
 

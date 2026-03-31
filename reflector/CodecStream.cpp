@@ -32,7 +32,10 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
 
-CCodecStream::CCodecStream(CPacketStream *PacketStream, char module) : m_CSModule(module), m_IsOpen(false), m_EventFD(-1)
+CCodecStream::CCodecStream(CPacketStream *PacketStream, char module) : m_CSModule(module), m_IsOpen(false), m_EventFD(-1),
+	m_uiStreamId(0), m_uiPort(0), m_uiPid(0), m_eCodecIn(ECodecType::none),
+	m_RTMin(-1), m_RTMax(-1), m_RTSum(0), m_RTCount(0),
+	m_uiTotalPackets(0), m_uiMismatchCount(0), m_uiSuperframeCount(0)
 {
 	m_PacketStream = PacketStream;
 	m_EventFD = eventfd(0, EFD_NONBLOCK);

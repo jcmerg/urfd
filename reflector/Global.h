@@ -23,13 +23,15 @@
 #include "LookupYsf.h"
 #include "TCSocket.h"
 #include "JsonKeys.h"
+#include "AdminSocket.h"
 
-extern CReflector  g_Reflector;
-extern CGateKeeper g_GateKeeper;
-extern CConfigure  g_Configure;
-extern CVersion    g_Version;
-extern CLookupDmr  g_LDid;
-extern CLookupNxdn g_LNid;
-extern CLookupYsf  g_LYtr;
-extern SJsonKeys   g_Keys;
-extern CTCServer   g_TCServer;
+extern CReflector   g_Reflector;
+extern CGateKeeper  g_GateKeeper;
+extern CConfigure   g_Configure;
+extern CVersion     g_Version;
+extern CLookupDmr   g_LDid;
+extern CLookupNxdn  g_LNid;
+extern CLookupYsf   g_LYtr;
+extern SJsonKeys    g_Keys;
+extern CTCServer    g_TCServer;
+extern CAdminSocket g_AdminSocket;

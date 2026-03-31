@@ -95,6 +95,17 @@ $Service['PIDFile'] = '/var/run/xlxd.pid';
 $Service['XMLFile'] = '/var/log/xlxd.xml';
 
 //############################################################################
+//  Admin Interface
+//  Connects to the urfd admin socket for runtime management
+//  Password must match the [Admin] Password in urfd.ini
+//############################################################################
+
+$Admin['Enable']   = false;
+$Admin['Host']     = '127.0.0.1';
+$Admin['Port']     = 10101;
+$Admin['Password'] = 'changeme';
+
+//############################################################################
 //  CallingHome (XLX Directory Registration)
 //
 //  Registers the reflector at xlxapi.rlx.lu so it appears in Pi-Star,

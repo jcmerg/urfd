@@ -123,12 +123,14 @@ std::string CSvxReflectorProtocol::UnpackString(const std::vector<uint8_t> &buf,
 
 char CSvxReflectorProtocol::TGToModule(uint32_t tg) const
 {
+	std::lock_guard<std::mutex> lock(m_TGMutex);
 	auto it = m_TGToModule.find(tg);
 	return (it != m_TGToModule.end()) ? it->second : ' ';
 }
 
 uint32_t CSvxReflectorProtocol::ModuleToTG(char module) const
 {
+	std::lock_guard<std::mutex> lock(m_TGMutex);
 	auto it = m_ModuleToTG.find(module);
 	return (it != m_ModuleToTG.end()) ? it->second : 0;
 }
@@ -511,6 +513,14 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 
 void CSvxReflectorProtocol::Task(void)
 {
+	// Handle admin-requested reconnect
+	if (m_ReconnectRequested.exchange(false))
+	{
+		std::cout << "SvxReflector: reconnect requested" << std::endl;
+		TcpDisconnect();
+		m_ReconnectTimer.start();
+	}
+
 	// Handle TCP connection state machine
 	switch (m_State)
 	{
@@ -621,6 +631,49 @@ void CSvxReflectorProtocol::Task(void)
 					m_ReconnectTimer.start();
 				}
 
+				// Process pending dynamic TG select/deselect commands
+				{
+					std::lock_guard<std::mutex> lock(m_PendingMutex);
+					for (uint32_t tg : m_PendingSelectTG)
+					{
+						std::vector<uint8_t> sel;
+						PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
+						PackUint32(sel, tg);
+						TcpSendFrame(sel.data(), (uint32_t)sel.size());
+						std::cout << "SvxReflector: dynamically selected TG" << tg << std::endl;
+					}
+					m_PendingSelectTG.clear();
+					// Deselect is implicit — we just stop routing for removed TGs
+					m_PendingDeselectTG.clear();
+				}
+
+				// Purge expired dynamic TGs
+				{
+					std::lock_guard<std::mutex> lock(m_TGMutex);
+					auto now = std::chrono::steady_clock::now();
+					for (auto it = m_DynTGs.begin(); it != m_DynTGs.end(); )
+					{
+						if (now >= it->second.expires)
+						{
+							uint32_t tg = it->first;
+							auto tgIt = m_TGToModule.find(tg);
+							if (tgIt != m_TGToModule.end())
+							{
+								char mod = tgIt->second;
+								// Only clear primary mapping if this TG was the primary
+								auto modIt = m_ModuleToTG.find(mod);
+								if (modIt != m_ModuleToTG.end() && modIt->second == tg)
+									m_ModuleToTG.erase(modIt);
+								m_TGToModule.erase(tgIt);
+								std::cout << "SvxReflector: dynamic TG" << tg << " expired (Module " << mod << ")" << std::endl;
+							}
+							it = m_DynTGs.erase(it);
+						}
+						else
+							++it;
+					}
+				}
+
 				// Handle end of streaming timeout
 				CheckStreamsTimeout();
 
@@ -683,6 +736,18 @@ void CSvxReflectorProtocol::OnTalkerStart(const std::vector<uint8_t> &payload)
 	char module = TGToModule(tg);
 	if (module == ' ')
 		return;
+
+	// Refresh dynamic TG TTL on activity
+	{
+		std::lock_guard<std::mutex> lock(m_TGMutex);
+		auto dynIt = m_DynTGs.find(tg);
+		if (dynIt != m_DynTGs.end())
+		{
+			auto newExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(900);
+			if (newExpiry > dynIt->second.expires)
+				dynIt->second.expires = newExpiry;
+		}
+	}
 
 	// Extract amateur radio callsign from SvxLink callsign (e.g. "DL4JC-APP" -> "DL4JC")
 	std::string talkerCs;
@@ -979,4 +1044,128 @@ void CSvxReflectorProtocol::EncodeAndSendAudio(const int16_t *pcm, uint32_t tg)
 	buf.Append(opusBuf, opusLen);
 
 	Send(buf, m_ServerIp);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// dynamic TG management (called from admin socket thread)
+
+bool CSvxReflectorProtocol::AddDynamicTG(uint32_t tg, char module, int ttlSeconds)
+{
+	{
+		std::lock_guard<std::mutex> lock(m_TGMutex);
+		auto expiry = std::chrono::steady_clock::now() + std::chrono::seconds(ttlSeconds);
+
+		// Check if TG already mapped
+		auto tgIt = m_TGToModule.find(tg);
+		if (tgIt != m_TGToModule.end())
+		{
+			// If static, reject
+			if (m_DynTGs.find(tg) == m_DynTGs.end())
+			{
+				std::cerr << "SvxReflector: TG" << tg << " is statically mapped, cannot override" << std::endl;
+				return false;
+			}
+			// Update existing dynamic TTL
+			m_DynTGs[tg].expires = expiry;
+			std::cout << "SvxReflector: refreshed dynamic TG" << tg << " TTL=" << ttlSeconds << "s" << std::endl;
+			return true;
+		}
+
+		// Check if module has a primary TG
+		auto modIt = m_ModuleToTG.find(module);
+		if (modIt != m_ModuleToTG.end())
+		{
+			// Module has primary — add as secondary (inbound only)
+			m_TGToModule[tg] = module;
+			m_DynTGs[tg] = { expiry };
+			std::cout << "SvxReflector: added secondary TG" << tg << " -> Module " << module
+			          << " TTL=" << ttlSeconds << "s (inbound only)" << std::endl;
+		}
+		else
+		{
+			// Module is free — add as primary
+			m_TGToModule[tg] = module;
+			m_ModuleToTG[module] = tg;
+			m_DynTGs[tg] = { expiry };
+			std::cout << "SvxReflector: added dynamic TG" << tg << " -> Module " << module
+			          << " TTL=" << ttlSeconds << "s (primary)" << std::endl;
+		}
+	}
+
+	// Queue SELECT_TG for the Task thread to send
+	{
+		std::lock_guard<std::mutex> lock(m_PendingMutex);
+		m_PendingSelectTG.push_back(tg);
+	}
+
+	return true;
+}
+
+bool CSvxReflectorProtocol::RemoveDynamicTG(uint32_t tg)
+{
+	{
+		std::lock_guard<std::mutex> lock(m_TGMutex);
+
+		auto dynIt = m_DynTGs.find(tg);
+		if (dynIt == m_DynTGs.end())
+		{
+			std::cerr << "SvxReflector: TG" << tg << " is not a dynamic entry" << std::endl;
+			return false;
+		}
+
+		auto tgIt = m_TGToModule.find(tg);
+		if (tgIt != m_TGToModule.end())
+		{
+			char mod = tgIt->second;
+			// Only remove from m_ModuleToTG if this was the primary
+			auto modIt = m_ModuleToTG.find(mod);
+			if (modIt != m_ModuleToTG.end() && modIt->second == tg)
+				m_ModuleToTG.erase(modIt);
+			m_TGToModule.erase(tgIt);
+			std::cout << "SvxReflector: removed dynamic TG" << tg << " from Module " << mod << std::endl;
+		}
+		m_DynTGs.erase(dynIt);
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(m_PendingMutex);
+		m_PendingDeselectTG.push_back(tg);
+	}
+
+	return true;
+}
+
+std::vector<CTGModuleMap::STGInfo> CSvxReflectorProtocol::GetTGMappings(void) const
+{
+	std::lock_guard<std::mutex> lock(m_TGMutex);
+	std::vector<CTGModuleMap::STGInfo> result;
+	auto now = std::chrono::steady_clock::now();
+
+	for (const auto &pair : m_TGToModule)
+	{
+		CTGModuleMap::STGInfo info;
+		info.tg = pair.first;
+		info.module = pair.second;
+		info.timeslot = 0;
+
+		auto dynIt = m_DynTGs.find(pair.first);
+		if (dynIt != m_DynTGs.end())
+		{
+			info.is_static = false;
+			info.remainingSeconds = (int)std::chrono::duration_cast<std::chrono::seconds>(dynIt->second.expires - now).count();
+		}
+		else
+		{
+			info.is_static = true;
+			info.remainingSeconds = -1;
+		}
+
+		// Determine if primary: check if m_ModuleToTG[module] == this TG
+		auto modIt = m_ModuleToTG.find(pair.second);
+		info.is_primary = (modIt != m_ModuleToTG.end() && modIt->second == pair.first);
+
+		result.push_back(info);
+	}
+
+	return result;
 }

@@ -124,7 +124,7 @@ if ($CallingHome['Active']) {
             });
       }';
 
-        if (!isset($_GET['show']) || (($_GET['show'] != 'livequadnet') && ($_GET['show'] != 'reflectors') && ($_GET['show'] != 'interlinks'))) {
+        if (!isset($_GET['show']) || (($_GET['show'] != 'livequadnet') && ($_GET['show'] != 'reflectors') && ($_GET['show'] != 'interlinks') && ($_GET['show'] != 'admin'))) {
             echo '
       PageRefresh = setTimeout(ReloadPage, ' . $PageOptions['PageRefreshDelay'] . ');';
         }
@@ -234,6 +234,13 @@ if ($CallingHome['Active']) {
                 case 'reflectors' :
                     require_once("./pgs/reflectors.php");
                     break;
+                case 'admin'      :
+                    if (isset($Admin) && $Admin['Enable']) {
+                        require_once("./pgs/admin.php");
+                    } else {
+                        require_once("./pgs/users.php");
+                    }
+                    break;
                 default           :
                     require_once("./pgs/users.php");
             }
@@ -255,6 +262,9 @@ if ($CallingHome['Active']) {
             }
         ?></p>
     </div>
+    <?php if (isset($Admin) && $Admin['Enable']) { ?>
+    <a href="./index.php?show=admin" style="position:fixed;bottom:8px;right:12px;color:#333;font-size:14px;text-decoration:none;opacity:0.3;z-index:9999;" title="Hack the planet">&pi;</a>
+    <?php } ?>
 </footer>
 <script>
 document.querySelectorAll('.email-protect').forEach(function(el){

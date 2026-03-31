@@ -53,6 +53,11 @@ public:
 	// task
 	void Task(void);
 
+	// dynamic TG management (called from admin socket thread)
+	CTGModuleMap &GetTGMap(void) { return m_TGMap; }
+	void RequestReconnect(void) { m_ReconnectRequested = true; }
+	void RequestKerchunk(uint32_t tg) { m_PendingKerchunk = tg; }
+
 protected:
 	// MMDVM state machine
 	enum class EHBState
@@ -78,6 +83,7 @@ protected:
 	void SendOptions(void);
 	void SendPing(void);
 	void SendClose(void);
+	void SendKerchunk(uint32_t tg);
 
 	// DMRD incoming: Master -> Reflector
 	void OnDMRDPacketIn(const CBuffer &Buffer);
@@ -135,4 +141,9 @@ private:
 
 	// SHA256
 	CSHA256         m_SHA256;
+
+	// Reconnect flag (set by admin API, checked in Task loop)
+	std::atomic<bool> m_ReconnectRequested{false};
+	// Kerchunk request (TG to kerchunk, 0 = none)
+	std::atomic<uint32_t> m_PendingKerchunk{0};
 };

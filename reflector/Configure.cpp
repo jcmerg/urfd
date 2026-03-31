@@ -229,6 +229,8 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::svx;
 			else if (0 == hname.compare(JFILES))
 				section = ESection::files;
+			else if (0 == hname.compare("Admin"))
+				section = ESection::admin;
 			else
 			{
 				std::cerr << "WARNING: unknown ini file section: " << line << std::endl;
@@ -582,6 +584,18 @@ bool CConfigure::ReadData(const std::string &path)
 					std::string tgkey = "svxTG" + key.substr(2);
 					data[tgkey] = value;
 				}
+				else
+					badParam(key);
+				break;
+			case ESection::admin:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.admin.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JPORT))
+					data[g_Keys.admin.port] = getUnsigned(value, "Admin Port", 1024, 65535, 10101);
+				else if (0 == key.compare("Password"))
+					data[g_Keys.admin.password] = value;
+				else if (0 == key.compare(JBINDINGADDRESS))
+					data[g_Keys.admin.bindaddress] = value;
 				else
 					badParam(key);
 				break;

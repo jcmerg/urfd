@@ -46,6 +46,17 @@ public:
 
 	// get
 	uint16_t GetStreamId(void) const          { return m_uiStreamId; }
+	bool     IsOpen(void) const               { return m_IsOpen; }
+	ECodecType GetCodecIn(void) const         { return m_eCodecIn; }
+	char     GetModule(void) const            { return m_CSModule; }
+
+	// stats accessors (for admin interface)
+	double   GetRTMin(void) const             { return m_RTMin; }
+	double   GetRTMax(void) const             { return m_RTMax; }
+	double   GetRTAvg(void) const             { return m_RTCount > 0 ? m_RTSum / m_RTCount : 0.0; }
+	unsigned int GetRTCount(void) const       { return m_RTCount; }
+	uint32_t GetTotalPackets(void) const      { return m_uiTotalPackets; }
+	uint32_t GetMismatchCount(void) const     { return m_uiMismatchCount; }
 
 	// task
 	void Thread(void);
