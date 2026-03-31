@@ -718,6 +718,7 @@ void CSvxReflectorProtocol::Task(void)
 
 				// Purge expired dynamic TGs
 				bool allTGsGone = false;
+				bool hadExpiries = false;
 				{
 					std::lock_guard<std::mutex> lock(m_TGMutex);
 					auto now = std::chrono::steady_clock::now();
@@ -756,11 +757,12 @@ void CSvxReflectorProtocol::Task(void)
 								}
 							}
 							it = m_DynTGs.erase(it);
+							hadExpiries = true;
 						}
 						else
 							++it;
 					}
-					allTGsGone = m_TGToModule.empty();
+					allTGsGone = hadExpiries && m_TGToModule.empty();
 				}
 
 				// If all TGs gone, send SELECT_TG(0) to unsubscribe from server
