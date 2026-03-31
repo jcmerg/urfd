@@ -422,14 +422,25 @@ void CSvxReflectorProtocol::OnServerInfo(const std::vector<uint8_t> &payload)
 	PackString(msg, json);
 	TcpSendFrame(msg.data(), (uint32_t)msg.size());
 
-	// Select all configured TGs
-	for (const auto &tg : m_TGToModule)
+	// Select all configured TGs, or TG0 to unsubscribe if none
+	if (m_TGToModule.empty())
 	{
 		std::vector<uint8_t> sel;
 		PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
-		PackUint32(sel, tg.first);
+		PackUint32(sel, 0);
 		TcpSendFrame(sel.data(), (uint32_t)sel.size());
-		std::cout << "SvxReflector: selected TG" << tg.first << std::endl;
+		std::cout << "SvxReflector: no TGs configured, sent SELECT_TG(0)" << std::endl;
+	}
+	else
+	{
+		for (const auto &tg : m_TGToModule)
+		{
+			std::vector<uint8_t> sel;
+			PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
+			PackUint32(sel, tg.first);
+			TcpSendFrame(sel.data(), (uint32_t)sel.size());
+			std::cout << "SvxReflector: selected TG" << tg.first << std::endl;
+		}
 	}
 
 	// Send initial UDP heartbeat immediately so server learns our UDP address
@@ -697,6 +708,7 @@ void CSvxReflectorProtocol::Task(void)
 				}
 
 				// Process pending dynamic TG select/deselect commands
+				bool hadDeselects = false;
 				{
 					std::lock_guard<std::mutex> lock(m_PendingMutex);
 					for (uint32_t tg : m_PendingSelectTG)
@@ -708,12 +720,24 @@ void CSvxReflectorProtocol::Task(void)
 						std::cout << "SvxReflector: dynamically selected TG" << tg << std::endl;
 					}
 					m_PendingSelectTG.clear();
+					hadDeselects = !m_PendingDeselectTG.empty();
 					for (uint32_t tg : m_PendingDeselectTG)
-					{
-						(void)tg;  // logged for context
 						std::cout << "SvxReflector: deselected TG" << tg << std::endl;
-					}
 					m_PendingDeselectTG.clear();
+				}
+
+				// If TGs were deselected, check if we need to unsubscribe
+				if (hadDeselects)
+				{
+					std::lock_guard<std::mutex> lock(m_TGMutex);
+					if (m_TGToModule.empty())
+					{
+						std::vector<uint8_t> sel;
+						PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
+						PackUint32(sel, 0);
+						TcpSendFrame(sel.data(), (uint32_t)sel.size());
+						std::cout << "SvxReflector: all TGs removed, sent SELECT_TG(0)" << std::endl;
+					}
 				}
 
 				// Purge expired dynamic TGs
