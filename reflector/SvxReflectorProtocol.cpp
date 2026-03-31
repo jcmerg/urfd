@@ -726,22 +726,29 @@ void CSvxReflectorProtocol::Task(void)
 					m_PendingDeselectTG.clear();
 				}
 
-				// If TGs were deselected, check if we need to unsubscribe
+				// If TGs were deselected, reset subscriptions on SVX server
 				if (hadDeselects)
 				{
+					// First unsubscribe from all
+					std::vector<uint8_t> sel;
+					PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
+					PackUint32(sel, 0);
+					TcpSendFrame(sel.data(), (uint32_t)sel.size());
+					std::cout << "SvxReflector: sent SELECT_TG(0) after TG removal" << std::endl;
+
+					// Re-subscribe remaining TGs
 					std::lock_guard<std::mutex> lock(m_TGMutex);
-					if (m_TGToModule.empty())
+					for (const auto &tg : m_TGToModule)
 					{
-						std::vector<uint8_t> sel;
-						PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
-						PackUint32(sel, 0);
-						TcpSendFrame(sel.data(), (uint32_t)sel.size());
-						std::cout << "SvxReflector: all TGs removed, sent SELECT_TG(0)" << std::endl;
+						std::vector<uint8_t> resel;
+						PackUint16(resel, SVX_TCP_MSG_SELECT_TG);
+						PackUint32(resel, tg.first);
+						TcpSendFrame(resel.data(), (uint32_t)resel.size());
+						std::cout << "SvxReflector: re-selected TG" << tg.first << std::endl;
 					}
 				}
 
 				// Purge expired dynamic TGs
-				bool allTGsGone = false;
 				bool hadExpiries = false;
 				{
 					std::lock_guard<std::mutex> lock(m_TGMutex);
@@ -786,17 +793,26 @@ void CSvxReflectorProtocol::Task(void)
 						else
 							++it;
 					}
-					allTGsGone = hadExpiries && m_TGToModule.empty();
 				}
 
-				// If all TGs gone, send SELECT_TG(0) to unsubscribe from server
-				if (allTGsGone)
+				// If TGs expired, reset subscriptions on SVX server
+				if (hadExpiries)
 				{
 					std::vector<uint8_t> sel;
 					PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
 					PackUint32(sel, 0);
 					TcpSendFrame(sel.data(), (uint32_t)sel.size());
-					std::cout << "SvxReflector: all TGs expired, sent SELECT_TG(0)" << std::endl;
+					std::cout << "SvxReflector: sent SELECT_TG(0) after TG expiry" << std::endl;
+
+					std::lock_guard<std::mutex> lock(m_TGMutex);
+					for (const auto &tg : m_TGToModule)
+					{
+						std::vector<uint8_t> resel;
+						PackUint16(resel, SVX_TCP_MSG_SELECT_TG);
+						PackUint32(resel, tg.first);
+						TcpSendFrame(resel.data(), (uint32_t)resel.size());
+						std::cout << "SvxReflector: re-selected TG" << tg.first << std::endl;
+					}
 				}
 
 				// Handle end of streaming timeout
