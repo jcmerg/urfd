@@ -1,6 +1,8 @@
 // LogBuffer -- Thread-safe circular log buffer for admin interface
 
 #include <unistd.h>
+#include <ctime>
+#include <cstdio>
 #include "LogBuffer.h"
 
 CLogBuffer g_LogBuffer;
@@ -60,7 +62,13 @@ void CLogBuffer::AddChar(char c)
 	std::lock_guard<std::mutex> lock(m_Mutex);
 	if (c == '\n')
 	{
-		m_Lines[m_Head] = m_Current;
+		// Prepend timestamp to stored line
+		char ts[20];
+		time_t now = time(nullptr);
+		struct tm *t = localtime(&now);
+		snprintf(ts, sizeof(ts), "%02d:%02d:%02d ", t->tm_hour, t->tm_min, t->tm_sec);
+
+		m_Lines[m_Head] = std::string(ts) + m_Current;
 		m_Head = (m_Head + 1) % LOG_BUFFER_SIZE;
 		if (m_Count < LOG_BUFFER_SIZE)
 			m_Count++;

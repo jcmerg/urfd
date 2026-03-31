@@ -666,6 +666,24 @@ void CSvxReflectorProtocol::Task(void)
 									m_ModuleToTG.erase(modIt);
 								m_TGToModule.erase(tgIt);
 								std::cout << "SvxReflector: dynamic TG" << tg << " expired (Module " << mod << ")" << std::endl;
+
+								// Remove orphaned SVX client for this module if no TGs remain
+								bool hasTGsLeft = false;
+								for (const auto &t : m_TGToModule)
+									if (t.second == mod) { hasTGsLeft = true; break; }
+								if (!hasTGsLeft)
+								{
+									CClients *clients = g_Reflector.GetClients();
+									for (auto cit = clients->begin(); cit != clients->end(); ++cit)
+									{
+										if ((*cit)->GetProtocol() == EProtocol::svxreflector && (*cit)->GetReflectorModule() == mod)
+										{
+											clients->RemoveClient(*cit);
+											break;
+										}
+									}
+									g_Reflector.ReleaseClients();
+								}
 							}
 							it = m_DynTGs.erase(it);
 						}
@@ -1113,18 +1131,39 @@ bool CSvxReflectorProtocol::RemoveDynamicTG(uint32_t tg)
 			return false;
 		}
 
+		char removedMod = ' ';
 		auto tgIt = m_TGToModule.find(tg);
 		if (tgIt != m_TGToModule.end())
 		{
-			char mod = tgIt->second;
-			// Only remove from m_ModuleToTG if this was the primary
-			auto modIt = m_ModuleToTG.find(mod);
+			removedMod = tgIt->second;
+			auto modIt = m_ModuleToTG.find(removedMod);
 			if (modIt != m_ModuleToTG.end() && modIt->second == tg)
 				m_ModuleToTG.erase(modIt);
 			m_TGToModule.erase(tgIt);
-			std::cout << "SvxReflector: removed dynamic TG" << tg << " from Module " << mod << std::endl;
+			std::cout << "SvxReflector: removed dynamic TG" << tg << " from Module " << removedMod << std::endl;
 		}
 		m_DynTGs.erase(dynIt);
+
+		// Remove orphaned SVX client if no TGs remain for this module
+		if (removedMod != ' ')
+		{
+			bool hasTGsLeft = false;
+			for (const auto &t : m_TGToModule)
+				if (t.second == removedMod) { hasTGsLeft = true; break; }
+			if (!hasTGsLeft)
+			{
+				CClients *clients = g_Reflector.GetClients();
+				for (auto cit = clients->begin(); cit != clients->end(); ++cit)
+				{
+					if ((*cit)->GetProtocol() == EProtocol::svxreflector && (*cit)->GetReflectorModule() == removedMod)
+					{
+						clients->RemoveClient(*cit);
+						break;
+					}
+				}
+				g_Reflector.ReleaseClients();
+			}
+		}
 	}
 
 	{
