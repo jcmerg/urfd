@@ -169,6 +169,22 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 				msg.resize(20);
 		}
 
+		// Look up operator name from DMR ID database via callsign
+		std::string nameMsg;
+		uint32_t dmrid = g_LDid.FindDmrid(my.GetKey());
+		if (dmrid != 0)
+		{
+			std::string name = g_LDid.FindName(dmrid);
+			if (!name.empty())
+			{
+				if (name.size() > 20)
+					name.resize(20);
+				nameMsg = name;
+			}
+		}
+
+		m_SlowDataMsg1 = msg;
+		m_SlowDataMsg2 = nameMsg;
 		m_SlowData.Init(my, rpt1, rpt2, msg);
 	}
 }
@@ -258,6 +274,11 @@ void CCodecStream::Task(void)
 						const uint8_t DStarSync[] = { 0x55, 0x2D, 0x16 };
 						Packet->SetDvData(DStarSync);
 						m_uiSuperframeCount++;
+						// Rotate slow data text every ~5s (12 superframes)
+						if (!m_SlowDataMsg2.empty() && m_uiSuperframeCount % 24 == 12)
+							m_SlowData.SetMessage(m_SlowDataMsg2);
+						else if (!m_SlowDataMsg2.empty() && m_uiSuperframeCount % 24 == 0)
+							m_SlowData.SetMessage(m_SlowDataMsg1);
 					}
 					else if (m_SlowData.IsReady())
 					{

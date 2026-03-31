@@ -25,6 +25,15 @@ void CDStarSlowData::Init(const CCallsign &my, const CCallsign &rpt1, const CCal
 	m_bReady = true;
 }
 
+void CDStarSlowData::SetMessage(const std::string &message)
+{
+	if (!message.empty())
+	{
+		EncodeMessage(message);
+		m_bHasMessage = true;
+	}
+}
+
 const uint8_t *CDStarSlowData::GetSlowData(uint8_t frameInSuper, uint32_t superframeCount) const
 {
 	if (frameInSuper < 1 || frameInSuper > 20)

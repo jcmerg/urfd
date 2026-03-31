@@ -27,6 +27,7 @@ void CLookupNxdn::ClearContents()
 {
 	m_CallsignMap.clear();
 	m_NxdnidMap.clear();
+	m_NameMap.clear();
 }
 
 void CLookupNxdn::LoadParameters()
@@ -57,6 +58,14 @@ uint16_t CLookupNxdn::FindNXDNid(const UCallsign &ucs) const
 	return 0;
 }
 
+std::string CLookupNxdn::FindName(uint16_t id) const
+{
+	auto found = m_NameMap.find(id);
+	if (found != m_NameMap.end())
+		return found->second;
+	return {};
+}
+
 void CLookupNxdn::UpdateContent(std::stringstream &ss, Eaction action)
 {
 	std::string line;
@@ -84,6 +93,10 @@ void CLookupNxdn::UpdateContent(std::stringstream &ss, Eaction action)
 							auto key = cs.GetKey();
 							m_NxdnidMap[key] = id;
 							m_CallsignMap[id] = key;
+							auto p3 = line.find(',', p2 + 1);
+							std::string name = line.substr(p2 + 1, (p3 != std::string::npos) ? p3 - p2 - 1 : std::string::npos);
+							if (!name.empty())
+								m_NameMap[id] = name;
 						}
 						else if (Eaction::parse == action)
 						{

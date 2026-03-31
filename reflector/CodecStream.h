@@ -91,6 +91,8 @@ protected:
 	// D-Star slow data for transcoded streams
 	CDStarSlowData m_SlowData;
 	uint32_t     m_uiSuperframeCount;
+	std::string  m_SlowDataMsg1;   // "via DMR TG26363"
+	std::string  m_SlowDataMsg2;   // "Jens-Christian" (name from DB)
 
 	// statistics
 	double       m_RTMin;

@@ -26,6 +26,7 @@ public:
 	~CLookupDmr() {}
 	uint32_t FindDmrid(const UCallsign &ucs) const;
 	const UCallsign *FindCallsign(uint32_t dmrid) const;
+	std::string FindName(uint32_t dmrid) const;
 
 protected:
 	void ClearContents();
@@ -35,4 +36,5 @@ protected:
 private:
 	std::unordered_map<uint32_t, UCallsign> m_CallsignMap;
 	std::unordered_map<UCallsign, uint32_t, CCallsignHash, CCallsignEqual> m_DmridMap;
+	std::unordered_map<uint32_t, std::string> m_NameMap;
 };

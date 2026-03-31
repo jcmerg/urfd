@@ -27,6 +27,7 @@ void CLookupDmr::ClearContents()
 {
 	m_CallsignMap.clear();
 	m_DmridMap.clear();
+	m_NameMap.clear();
 }
 
 void CLookupDmr::LoadParameters()
@@ -57,6 +58,14 @@ const UCallsign *CLookupDmr::FindCallsign(const uint32_t dmrid) const
 	return nullptr;
 }
 
+std::string CLookupDmr::FindName(uint32_t dmrid) const
+{
+	auto found = m_NameMap.find(dmrid);
+	if (found != m_NameMap.end())
+		return found->second;
+	return {};
+}
+
 void CLookupDmr::UpdateContent(std::stringstream &ss, Eaction action)
 {
 	std::string line;
@@ -84,6 +93,11 @@ void CLookupDmr::UpdateContent(std::stringstream &ss, Eaction action)
 							auto key = cs.GetKey();
 							m_DmridMap[key] = id;
 							m_CallsignMap[id] = key;
+							// Extract name (3rd field after second semicolon)
+							auto p3 = line.find(';', p2 + 1);
+							std::string name = line.substr(p2 + 1, (p3 != std::string::npos) ? p3 - p2 - 1 : std::string::npos);
+							if (!name.empty())
+								m_NameMap[id] = name;
 						}
 						else if (Eaction::parse == action)
 						{

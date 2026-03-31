@@ -20,6 +20,7 @@ public:
 	const uint8_t *GetSlowData(uint8_t frameInSuper, uint32_t superframeCount) const;
 
 	bool IsReady(void) const { return m_bReady; }
+	void SetMessage(const std::string &message);
 
 private:
 	void EncodeHeader(const CCallsign &my, const CCallsign &rpt1, const CCallsign &rpt2);
