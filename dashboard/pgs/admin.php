@@ -229,13 +229,17 @@ function refreshTCStats() {
                     '<span class="label label-default">idle</span>';
                 var codec = codecNames[m.codec_in] || '-';
                 var rtt = '-';
-                if (m.rt_count > 0 && m.rt_count < 4294967295 && m.rt_min_ms >= 0) {
-                    rtt = m.rt_min_ms + ' / ' + m.rt_avg_ms + ' / ' + m.rt_max_ms + ' ms';
+                var packets = m.total_packets || 0;
+                var mismatches = m.mismatch_count || 0;
+                if (!m.connected) {
+                    codec = '-';
+                    packets = '-';
+                    mismatches = '-';
+                } else {
+                    if (m.rt_count > 0 && m.rt_min_ms >= 0) {
+                        rtt = m.rt_min_ms + ' / ' + m.rt_avg_ms + ' / ' + m.rt_max_ms + ' ms';
+                    }
                 }
-                var packets = m.total_packets;
-                if (packets > 4294967000) packets = 0;
-                var mismatches = m.mismatch_count;
-                if (mismatches > 4294967000) mismatches = 0;
                 tbody.append(
                     '<tr>' +
                     '<td>' + m.module + '</td>' +

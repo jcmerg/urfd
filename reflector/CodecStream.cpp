@@ -315,15 +315,24 @@ void CCodecStream::Task(void)
 
 		if (m_IsOpen)
 		{
-			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);
-
 			int fd = g_TCServer.GetFD(Frame->GetCodecPacket()->module);
 			if (fd < 0)
+			{
+				// Transcoder disconnected — drain queues silently
+				while (!m_Queue.IsEmpty()) m_Queue.Pop();
+				while (!m_LocalQueue.IsEmpty()) m_LocalQueue.Pop();
 				return;
+			}
 
+			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);
 			Frame->m_rtTimer.start();
 			if (g_TCServer.Send(Frame->GetCodecPacket()))
+			{
+				// Send failed — drain queues
+				while (!m_Queue.IsEmpty()) m_Queue.Pop();
+				while (!m_LocalQueue.IsEmpty()) m_LocalQueue.Pop();
 				return;
+			}
 
 			m_LocalQueue.Push(std::move(m_Queue.Pop()));
 		}
