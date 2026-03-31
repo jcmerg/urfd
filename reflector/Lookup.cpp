@@ -50,7 +50,7 @@ void CLookup::LookupInit()
 
 void CLookup::Thread()
 {
-	const unsigned long wait_cycles = m_Refresh * 6u; // the number of while loops in m_Refresh
+	const unsigned long wait_cycles = (m_Refresh > 0) ? m_Refresh * 6u : 1u;
 	unsigned long count = 0;
 	while (keep_running)
 	{

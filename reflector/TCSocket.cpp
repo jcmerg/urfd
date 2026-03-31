@@ -24,6 +24,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/tcp.h>
+#include <fcntl.h>
 
 #include "TCSocket.h"
 
@@ -307,6 +308,10 @@ bool CTCServer::Open(const std::string &address, const std::string &modules, uin
 		return true;
 	}
 
+	// Set listen socket non-blocking for use with TryAccept
+	int flags = fcntl(m_ListenFd, F_GETFL, 0);
+	fcntl(m_ListenFd, F_SETFL, flags | O_NONBLOCK);
+
 	std::cout << "Waiting at " << m_Ip << " for transcoder connections for modules " << m_Modules << "..." << std::endl;
 
 	// Non-blocking: don't wait for TCD here, maintenance thread handles it
@@ -317,6 +322,9 @@ void CTCServer::TryAccept(int ms)
 {
 	if (m_ListenFd < 0)
 		return;
+
+	// Probe existing connections for dead sockets first
+	AnyAreClosed();
 
 	// Poll listen socket for incoming connections
 	struct pollfd pfd = { m_ListenFd, POLLIN, 0 };
@@ -335,12 +343,6 @@ void CTCServer::TryAccept(int ms)
 // Returns true if there are more connections to accept, false if done or error
 bool CTCServer::acceptone()
 {
-	// Non-blocking check if another connection is ready
-	struct pollfd pfd = { m_ListenFd, POLLIN, 0 };
-	int rv = poll(&pfd, 1, 0);
-	if (rv <= 0 || !(pfd.revents & POLLIN))
-		return false;
-
 	CIp their_addr;
 	socklen_t sin_size = sizeof(struct sockaddr_storage);
 
@@ -357,7 +359,7 @@ bool CTCServer::acceptone()
 	setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
 	char mod;
-	rv = recv(newfd, &mod, 1, MSG_WAITALL);
+	int rv = recv(newfd, &mod, 1, MSG_WAITALL);
 	if (rv != 1)
 	{
 		if (rv < 0)
@@ -482,6 +484,11 @@ bool CTCClient::Connect(char module, bool blocking)
 		// Reconnect: non-blocking, return immediately on failure
 		if (connect(fd, ip.GetCPointer(), ip.GetSize()))
 		{
+			if (errno != ECONNREFUSED)
+			{
+				std::cerr << "Reconnect module " << module << ": ";
+				perror("connect");
+			}
 			close(fd);
 			return false;
 		}
@@ -540,9 +547,12 @@ void CTCClient::ReConnect() // and sometimes ping
 	
 	if(secs.count() > 5.0)
 	{
-		STCPacket ping;
-		ping.codec_in = ECodecType::ping;
-		Send(&ping);
+		if (m_Pfd.size() > 0 && m_Pfd[0].fd >= 0)
+		{
+			STCPacket ping;
+			ping.codec_in = ECodecType::ping;
+			Send(&ping);
+		}
 		start = now;
 	}
 }

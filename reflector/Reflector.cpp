@@ -555,8 +555,7 @@ void CReflector::MaintenanceThread()
 		{
 			if (tcport)
 			{
-				g_TCServer.AnyAreClosed(); // probe and close dead sockets
-				g_TCServer.TryAccept(100); // non-blocking accept
+				g_TCServer.TryAccept(100); // probe dead sockets + non-blocking accept
 			}
 			else
 			{
