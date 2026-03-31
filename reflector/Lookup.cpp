@@ -60,11 +60,19 @@ void CLookup::Thread()
 
 		// load http section first, if configured and m_Refresh minutes have lapsed
 		// on the first pass through this while loop (count == 0)
-		if (ERefreshType::file != m_Type && 0ul == count++ % wait_cycles)
+		if (ERefreshType::file != m_Type && 0ul == count % wait_cycles)
 		{
 			// if SIG_INT was received at this point in time,
 			// in might take a bit more than 10 seconds to soft close
 			http_loaded = LoadContentHttp(ss);
+			if (http_loaded)
+				count++;	// only advance on success, so failed loads retry in 10s
+			else
+				count = 0;	// reset to keep retrying every 10s until first success
+		}
+		else
+		{
+			count++;
 		}
 
 		// load the file if http was loaded or if we haven't loaded since the last mod time
