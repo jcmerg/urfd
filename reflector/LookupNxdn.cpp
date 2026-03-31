@@ -17,6 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <sstream>
 #include <string.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -116,5 +117,5 @@ void CLookupNxdn::UpdateContent(std::stringstream &ss, Eaction action)
 		}
 	}
 	if (Eaction::normal == action)
-		std::cout << "NXDN Id database size: " << m_NxdnidMap.size() << std::endl;
+		{ std::ostringstream s; s << "NXDN Id database size: " << m_NxdnidMap.size(); std::cout << s.str() << std::endl; }
 }

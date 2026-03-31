@@ -17,6 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -118,5 +119,5 @@ void CLookupDmr::UpdateContent(std::stringstream &ss, Eaction action)
 		}
 	}
 	if (Eaction::normal == action)
-		std::cout << "DMR Id database size: " << m_DmridMap.size() << std::endl;
+		{ std::ostringstream s; s << "DMR Id database size: " << m_DmridMap.size(); std::cout << s.str() << std::endl; }
 }

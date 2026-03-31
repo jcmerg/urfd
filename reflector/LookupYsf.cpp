@@ -17,6 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -70,7 +71,7 @@ void CLookupYsf::UpdateContent(std::stringstream &ss, Eaction action)
 		}
 	}
 	if (Eaction::normal == action)
-		std::cout << "YSF frequency database size now is " << m_map.size() << std::endl;
+		{ std::ostringstream s; s << "YSF frequency database size: " << m_map.size(); std::cout << s.str() << std::endl; }
 }
 
 void CLookupYsf::FindFrequencies(const CCallsign &cs, uint32_t &txfreq, uint32_t &rxfreq)

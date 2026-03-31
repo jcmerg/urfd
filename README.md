@@ -234,35 +234,6 @@ Header and text message alternate every superframe (~420ms). When an operator na
 
 Name lookup works for all protocols — any callsign with a DMR ID database entry will have its name displayed on D-Star radios.
 
-### Bug Fixes
-- Fix slow data name rotation showing blank text (CR from Windows line endings in DMR ID DB)
-- Fix echo/admin startup log interleaving (thread-unsafe concurrent cout)
-- Remove outdated transcoder module count warning (any number of modules is valid)
-- Fix SELECT_TG(0) spam when no dynamic SVX TGs are configured
-- Fix SVX TG expiry not unsubscribing from server (orphaned TalkerStart/Stop messages)
-- Fix dynamic TGs not shown in XML/JSON module overview
-- Fix cross-protocol timer inconsistency (SVX activity not refreshing MMDVM timer and vice versa)
-- Fix SIGHUP reload crash (JSON null key from missing IPv6, uncaught exception)
-- Fix missing end-of-TX frame on transcoded streams causing D-Star BER spikes at end of call
-- Fix SVX last-frame audio artifacts (squelch tail noise transcoded to AMBE)
-- Fix D-Star slow data missing TG number for dynamically mapped talkgroups
-- Fix orphaned SVX clients remaining in Links after dynamic TG removal
-- Fix CodecStream uninitialized statistics (garbage RTT values after restart)
-- Fix thread-unsafe cout in TCSocket (interleaved log lines)
-- Fix OPUS decoder state leak between SVX calls (flush on stream close)
-- Fix options string per-timeslot indexing for multi-TG configs
-- Fix `Mode=both` DB loader failbit when file is empty
-- Fix Via/Peer display matching both XLX and URF reflector name variants
-- Fix callsign sanitization for malformed NXDN/DMR gateway callsigns (cherry-picked from dbehnke/urfd)
-- Fix YSF CONN_REQ radio ID collision causing phantom module switches (cherry-picked from dbehnke/urfd)
-- Fix transcoder module ID enforcement to prevent audio cross-contamination (cherry-picked from dbehnke/urfd)
-- Remove spurious getsockname warning on ephemeral ports
-- Fix concurrent stream blocking on MMDVMClient (one stream per module)
-- Fix DCS disconnect with 0x00 at byte 9
-- Fix OpenStream module lookup using wrong field
-- Suppress repeated "voice from" log messages (once per stream)
-- Reject streams on modules without transcoder connection
-
 ## Introduction
 
 The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN, USRP (AllStar) and SvxReflector (SvxLink FM).
