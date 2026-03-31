@@ -315,7 +315,9 @@ void CCodecStream::Task(void)
 
 		if (m_IsOpen)
 		{
-			int fd = g_TCServer.GetFD(Frame->GetCodecPacket()->module);
+			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);
+
+			int fd = g_TCServer.GetFD(m_CSModule);
 			if (fd < 0)
 			{
 				// Transcoder disconnected — drain queues silently
@@ -324,7 +326,6 @@ void CCodecStream::Task(void)
 				return;
 			}
 
-			Frame->SetTCParams(m_uiTotalPackets++, m_CSModule);
 			Frame->m_rtTimer.start();
 			if (g_TCServer.Send(Frame->GetCodecPacket()))
 			{
