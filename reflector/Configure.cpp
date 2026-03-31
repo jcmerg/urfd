@@ -137,8 +137,7 @@ bool CConfigure::ReadData(const std::string &path)
 	SJsonKeys::DB *pdb;
 	unsigned tcport = 0;
 
-	//data.ysfalmodule = 0;
-	//data.DPlusPort = data.DCSPort = data.DExtraPort = data.BMPort = data.DMRPlusPort = 0;
+	data.clear();
 	std::ifstream cfgfile(path.c_str(), std::ifstream::in);
 	if (! cfgfile.is_open()) {
 		std::cerr << "ERROR: '" << path << "' was not found!" << std::endl;

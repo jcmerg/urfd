@@ -18,26 +18,12 @@
 
 #include <sys/stat.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "Global.h"
 #include "LogBuffer.h"
 
 #ifndef UTILITY
-
-////////////////////////////////////////////////////////////////////////////////////////
-// signal handling
-
-static volatile sig_atomic_t g_sig_reload = 0;
-static volatile sig_atomic_t g_sig_term = 0;
-
-static void sig_handler(int sig)
-{
-	if (sig == SIGHUP)
-		g_sig_reload = 1;
-	else
-		g_sig_term = 1;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////
 // global objects
 
@@ -91,24 +77,35 @@ int main(int argc, char *argv[])
 	ofs << getpid() << std::endl;
 	ofs.close();
 
-	// install signal handlers
-	struct sigaction sa;
-	sa.sa_handler = sig_handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	sigaction(SIGHUP, &sa, nullptr);
-	sigaction(SIGTERM, &sa, nullptr);
-	sigaction(SIGINT, &sa, nullptr);
+	// Block SIGHUP/SIGTERM/SIGINT in all threads, handle via sigwait in main
+	sigset_t waitset;
+	sigemptyset(&waitset);
+	sigaddset(&waitset, SIGHUP);
+	sigaddset(&waitset, SIGTERM);
+	sigaddset(&waitset, SIGINT);
+	pthread_sigmask(SIG_BLOCK, &waitset, nullptr);
 
 	// main loop: reload config on SIGHUP, exit on SIGTERM/SIGINT
-	while (!g_sig_term)
+	int sig;
+	while (true)
 	{
-		pause();
-		if (g_sig_reload)
+		int rc = sigwait(&waitset, &sig);
+		if (rc != 0)
 		{
-			g_sig_reload = 0;
+			std::cerr << "sigwait failed: " << strerror(rc) << std::endl;
+			break;
+		}
+		if (sig == SIGHUP)
+		{
 			std::cout << "SIGHUP received, reloading configuration..." << std::endl;
+			std::cout.flush();
 			g_Reflector.ReloadConfig(argv[1]);
+			std::cout << "Reload complete, resuming..." << std::endl;
+		}
+		else
+		{
+			std::cout << "Signal " << sig << " received, shutting down..." << std::endl;
+			break;
 		}
 	}
 

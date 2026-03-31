@@ -185,37 +185,46 @@ void CReflector::ReloadConfig(const std::string &configPath)
 	// Save current config in case reload fails
 	auto savedConfig = g_Configure.GetData();
 
-	// Re-read the configuration file
-	if (g_Configure.ReadData(configPath))
+	try
 	{
-		std::cerr << "Config reload failed, restoring previous configuration" << std::endl;
+		// Re-read the configuration file
+		if (g_Configure.ReadData(configPath))
+		{
+			std::cerr << "Config reload: ReadData returned error, restoring previous configuration" << std::endl;
+			g_Configure.SetData(savedConfig);
+			return;
+		}
+
+		// Reload TG mappings (preserve dynamic entries)
+		auto *mmdvmProto = m_Protocols.FindByType(EProtocol::mmdvmclient);
+		if (mmdvmProto)
+		{
+			auto *mmdvm = static_cast<CMMDVMClientProtocol *>(mmdvmProto);
+			mmdvm->GetTGMap().ReloadStaticFromConfig();
+			mmdvm->RequestReconnect();
+		}
+
+		auto *svxProto = m_Protocols.FindByType(EProtocol::svxreflector);
+		if (svxProto)
+		{
+			auto *svx = static_cast<CSvxReflectorProtocol *>(svxProto);
+			svx->ReloadStaticTGMap();
+		}
+
+		// Reload whitelist, blacklist, and interlink files
+		g_GateKeeper.ReloadLists();
+
+		// Update transcoder modules string
+		m_TCmodules.assign(g_Configure.GetString(g_Keys.tc.modules));
+
+		std::cout << "Configuration reloaded successfully" << std::endl;
+	}
+	catch (const std::exception &e)
+	{
+		std::cerr << "Config reload failed: " << e.what() << std::endl;
+		std::cerr << "Restoring previous configuration" << std::endl;
 		g_Configure.SetData(savedConfig);
-		return;
 	}
-
-	// Reload TG mappings (preserve dynamic entries)
-	auto *mmdvmProto = m_Protocols.FindByType(EProtocol::mmdvmclient);
-	if (mmdvmProto)
-	{
-		auto *mmdvm = static_cast<CMMDVMClientProtocol *>(mmdvmProto);
-		mmdvm->GetTGMap().ReloadStaticFromConfig();
-		mmdvm->RequestReconnect();
-	}
-
-	auto *svxProto = m_Protocols.FindByType(EProtocol::svxreflector);
-	if (svxProto)
-	{
-		auto *svx = static_cast<CSvxReflectorProtocol *>(svxProto);
-		svx->ReloadStaticTGMap();
-	}
-
-	// Reload whitelist, blacklist, and interlink files
-	g_GateKeeper.ReloadLists();
-
-	// Update transcoder modules string
-	m_TCmodules.assign(g_Configure.GetString(g_Keys.tc.modules));
-
-	std::cout << "Configuration reloaded successfully" << std::endl;
 }
 
 void CReflector::Stop(void)
