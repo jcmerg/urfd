@@ -818,6 +818,37 @@ void CSvxReflectorProtocol::Task(void)
 				// Handle end of streaming timeout
 				CheckStreamsTimeout();
 
+				// Refresh SVX clients for active modules, remove orphaned ones
+				{
+					CClients *clients = g_Reflector.GetClients();
+					std::lock_guard<std::mutex> lock(m_TGMutex);
+					for (auto cit = clients->begin(); cit != clients->end(); )
+					{
+						if ((*cit)->GetProtocol() == EProtocol::svxreflector)
+						{
+							char mod = (*cit)->GetReflectorModule();
+							bool hasTG = false;
+							for (const auto &t : m_TGToModule)
+								if (t.second == mod) { hasTG = true; break; }
+							if (hasTG)
+							{
+								(*cit)->Alive();
+								++cit;
+							}
+							else if (!(*cit)->IsAlive())
+							{
+								clients->RemoveClient(*cit);
+								break; // iterator invalidated
+							}
+							else
+								++cit;
+						}
+						else
+							++cit;
+					}
+					g_Reflector.ReleaseClients();
+				}
+
 				// Handle outbound queue
 				HandleQueue();
 			}
