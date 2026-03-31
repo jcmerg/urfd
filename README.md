@@ -381,7 +381,12 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **Extended XML/JSON output**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
 - **Echo module**: Built-in parrot with enable/disable flag
 - **M17 LSTN support**: Listen-only M17 clients accepted for monitoring services
-- **Transcoder connection detection**: TCP keepalive + non-blocking poll for dead connection detection, queue drain on disconnect
+- **DCS interlinking**: Native DCS reflector-to-reflector peering with PeerCallsign and protocol field in interlink file
+- **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister to prevent audio loops
+- **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
+- **Transcoder resilience**: TCP keepalive + non-blocking poll for dead connection detection, queue drain on disconnect. Non-blocking accept/connect, client-side keepalive, active dead socket probing, automatic reconnect after network outages
+- **Database HTTP retry**: Retry with backoff on failed initial HTTP load for DMR/NXDN/YSF databases (prevents empty databases after transient network errors)
+- **Service optimizations**: Realtime scheduling and voice CPU priority in systemd service
 - **Thread-safe logging**: Atomic cout via ostringstream to prevent interleaved log lines from concurrent threads
 - **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection, CConfigure::GetBoolean safety
 
