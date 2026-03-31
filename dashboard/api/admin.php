@@ -142,6 +142,14 @@ switch ($action) {
         ];
         break;
 
+    case 'kerchunk':
+        $cmd = [
+            'cmd'   => 'kerchunk',
+            'token' => $token,
+            'tg'    => (int)($input['tg'] ?? 0),
+        ];
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Unknown action: ' . $action]);
         exit;

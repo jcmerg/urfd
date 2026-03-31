@@ -48,6 +48,14 @@ TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
 
+### Dynamic Talkgroup Timer Behavior
+
+Both MMDVM and SVX dynamic TGs have a 15-minute inactivity TTL. The timer is refreshed on any transmission start (DvHeader) on the module, regardless of which protocol originated the traffic. This means cross-protocol activity keeps all timers alive consistently.
+
+**BrandMeister note**: BM maintains its own TG subscription timer independently. When the BM subscription expires, urfd's local mapping will also expire if there is no further activity. Use the **kerchunk** admin command to manually extend the BM-side subscription without needing a radio.
+
+**SVX note**: When all dynamic SVX TGs expire, urfd sends `SELECT_TG(0)` to the SVX server to unsubscribe cleanly and stop receiving traffic for expired TGs.
+
 ### Admin Interface
 Runtime management via a JSON-based TCP socket, accessible through the dashboard web panel. Runs in its own thread and does not block audio processing.
 
@@ -70,6 +78,7 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 **Features:**
 - **Dynamic TG Management**: Add/remove talkgroups at runtime with configurable timeout (TTL). For MMDVM, triggers a reconnect to the master with updated options string and sends a kerchunk to activate the TG on BrandMeister. For SVX, sends a SELECT_TG command via TCP.
 - **Multi-TG per Module**: Dynamically add secondary TGs (RX only) to modules that already have a primary TG.
+- **Kerchunk on Demand**: Send a kerchunk to BrandMeister for a specific TG to extend its server-side subscription without a radio. MMDVM only.
 - **Protocol Reconnect**: Force reconnect of MMDVM or SVX connections.
 - **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time (min/avg/max) per transcoded module.
 - **Live Log Viewer**: Last 200 log lines with timestamps, auto-refreshing every 10 seconds.
@@ -82,10 +91,37 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "tg_add", "token": "...", "protocol": "mmdvm", "tg": 26207, "module": "S", "ts": 1, "ttl": 900}
 {"cmd": "tg_remove", "token": "...", "protocol": "mmdvm", "tg": 26207}
 {"cmd": "tg_list", "token": "..."}
+{"cmd": "kerchunk", "token": "...", "tg": 26207}
 {"cmd": "tc_stats", "token": "..."}
 {"cmd": "reconnect", "token": "...", "protocol": "mmdvm"}
 {"cmd": "log", "token": "...", "lines": 50}
 {"cmd": "status", "token": "..."}
+```
+
+### SIGHUP Configuration Reload
+
+The reflector supports hot-reloading configuration without dropping client sessions. Send `SIGHUP` to the process (or `docker kill -s HUP <container>`) to trigger a reload.
+
+**Reloaded on SIGHUP:**
+- TG mappings (MMDVMClient and SvxReflector) — dynamic TGs are preserved
+- Whitelist, blacklist, and interlink files
+- Transcoder module assignment
+- Reflector metadata (callsign, sponsor, country, URLs)
+- Database refresh parameters
+
+**Requires full restart:**
+- Module list changes (adding/removing modules)
+- Protocol enable/disable or port changes
+- IP address binding changes
+- Admin interface settings
+- Echo module assignment
+
+```bash
+# Docker
+docker kill -s HUP urfd
+
+# Bare metal
+kill -HUP $(cat /var/run/urfd.pid)
 ```
 
 ### Reflector Interlinking
@@ -151,18 +187,21 @@ The XML status file now includes:
 
 - **Reflector metadata**: callsign, country, sponsor, dashboard URL, email
 - **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID
-- **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient), USRP bridges
+- **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient, SvxReflector) including dynamic TGs with remaining TTL
 - **Enabled protocols**: name and port for each active protocol
 - **Per-station protocol**: which protocol a user was heard on (DCS, MMDVMClient, YSF, etc.)
+- **Dynamic TG indicators**: `<Dynamic>true</Dynamic>` and `<Remaining>` seconds for runtime-added TGs
 
 Module names are configured once in `urfd.ini` and automatically available in the dashboard.
+
+The JSON report also includes a `DynamicTGs` array with protocol, TG, module, and remaining seconds for all active dynamic mappings.
 
 ### Dashboard v2.6.0
 Complete redesign with dark mode theme.
 
 **New pages:**
 - **Active Users** - Connected nodes per module in card layout
-- **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, mappings, transcoder status, connected nodes (collapsible for large lists)
+- **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, mappings (static + dynamic), transcoder status, connected nodes (collapsible for large lists)
 - **Enabled Protocols** - All active protocols with ports and type classification
 
 **Features:**
@@ -176,16 +215,20 @@ Complete redesign with dark mode theme.
 - QuadNet Live: native PHP proxy table with search and auto-refresh (replaces iframe)
 - Reflector list: client-side search and pagination (25 per page) with CSS status dots
 - QRZ links use callsign without module suffix
-- **Admin panel** (hidden): dynamic TG management, transcoder stats, live log, protocol controls. Access via pi symbol or `?show=admin`.
+- **Admin panel** (hidden): dynamic TG management with kerchunk button, transcoder stats, live log, protocol controls. Access via pi symbol or `?show=admin`.
 
 ### D-Star Slow Data for Transcoded Streams
-Transcoded streams (DMR, YSF, SVX, M17, P25, USRP → D-Star) now include proper D-Star slow data:
+Transcoded streams (DMR, YSF, SVX, M17, P25, USRP -> D-Star) now include proper D-Star slow data:
 - **Header**: Caller callsign (MY), reflector callsign (RPT1/RPT2)
 - **Text message**: Source protocol and TG/DG-ID, e.g. `via SVX TG317424`, `via DMR TG26363`, `via YSF DG28`
 
 Header and text message alternate every superframe (~420ms), so D-Star radios display both callsign info and source routing info.
 
 ### Bug Fixes
+- Fix SELECT_TG(0) spam when no dynamic SVX TGs are configured
+- Fix SVX TG expiry not unsubscribing from server (orphaned TalkerStart/Stop messages)
+- Fix dynamic TGs not shown in XML/JSON module overview
+- Fix cross-protocol timer inconsistency (SVX activity not refreshing MMDVM timer and vice versa)
 - Fix missing end-of-TX frame on transcoded streams causing D-Star BER spikes at end of call
 - Fix SVX last-frame audio artifacts (squelch tail noise transcoded to AMBE)
 - Fix D-Star slow data missing TG number for dynamically mapped talkgroups
@@ -238,9 +281,9 @@ The urfd container runs three services via supervisord:
 ### Configuration files
 
 All configuration is in `/opt/urfd/config/` (mounted as volume):
-- `urfd.ini` - Main reflector configuration
+- `urfd.ini` - Main reflector configuration (supports SIGHUP reload)
 - `urfd.interlink` - Peer linking (URF, XLX, DCS peers with DNS support)
-- `urfd.blacklist` / `urfd.whitelist` - Access control
+- `urfd.blacklist` / `urfd.whitelist` - Access control (reloaded on SIGHUP)
 - `urfd.terminal` - G3 terminal configuration
 
 Dashboard config at `/opt/urfd/dashboard/config.inc.php` (mounted into container):

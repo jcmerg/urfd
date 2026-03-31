@@ -82,8 +82,13 @@ function refreshTGList() {
 
                 var timeoutStr = m['static'] ? '-' :
                     '<span class="label label-default">' + formatSeconds(m.remaining) + '</span>';
-                var actions = m['static'] ? '' :
-                    '<button class="btn btn-xs btn-danger" onclick="removeTG(\'' + m.protocol + '\',' + m.tg + ')">Entfernen</button>';
+                var actions = '';
+                if (!m['static']) {
+                    actions += '<button class="btn btn-xs btn-danger" onclick="removeTG(\'' + m.protocol + '\',' + m.tg + ')">Entfernen</button> ';
+                }
+                if (m.protocol === 'mmdvm') {
+                    actions += '<button class="btn btn-xs btn-info" onclick="doKerchunk(' + m.tg + ')" title="Kerchunk an BrandMeister senden">Kerchunk</button>';
+                }
                 var dirStr = m['primary'] ? 'TX/RX' : 'RX';
                 tbody.append(
                     '<tr>' +
@@ -124,6 +129,13 @@ function addTG() {
 
 function removeTG(protocol, tg) {
     adminPost({action: 'tg_remove', protocol: protocol, tg: tg}, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshTGList();
+    });
+}
+
+function doKerchunk(tg) {
+    adminPost({action: 'kerchunk', tg: tg}, function(resp) {
         showAlert(resp);
         if (resp.status === 'ok') refreshTGList();
     });
