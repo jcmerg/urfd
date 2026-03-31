@@ -722,15 +722,16 @@ void CSvxReflectorProtocol::CloseInStream(void)
 		if (it != m_Streams.end() && it->second)
 		{
 			// Flush OPUS decoder to reset state (like svxlink's flushEncodedSamples)
-			// Output is discarded — the flush just cleans up internal decoder buffers
 			if (m_OpusDecoder)
 			{
 				int16_t dummy[160];
 				[[maybe_unused]] int ret = opus_decode(m_OpusDecoder, NULL, 0, dummy, 160, 0);
 			}
-			// Close with cached last audio (not silence, not flush output)
+			// Close with silence — lastPcm often contains squelch tail / noise
+			// that causes D-Star artifacts (crackle, tones) when transcoded to AMBE
+			int16_t silence[160] = {};
 			auto lastFrame = std::unique_ptr<CDvFramePacket>(
-				new CDvFramePacket(m_InStream.lastPcm, m_InStream.streamId, true, ECodecType::svx));
+				new CDvFramePacket(silence, m_InStream.streamId, true, ECodecType::svx));
 			lastFrame->SetPacketModule(m_InStream.module);
 			it->second->Push(std::move(lastFrame));
 			g_Reflector.CloseStream(it->second);
