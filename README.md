@@ -368,6 +368,23 @@ Required ports (only open ports for enabled protocols):
 
 URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users connect via hotspot software (Pi-Star/WPSD) which discovers URF reflectors through the XLX API. No registration at ysfreflector.de is needed. If `EnableDGID = true`, users can switch modules via DG-ID values (10=A, 11=B, ... 35=Z).
 
+## Changes from upstream
+
+- **MMDVMClient connector**: Full MMDVM protocol client for BrandMeister/DMR+ masters with multi-TG per module, primary/secondary routing, per-timeslot support, fallback DMR ID, options string generation
+- **SvxReflector client**: TCP/UDP client for SvxLink reflector servers with OPUS codec, bidirectional FM audio bridging, configurable RX/TX gain, SELECT_TG protocol support
+- **Admin interface**: JSON-over-TCP socket for runtime management — dynamic TG add/remove with auto-kerchunk, protocol reconnect, transcoder stats, live log viewer, protocol block rules
+- **Dashboard v2.6.0**: Complete dark mode redesign, admin panel, module overview with TG mappings, protocol list, QuadNet Live proxy, reflector list with search/pagination
+- **Dynamic TG management**: Runtime TG add/remove via admin API, configurable TTL, cross-protocol timer refresh, kerchunk-on-demand for BrandMeister, SELECT_TG(0) cleanup on expiry
+- **SIGHUP config reload**: Hot-reload TG mappings, whitelist/blacklist/interlink, transcoder modules without dropping client sessions. Thread-safe via sigwait, exception-safe with config rollback
+- **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG info, and operator name from DMR ID database, rotating every ~5 seconds
+- **Protocol blocking**: Bidirectional per-protocol audio routing blocks (e.g. block SVX→MMDVM)
+- **Extended XML/JSON output**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
+- **Echo module**: Built-in parrot with enable/disable flag
+- **M17 LSTN support**: Listen-only M17 clients accepted for monitoring services
+- **Transcoder connection detection**: TCP keepalive + non-blocking poll for dead connection detection, queue drain on disconnect
+- **Thread-safe logging**: Atomic cout via ostringstream to prevent interleaved log lines from concurrent threads
+- **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection, CConfigure::GetBoolean safety
+
 ## Copyright
 
 - Copyright (c) 2016 Jean-Luc Deltombe LX3JL and Luc Engelmann LX1IQ
