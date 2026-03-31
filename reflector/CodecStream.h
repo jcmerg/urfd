@@ -57,6 +57,7 @@ public:
 	unsigned int GetRTCount(void) const       { return m_RTCount; }
 	uint32_t GetTotalPackets(void) const      { return m_uiTotalPackets; }
 	uint32_t GetMismatchCount(void) const     { return m_uiMismatchCount; }
+	bool     IsPipelineEmpty(void)              { return m_Queue.IsEmpty() && m_LocalQueue.IsEmpty(); }
 
 	// task
 	void Thread(void);

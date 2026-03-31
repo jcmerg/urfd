@@ -310,12 +310,22 @@ void CReflector::CloseStream(std::shared_ptr<CPacketStream> stream)
 {
 	if ( stream != nullptr )
 	{
-		// wait queue is empty. this waits forever
-		bool bEmpty = stream->IsEmpty();
-		while (! bEmpty)
+		// Wait for transcoder pipeline to finish (input queue + pending responses)
+		// Without this, the end-of-TX frame gets lost because ClosePacketStream
+		// sets m_IsOpen=false and CodecStream discards pending transcoder responses
+		{
+			int waitMs = 0;
+			while ((!stream->IsEmpty() || !stream->IsCodecPipelineEmpty()) && waitMs < 1000)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+				waitMs += 10;
+			}
+		}
+
+		// Wait for output queue to fully drain (router distributes to protocols)
+		while (!stream->IsEmpty())
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			bEmpty = stream->IsEmpty();
 		}
 
 		GetClients();	// lock clients

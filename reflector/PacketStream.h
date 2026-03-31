@@ -56,6 +56,7 @@ public:
 	char             GetRpt2Module(void) const      { return m_DvHeader.GetRpt2Module(); }
 	CCodecStream    *GetCodecStream(void) const     { return m_CodecStream.get(); }
 	bool             HasCodecStream(void) const      { return m_CodecStream != nullptr; }
+	bool             IsCodecPipelineEmpty(void) { return !m_CodecStream || m_CodecStream->IsPipelineEmpty(); }
 
 	// pass-through
 	std::unique_ptr<CPacket> Pop()        { return m_Queue.Pop(); }
