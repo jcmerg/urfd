@@ -100,7 +100,7 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 
 ### SIGHUP Configuration Reload
 
-The reflector supports hot-reloading configuration without dropping client sessions. Send `SIGHUP` to the process (or `docker kill -s HUP <container>`) to trigger a reload.
+The reflector supports hot-reloading configuration without dropping client sessions. Send `SIGHUP` to the urfd process to trigger a reload.
 
 **Reloaded on SIGHUP:**
 - TG mappings (MMDVMClient and SvxReflector) — dynamic TGs are preserved
@@ -117,8 +117,8 @@ The reflector supports hot-reloading configuration without dropping client sessi
 - Echo module assignment
 
 ```bash
-# Docker
-docker kill -s HUP urfd
+# Docker (signal must reach urfd, not supervisord)
+docker exec urfd kill -HUP $(docker exec urfd pgrep urfd)
 
 # Bare metal
 kill -HUP $(cat /var/run/urfd.pid)
