@@ -7,7 +7,7 @@ Fork of [urfd](https://github.com/nostar/urfd) with extended features for the UR
 ## What's New in This Fork
 
 ### MMDVMClient Connector
-Connect to any DMR master server via the MMDVM protocol. Maps talkgroups to reflector modules with per-timeslot support.
+Connect to any DMR master server (e.g. BrandMeister) via the MMDVM protocol. Maps talkgroups to reflector modules with per-timeslot support. Multiple TGs can share a module: the first becomes the primary (TX/RX), additional TGs are secondary (inbound RX only). Dynamic TGs can be added at runtime via the Admin interface.
 
 ```ini
 [MMDVMClient]
@@ -16,18 +16,20 @@ MasterAddress = master.example.com    # DMR master server
 MasterPort = 62031
 DmrId = 123456701
 Password = yourpassword
-Callsign = YOURCALL
-TG26250 = S,TS2    # TG 26250 -> Module S on Timeslot 2
+Callsign = YOURCALL                   # Used for DMR-ID lookup on kerchunk
+TG26250 = S,TS1    # TG 26250 -> Module S on Timeslot 1 (primary, TX/RX)
+TG26207 = S,TS1    # TG 26207 -> Module S (secondary, RX only)
+TG26363 = F,TS2    # TG 26363 -> Module F (primary)
 # FallbackDmrId = 1234567  # For callers not in DMR database (omit = drop stream)
 # BlockProtocols = SvxReflector,YSF  # Block audio from these protocols (comma-separated)
 ```
 
-**FallbackDmrId**: When a callsign cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped to prevent the repeater's own DMR ID from appearing as the caller on DMR.
+**Multi-TG per Module**: The first TG listed for a module becomes the primary and is used for outbound traffic (TX). Additional TGs on the same module are secondary and only receive inbound traffic (RX). Dynamic TGs added via the Admin interface are always secondary unless the module has no primary yet.
 
-Static talkgroups may need to be configured on the master server.
+**FallbackDmrId**: When a callsign cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped.
 
 ### SvxReflector Client
-Connect to SvxLink SvxReflector servers (e.g. FM-Funknetz) for bidirectional FM audio bridging. Uses TCP for signaling and UDP for OPUS-encoded audio. Requires transcoded modules.
+Connect to SvxLink SvxReflector servers (e.g. FM-Funknetz) for bidirectional FM audio bridging. Uses TCP for signaling and UDP for OPUS-encoded audio. Requires transcoded modules. Dynamic TGs can be added at runtime via the Admin interface.
 
 ```ini
 [SvxReflector]
@@ -45,6 +47,46 @@ TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 **BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
+
+### Admin Interface
+Runtime management via a JSON-based TCP socket, accessible through the dashboard web panel. Runs in its own thread and does not block audio processing.
+
+```ini
+[Admin]
+Enable = true
+Port = 10101
+Password = yoursecretpassword
+# BindAddress = 127.0.0.1      # Default: loopback only
+```
+
+Dashboard config (`config.inc.php`):
+```php
+$Admin['Enable']   = true;
+$Admin['Host']     = '127.0.0.1';
+$Admin['Port']     = 10101;
+$Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
+```
+
+**Features:**
+- **Dynamic TG Management**: Add/remove talkgroups at runtime with configurable timeout (TTL). For MMDVM, triggers a reconnect to the master with updated options string and sends a kerchunk to activate the TG on BrandMeister. For SVX, sends a SELECT_TG command via TCP.
+- **Multi-TG per Module**: Dynamically add secondary TGs (RX only) to modules that already have a primary TG.
+- **Protocol Reconnect**: Force reconnect of MMDVM or SVX connections.
+- **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time (min/avg/max) per transcoded module.
+- **Live Log Viewer**: Last 200 log lines with timestamps, auto-refreshing every 10 seconds.
+- **Protocol Block Rules**: Shows active bidirectional block rules between protocols.
+- **Hidden Access**: No visible link in navigation. Access via the pi symbol in the bottom-right corner or directly via `?show=admin`.
+
+**Socket Protocol**: Line-delimited JSON over TCP. Authenticate first, then send commands with the returned token:
+```json
+{"cmd": "auth", "password": "..."}
+{"cmd": "tg_add", "token": "...", "protocol": "mmdvm", "tg": 26207, "module": "S", "ts": 1, "ttl": 900}
+{"cmd": "tg_remove", "token": "...", "protocol": "mmdvm", "tg": 26207}
+{"cmd": "tg_list", "token": "..."}
+{"cmd": "tc_stats", "token": "..."}
+{"cmd": "reconnect", "token": "...", "protocol": "mmdvm"}
+{"cmd": "log", "token": "...", "lines": 50}
+{"cmd": "status", "token": "..."}
+```
 
 ### Reflector Interlinking
 Peer with URF, XLX and DCS reflectors. DNS hostnames are supported. Configure interlinking in `urfd.interlink`:
@@ -134,6 +176,7 @@ Complete redesign with dark mode theme.
 - QuadNet Live: native PHP proxy table with search and auto-refresh (replaces iframe)
 - Reflector list: client-side search and pagination (25 per page) with CSS status dots
 - QRZ links use callsign without module suffix
+- **Admin panel** (hidden): dynamic TG management, transcoder stats, live log, protocol controls. Access via pi symbol or `?show=admin`.
 
 ### D-Star Slow Data for Transcoded Streams
 Transcoded streams (DMR, YSF, SVX, M17, P25, USRP → D-Star) now include proper D-Star slow data:
@@ -143,6 +186,13 @@ Transcoded streams (DMR, YSF, SVX, M17, P25, USRP → D-Star) now include proper
 Header and text message alternate every superframe (~420ms), so D-Star radios display both callsign info and source routing info.
 
 ### Bug Fixes
+- Fix missing end-of-TX frame on transcoded streams causing D-Star BER spikes at end of call
+- Fix SVX last-frame audio artifacts (squelch tail noise transcoded to AMBE)
+- Fix D-Star slow data missing TG number for dynamically mapped talkgroups
+- Fix orphaned SVX clients remaining in Links after dynamic TG removal
+- Fix CodecStream uninitialized statistics (garbage RTT values after restart)
+- Fix thread-unsafe cout in TCSocket (interleaved log lines)
+- Fix OPUS decoder state leak between SVX calls (flush on stream close)
 - Fix options string per-timeslot indexing for multi-TG configs
 - Fix `Mode=both` DB loader failbit when file is empty
 - Fix Via/Peer display matching both XLX and URF reflector name variants
@@ -234,8 +284,9 @@ Edit `urfd.ini` to set:
 - Transcoder port and modules (set port to 0 if no transcoder)
 - Protocol-specific settings (ports, enable flags, autolink modules)
 - Echo module assignment
-- MMDVMClient TG mappings
+- MMDVMClient TG mappings (multi-TG per module supported)
 - SvxReflector connection and TG mappings
+- Admin interface (port, password, bind address)
 - Database URLs for DMR ID, NXDN ID, YSF TX/RX lookups
 
 ### Dashboard
@@ -244,7 +295,7 @@ Edit `urfd.ini` to set:
 sudo cp -r ~/urfd/dashboard /var/www/urf
 ```
 
-Edit `pgs/config.inc.php` for email, country, and CallingHome settings. Module names are read from the urfd XML output - no need for redundant `$PageOptions['ModuleNames']` configuration.
+Edit `pgs/config.inc.php` for email, country, CallingHome, and Admin settings. Module names are read from the urfd XML output. For the Admin panel, set `$Admin['Enable'] = true` and match the password with `urfd.ini`.
 
 ## Interlink / Peering
 
@@ -271,6 +322,7 @@ Required ports (only open ports for enabled protocols):
 | 10002/udp | XLXPeer | XLX/DCS peering |
 | 10017/udp | URF | URF interlinking |
 | 10100/tcp | TC | Transcoder |
+| 10101/tcp | Admin | Admin socket (loopback only) |
 | 12345-12346/udp | G3 | Icom Terminal |
 | 17000/udp | M17 | M17 protocol |
 | 20001/udp | DPlus | D-Star DPlus |
