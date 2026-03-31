@@ -83,5 +83,5 @@ public:
 private:
 	std::string m_Address;
 	uint16_t m_Port;
-	bool Connect(char module);
+	bool Connect(char module, bool blocking = false);
 };

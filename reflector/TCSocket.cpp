@@ -422,7 +422,7 @@ bool CTCClient::Open(const std::string &address, const std::string &modules, uin
 
 	for (char c : modules)
 	{
-		if (Connect(c))
+		if (Connect(c, true))
 		{
 			return true;
 		}
@@ -430,7 +430,7 @@ bool CTCClient::Open(const std::string &address, const std::string &modules, uin
 	return false;
 }
 
-bool CTCClient::Connect(char module)
+bool CTCClient::Connect(char module, bool blocking)
 {
 	const auto pos = m_Modules.find(module);
 	if (pos == std::string::npos)
@@ -457,20 +457,33 @@ bool CTCClient::Connect(char module)
 		return true;
 	}
 
-	unsigned count = 0;
-	while (connect(fd, ip.GetCPointer(), ip.GetSize()))
+	if (blocking)
 	{
-		if (ECONNREFUSED == errno)
+		// Initial startup: block until reflector is available
+		unsigned count = 0;
+		while (connect(fd, ip.GetCPointer(), ip.GetSize()))
 		{
-			if (0 == ++count % 100) std::cout << "Connection refused! Restart the reflector." << std::endl;
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			if (ECONNREFUSED == errno)
+			{
+				if (0 == ++count % 100) std::cout << "Connection refused! Restart the reflector." << std::endl;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
+			else
+			{
+				std::cerr << "Module " << module << " error: ";
+				perror("connect");
+				close(fd);
+				return true;
+			}
 		}
-		else
+	}
+	else
+	{
+		// Reconnect: non-blocking, return immediately on failure
+		if (connect(fd, ip.GetCPointer(), ip.GetSize()))
 		{
-			std::cerr << "Module " << module << " error: ";
-			perror("connect");
 			close(fd);
-			return true;
+			return false;
 		}
 	}
 
@@ -521,10 +534,7 @@ void CTCClient::ReConnect() // and sometimes ping
 		if (0 > GetFD(m))
 		{
 			std::cout << "Reconnecting module " << m << "..." << std::endl;
-			if (Connect(m))
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(5));
-			}
+			Connect(m, false); // non-blocking: try once, don't hold up other modules
 		}
 	}
 	
