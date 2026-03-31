@@ -86,7 +86,7 @@ function refreshTGList() {
                 if (!m['static']) {
                     actions += '<button class="btn btn-xs btn-danger" onclick="removeTG(\'' + m.protocol + '\',' + m.tg + ')">Entfernen</button> ';
                 }
-                if (m.protocol === 'mmdvm') {
+                if (m.protocol === 'mmdvm' && !m['static']) {
                     actions += '<button class="btn btn-xs btn-info" onclick="doKerchunk(' + m.tg + ')" title="Kerchunk an BrandMeister senden">Kerchunk</button>';
                 }
                 var dirStr = m['primary'] ? 'TX/RX' : 'RX';
