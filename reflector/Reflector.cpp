@@ -885,8 +885,6 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 
 void CReflector::EchoThread(void)
 {
-	std::cout << "Echo thread started for module " << m_EchoModule << std::endl;
-
 	while (keep_running)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));

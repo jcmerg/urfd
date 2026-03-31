@@ -96,6 +96,11 @@ void CLookupDmr::UpdateContent(std::stringstream &ss, Eaction action)
 							// Extract name (3rd field after second semicolon)
 							auto p3 = line.find(';', p2 + 1);
 							std::string name = line.substr(p2 + 1, (p3 != std::string::npos) ? p3 - p2 - 1 : std::string::npos);
+							// Trim whitespace and control characters
+							while (!name.empty() && (unsigned char)name.back() <= ' ')
+								name.pop_back();
+							while (!name.empty() && (unsigned char)name.front() <= ' ')
+								name.erase(0, 1);
 							if (!name.empty())
 								m_NameMap[id] = name;
 						}
