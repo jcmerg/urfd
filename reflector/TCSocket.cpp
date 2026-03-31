@@ -111,12 +111,22 @@ char CTCSocket::GetMod(int fd) const
 	return '?';
 }
 
-bool CTCServer::AnyAreClosed() const
+bool CTCServer::AnyAreClosed()
 {
-	for (auto &fds : m_Pfd)
+	for (unsigned i = 0; i < m_Pfd.size(); i++)
 	{
-		if (0 > fds.fd)
+		if (m_Pfd[i].fd < 0)
 			return true;
+
+		// Actively probe for dead connections (e.g. half-open after network outage)
+		struct pollfd pfd = { m_Pfd[i].fd, POLLIN, 0 };
+		int rv = poll(&pfd, 1, 0);
+		if (rv > 0 && (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)))
+		{
+			std::cerr << "Transcoder module '" << m_Modules[i] << "' connection lost (maintenance probe)" << std::endl;
+			Close(m_Pfd[i].fd);
+			return true;
+		}
 	}
 	return false;
 }
@@ -482,6 +492,10 @@ void CTCClient::ReConnect() // and sometimes ping
 	static std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 	auto now = std::chrono::system_clock::now();
 	std::chrono::duration<double> secs = now - start;
+
+	// Probe all sockets to detect dead connections before checking FDs
+	for (char m : m_Modules)
+		IsModuleConnected(m);
 
 	for (char m : m_Modules)
 	{
