@@ -54,6 +54,7 @@ public:
 	// operation
 	bool Start(void);
 	void Stop(void);
+	void ReloadConfig(const std::string &configPath);
 
 	// clients
 	CClients *GetClients(void)                      { m_Clients.Lock(); return &m_Clients; }

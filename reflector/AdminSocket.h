@@ -42,6 +42,7 @@ private:
 	nlohmann::json CmdReconnect(const nlohmann::json &cmd);
 	nlohmann::json CmdTCStats(void);
 	nlohmann::json CmdLog(const nlohmann::json &cmd);
+	nlohmann::json CmdKerchunk(const nlohmann::json &cmd);
 
 	// Config
 	int m_ListenFd;

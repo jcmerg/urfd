@@ -31,6 +31,7 @@ public:
 
 	// Load TG=Module[,TS<1|2>] mappings from config (static entries)
 	bool LoadFromConfig(void);
+	void ReloadStaticFromConfig(void);  // re-read static mappings, preserve dynamic
 
 	// Lookups (thread-safe)
 	char TGToModule(uint32_t tg) const;
@@ -49,6 +50,7 @@ public:
 	bool AddDynamic(uint32_t tg, char module, uint8_t timeslot, int ttlSeconds);
 	bool RemoveDynamic(uint32_t tg);
 	void RefreshActivity(uint32_t tg);  // reset TTL on traffic
+	void RefreshActivityByModule(char module);  // reset TTL for all dynamic TGs on module
 
 	// Expire old dynamic entries, returns list of expired TGs
 	std::vector<uint32_t> PurgeExpired(void);

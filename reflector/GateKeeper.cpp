@@ -57,6 +57,14 @@ bool CGateKeeper::Init(void)
 	return true;
 }
 
+void CGateKeeper::ReloadLists(void)
+{
+	m_WhiteSet.LoadFromFile(g_Configure.GetString(g_Keys.files.white));
+	m_BlackSet.LoadFromFile(g_Configure.GetString(g_Keys.files.black));
+	m_InterlinkMap.LoadFromFile(g_Configure.GetString(g_Keys.files.interlink));
+	std::cout << "GateKeeper: lists reloaded" << std::endl;
+}
+
 void CGateKeeper::Close(void)
 {
 	// kill threads

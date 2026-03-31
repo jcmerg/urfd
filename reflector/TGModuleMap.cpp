@@ -80,6 +80,68 @@ bool CTGModuleMap::LoadFromConfig(void)
 	return true;
 }
 
+void CTGModuleMap::ReloadStaticFromConfig(void)
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+
+	// Collect dynamic entries to preserve
+	std::vector<std::tuple<uint32_t, STGMapEntry>> dynEntries;
+	for (auto &pair : m_TGtoEntry)
+	{
+		if (!pair.second.is_static)
+			dynEntries.emplace_back(pair.first, pair.second);
+	}
+
+	// Clear and reload static from config
+	m_TGtoEntry.clear();
+	m_ModuleToTG.clear();
+	m_ModuleToAllTGs.clear();
+
+	const auto &jdata = g_Configure.GetData();
+	for (auto it = jdata.begin(); it != jdata.end(); ++it)
+	{
+		const std::string &key = it.key();
+		if (key.substr(0, 10) != "mmdvmcliTG") continue;
+		try
+		{
+			uint32_t tg = std::stoul(key.substr(10));
+			std::string val = it.value().get<std::string>();
+			char mod = (val.size() >= 1 && val[0] >= 'A' && val[0] <= 'Z') ? val[0] : ' ';
+			uint8_t ts = 2;
+			auto comma = val.find(',');
+			if (comma != std::string::npos)
+			{
+				std::string tsStr = val.substr(comma + 1);
+				if (tsStr == "TS1" || tsStr == "ts1") ts = 1;
+			}
+			if (mod >= 'A' && mod <= 'Z')
+			{
+				bool isPrimary = (m_ModuleToTG.find(mod) == m_ModuleToTG.end());
+				m_TGtoEntry[tg] = { mod, ts, true, isPrimary, {} };
+				m_ModuleToAllTGs[mod].insert(tg);
+				if (isPrimary)
+					m_ModuleToTG[mod] = tg;
+			}
+		}
+		catch (...) {}
+	}
+
+	// Re-add dynamic entries (skip if TG now exists as static)
+	for (auto &[tg, entry] : dynEntries)
+	{
+		if (m_TGtoEntry.find(tg) != m_TGtoEntry.end())
+			continue;  // now static, skip
+		bool isPrimary = (m_ModuleToTG.find(entry.module) == m_ModuleToTG.end());
+		entry.is_primary = isPrimary;
+		m_TGtoEntry[tg] = entry;
+		m_ModuleToAllTGs[entry.module].insert(tg);
+		if (isPrimary)
+			m_ModuleToTG[entry.module] = tg;
+	}
+
+	std::cout << "MMDVMClient: TG mappings reloaded (" << m_TGtoEntry.size() << " total)" << std::endl;
+}
+
 char CTGModuleMap::TGToModule(uint32_t tg) const
 {
 	std::lock_guard<std::mutex> lock(m_Mutex);
@@ -219,6 +281,21 @@ void CTGModuleMap::RefreshActivity(uint32_t tg)
 	{
 		auto newExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(900);
 		if (newExpiry > it->second.expires)
+			it->second.expires = newExpiry;
+	}
+}
+
+void CTGModuleMap::RefreshActivityByModule(char module)
+{
+	std::lock_guard<std::mutex> lock(m_Mutex);
+	auto modIt = m_ModuleToAllTGs.find(module);
+	if (modIt == m_ModuleToAllTGs.end())
+		return;
+	auto newExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(900);
+	for (uint32_t tg : modIt->second)
+	{
+		auto it = m_TGtoEntry.find(tg);
+		if (it != m_TGtoEntry.end() && !it->second.is_static && newExpiry > it->second.expires)
 			it->second.expires = newExpiry;
 	}
 }

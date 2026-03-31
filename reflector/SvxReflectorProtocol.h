@@ -59,6 +59,8 @@ public:
 	std::vector<CTGModuleMap::STGInfo> GetTGMappings(void) const;
 	void RequestReconnect(void) { m_ReconnectRequested = true; }
 	uint32_t ModuleToTG(char module) const;
+	void RefreshActivityByModule(char module);
+	void ReloadStaticTGMap(void);
 
 protected:
 	// queue helper

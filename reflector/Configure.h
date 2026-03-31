@@ -43,6 +43,7 @@ public:
 	bool IsString(const std::string &key) const;
 	char GetAutolinkModule(const std::string &key) const;
 	const nlohmann::json &GetData() { return data; }
+	void SetData(const nlohmann::json &d) { data = d; }
 
 private:
 	// CFGDATA data;

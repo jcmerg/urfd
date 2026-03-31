@@ -135,6 +135,22 @@ uint32_t CSvxReflectorProtocol::ModuleToTG(char module) const
 	return (it != m_ModuleToTG.end()) ? it->second : 0;
 }
 
+void CSvxReflectorProtocol::RefreshActivityByModule(char module)
+{
+	std::lock_guard<std::mutex> lock(m_TGMutex);
+	auto modIt = m_ModuleToTG.find(module);
+	if (modIt == m_ModuleToTG.end())
+		return;
+	uint32_t tg = modIt->second;
+	auto dynIt = m_DynTGs.find(tg);
+	if (dynIt != m_DynTGs.end())
+	{
+		auto newExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(900);
+		if (newExpiry > dynIt->second.expires)
+			dynIt->second.expires = newExpiry;
+	}
+}
+
 void CSvxReflectorProtocol::LoadTGMap(void)
 {
 	m_TGToModule.clear();
@@ -154,6 +170,55 @@ void CSvxReflectorProtocol::LoadTGMap(void)
 			} catch (...) {}
 		}
 	}
+}
+
+void CSvxReflectorProtocol::ReloadStaticTGMap(void)
+{
+	std::lock_guard<std::mutex> lock(m_TGMutex);
+
+	// Collect dynamic entries to preserve
+	std::unordered_map<uint32_t, SDynTG> savedDynTGs = m_DynTGs;
+	std::unordered_map<uint32_t, char> savedDynMappings;
+	for (auto &[tg, dynInfo] : m_DynTGs)
+	{
+		auto it = m_TGToModule.find(tg);
+		if (it != m_TGToModule.end())
+			savedDynMappings[tg] = it->second;
+	}
+
+	// Reload static from config
+	m_TGToModule.clear();
+	m_ModuleToTG.clear();
+	const auto &jdata = g_Configure.GetData();
+	for (auto it = jdata.begin(); it != jdata.end(); ++it)
+	{
+		const std::string &key = it.key();
+		if (key.substr(0, 5) != "svxTG") continue;
+		try {
+			uint32_t tg = std::stoul(key.substr(5));
+			char mod = it.value().get<std::string>()[0];
+			m_TGToModule[tg] = mod;
+			m_ModuleToTG[mod] = tg;
+		} catch (...) {}
+	}
+
+	// Re-add dynamic entries (skip if TG now exists as static)
+	m_DynTGs.clear();
+	for (auto &[tg, dynInfo] : savedDynTGs)
+	{
+		if (m_TGToModule.find(tg) != m_TGToModule.end())
+			continue;  // now static
+		auto mapIt = savedDynMappings.find(tg);
+		if (mapIt == savedDynMappings.end())
+			continue;
+		char mod = mapIt->second;
+		m_TGToModule[tg] = mod;
+		if (m_ModuleToTG.find(mod) == m_ModuleToTG.end())
+			m_ModuleToTG[mod] = tg;
+		m_DynTGs[tg] = dynInfo;
+	}
+
+	std::cout << "SvxReflector: TG mappings reloaded (" << m_TGToModule.size() << " total)" << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -643,11 +708,16 @@ void CSvxReflectorProtocol::Task(void)
 						std::cout << "SvxReflector: dynamically selected TG" << tg << std::endl;
 					}
 					m_PendingSelectTG.clear();
-					// Deselect is implicit — we just stop routing for removed TGs
+					for (uint32_t tg : m_PendingDeselectTG)
+					{
+						(void)tg;  // logged for context
+						std::cout << "SvxReflector: deselected TG" << tg << std::endl;
+					}
 					m_PendingDeselectTG.clear();
 				}
 
 				// Purge expired dynamic TGs
+				bool allTGsGone = false;
 				{
 					std::lock_guard<std::mutex> lock(m_TGMutex);
 					auto now = std::chrono::steady_clock::now();
@@ -690,6 +760,17 @@ void CSvxReflectorProtocol::Task(void)
 						else
 							++it;
 					}
+					allTGsGone = m_TGToModule.empty();
+				}
+
+				// If all TGs gone, send SELECT_TG(0) to unsubscribe from server
+				if (allTGsGone)
+				{
+					std::vector<uint8_t> sel;
+					PackUint16(sel, SVX_TCP_MSG_SELECT_TG);
+					PackUint32(sel, 0);
+					TcpSendFrame(sel.data(), (uint32_t)sel.size());
+					std::cout << "SvxReflector: all TGs expired, sent SELECT_TG(0)" << std::endl;
 				}
 
 				// Handle end of streaming timeout

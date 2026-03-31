@@ -37,9 +37,10 @@ public:
 	// destructor
 	virtual ~CGateKeeper();
 
-	// init & clode
+	// init & close
 	bool Init(void);
 	void Close(void);
+	void ReloadLists(void);
 
 	CInterlinkMap *GetInterlinkMap(void) { m_InterlinkMap.Lock(); return &m_InterlinkMap; }
 	void ReleaseInterlinkMap(void) { m_InterlinkMap.Unlock(); }

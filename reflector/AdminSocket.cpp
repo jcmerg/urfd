@@ -198,6 +198,8 @@ nlohmann::json CAdminSocket::HandleCommand(const nlohmann::json &cmd, const std:
 		return CmdTCStats();
 	else if (command == "log")
 		return CmdLog(cmd);
+	else if (command == "kerchunk")
+		return CmdKerchunk(cmd);
 
 	return {{"status", "error"}, {"message", "unknown command: " + command}};
 }
@@ -599,4 +601,43 @@ nlohmann::json CAdminSocket::CmdLog(const nlohmann::json &cmd)
 		result["lines"].push_back(line);
 
 	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Kerchunk — send a brief DMR transmission to keep a TG alive on BrandMeister
+
+nlohmann::json CAdminSocket::CmdKerchunk(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("tg"))
+		return {{"status", "error"}, {"message", "missing 'tg' field"}};
+
+	uint32_t tg = cmd["tg"];
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::mmdvmclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "MMDVMClient protocol not active"}};
+	}
+
+	auto *mmdvm = static_cast<CMMDVMClientProtocol *>(proto);
+
+	// Verify TG is actually mapped
+	char module = mmdvm->GetTGMap().TGToModule(tg);
+	if (module == ' ')
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "TG not mapped"}};
+	}
+
+	mmdvm->RequestKerchunk(tg);
+	protocols.Unlock();
+
+	// Also refresh local timer
+	mmdvm->GetTGMap().RefreshActivity(tg);
+
+	std::cout << "Admin: kerchunk requested for TG" << tg << std::endl;
+	return {{"status", "ok"}, {"tg", tg}, {"module", std::string(1, module)}};
 }

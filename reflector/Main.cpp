@@ -17,11 +17,27 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <sys/stat.h>
+#include <signal.h>
 
 #include "Global.h"
 #include "LogBuffer.h"
 
 #ifndef UTILITY
+
+////////////////////////////////////////////////////////////////////////////////////////
+// signal handling
+
+static volatile sig_atomic_t g_sig_reload = 0;
+static volatile sig_atomic_t g_sig_term = 0;
+
+static void sig_handler(int sig)
+{
+	if (sig == SIGHUP)
+		g_sig_reload = 1;
+	else
+		g_sig_term = 1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // global objects
 
@@ -75,7 +91,26 @@ int main(int argc, char *argv[])
 	ofs << getpid() << std::endl;
 	ofs.close();
 
-	pause(); // wait for any signal
+	// install signal handlers
+	struct sigaction sa;
+	sa.sa_handler = sig_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sigaction(SIGHUP, &sa, nullptr);
+	sigaction(SIGTERM, &sa, nullptr);
+	sigaction(SIGINT, &sa, nullptr);
+
+	// main loop: reload config on SIGHUP, exit on SIGTERM/SIGINT
+	while (!g_sig_term)
+	{
+		pause();
+		if (g_sig_reload)
+		{
+			g_sig_reload = 0;
+			std::cout << "SIGHUP received, reloading configuration..." << std::endl;
+			g_Reflector.ReloadConfig(argv[1]);
+		}
+	}
 
 	g_Reflector.Stop();
 	std::cout << "Reflector stopped" << std::endl;

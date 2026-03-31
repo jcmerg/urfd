@@ -20,6 +20,8 @@
 #include <string.h>
 
 #include "Global.h"
+#include "MMDVMClientProtocol.h"
+#include "SvxReflectorProtocol.h"
 
 CReflector::CReflector()
 {
@@ -174,6 +176,46 @@ bool CReflector::Start(void)
 #endif
 
 	return false;
+}
+
+void CReflector::ReloadConfig(const std::string &configPath)
+{
+	std::cout << "Reloading configuration from " << configPath << std::endl;
+
+	// Save current config in case reload fails
+	auto savedConfig = g_Configure.GetData();
+
+	// Re-read the configuration file
+	if (g_Configure.ReadData(configPath))
+	{
+		std::cerr << "Config reload failed, restoring previous configuration" << std::endl;
+		g_Configure.SetData(savedConfig);
+		return;
+	}
+
+	// Reload TG mappings (preserve dynamic entries)
+	auto *mmdvmProto = m_Protocols.FindByType(EProtocol::mmdvmclient);
+	if (mmdvmProto)
+	{
+		auto *mmdvm = static_cast<CMMDVMClientProtocol *>(mmdvmProto);
+		mmdvm->GetTGMap().ReloadStaticFromConfig();
+		mmdvm->RequestReconnect();
+	}
+
+	auto *svxProto = m_Protocols.FindByType(EProtocol::svxreflector);
+	if (svxProto)
+	{
+		auto *svx = static_cast<CSvxReflectorProtocol *>(svxProto);
+		svx->ReloadStaticTGMap();
+	}
+
+	// Reload whitelist, blacklist, and interlink files
+	g_GateKeeper.ReloadLists();
+
+	// Update transcoder modules string
+	m_TCmodules.assign(g_Configure.GetString(g_Keys.tc.modules));
+
+	std::cout << "Configuration reloaded successfully" << std::endl;
 }
 
 void CReflector::Stop(void)
@@ -370,6 +412,17 @@ void CReflector::RouterThread(const char ThisModule)
 
 		packet->SetPacketModule(ThisModule);
 
+		// Refresh dynamic TG timers on all protocols when a new transmission starts
+		if (packet->IsDvHeader())
+		{
+			auto *mmdvmProto = m_Protocols.FindByType(EProtocol::mmdvmclient);
+			if (mmdvmProto)
+				static_cast<CMMDVMClientProtocol *>(mmdvmProto)->GetTGMap().RefreshActivityByModule(ThisModule);
+			auto *svxProto = m_Protocols.FindByType(EProtocol::svxreflector);
+			if (svxProto)
+				static_cast<CSvxReflectorProtocol *>(svxProto)->RefreshActivityByModule(ThisModule);
+		}
+
 		// get source protocol type from stream owner
 		EProtocol srcProto = EProtocol::none;
 		auto ownerClient = streamIn->GetOwnerClient();
@@ -564,6 +617,35 @@ void CReflector::JsonReport(nlohmann::json &report)
 	for (auto uid=users->begin(); uid!=users->end(); uid++)
 		(*uid).JsonReport(report);
 	ReleaseUsers();
+
+	// Dynamic TG mappings (not in config)
+	report["DynamicTGs"] = nlohmann::json::array();
+	auto *mmdvmProto = m_Protocols.FindByType(EProtocol::mmdvmclient);
+	if (mmdvmProto)
+	{
+		auto *mmdvm = static_cast<CMMDVMClientProtocol *>(mmdvmProto);
+		for (const auto &mi : mmdvm->GetTGMap().GetAllMappings())
+		{
+			if (mi.is_static) continue;
+			report["DynamicTGs"].push_back({
+				{"protocol", "mmdvm"}, {"tg", mi.tg}, {"module", std::string(1, mi.module)},
+				{"ts", mi.timeslot}, {"remaining", mi.remainingSeconds}
+			});
+		}
+	}
+	auto *svxProto = m_Protocols.FindByType(EProtocol::svxreflector);
+	if (svxProto)
+	{
+		auto *svx = static_cast<CSvxReflectorProtocol *>(svxProto);
+		for (const auto &mi : svx->GetTGMappings())
+		{
+			if (mi.is_static) continue;
+			report["DynamicTGs"].push_back({
+				{"protocol", "svx"}, {"tg", mi.tg}, {"module", std::string(1, mi.module)},
+				{"remaining", mi.remainingSeconds}
+			});
+		}
+	}
 }
 
 #define XML_PROTO_ENABLED(key) (!g_Configure.Contains(key) || g_Configure.GetBoolean(key))
@@ -658,54 +740,50 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.usrp.callsign) << "</RemoteName>";
 			xmlFile << "</Mapping>" << std::endl;
 		}
-		// MMDVMClient TG mappings for this module
+		// MMDVMClient TG mappings for this module (static + dynamic)
 		if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))
 		{
-			const auto &jdata = g_Configure.GetData();
-			for (auto it = jdata.begin(); it != jdata.end(); ++it)
+			auto *proto = m_Protocols.FindByType(EProtocol::mmdvmclient);
+			if (proto)
 			{
-				const std::string &key = it.key();
-				if (key.substr(0, 10) == "mmdvmcliTG")
+				auto *mmdvm = static_cast<CMMDVMClientProtocol *>(proto);
+				auto mappings = mmdvm->GetTGMap().GetAllMappings();
+				for (const auto &mi : mappings)
 				{
-					try {
-						std::string val = it.value().get<std::string>();
-						if (val.size() >= 1 && val[0] == m)
-						{
-							uint32_t tg = std::stoul(key.substr(10));
-							std::string ts = "TS2";
-							auto comma = val.find(',');
-							if (comma != std::string::npos)
-								ts = val.substr(comma + 1);
-							xmlFile << "\t<Mapping><Protocol>MMDVMClient</Protocol><Type>TG</Type>";
-							xmlFile << "<ID>" << tg << "</ID>";
-							xmlFile << "<Timeslot>" << ts << "</Timeslot>";
-							xmlFile << "</Mapping>" << std::endl;
-						}
-					} catch (...) {}
+					if (mi.module != m) continue;
+					xmlFile << "\t<Mapping><Protocol>MMDVMClient</Protocol><Type>TG</Type>";
+					xmlFile << "<ID>" << mi.tg << "</ID>";
+					xmlFile << "<Timeslot>TS" << (int)mi.timeslot << "</Timeslot>";
+					if (!mi.is_static)
+					{
+						xmlFile << "<Dynamic>true</Dynamic>";
+						xmlFile << "<Remaining>" << mi.remainingSeconds << "</Remaining>";
+					}
+					xmlFile << "</Mapping>" << std::endl;
 				}
 			}
 		}
-		// SvxReflector TG mappings for this module
+		// SvxReflector TG mappings for this module (static + dynamic)
 		if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))
 		{
-			const auto &jdata = g_Configure.GetData();
-			for (auto it = jdata.begin(); it != jdata.end(); ++it)
+			auto *proto = m_Protocols.FindByType(EProtocol::svxreflector);
+			if (proto)
 			{
-				const std::string &key = it.key();
-				if (key.substr(0, 5) == "svxTG")
+				auto *svx = static_cast<CSvxReflectorProtocol *>(proto);
+				auto mappings = svx->GetTGMappings();
+				for (const auto &mi : mappings)
 				{
-					try {
-						std::string val = it.value().get<std::string>();
-						if (val.size() >= 1 && val[0] == m)
-						{
-							uint32_t tg = std::stoul(key.substr(5));
-							xmlFile << "\t<Mapping><Protocol>SvxReflector</Protocol><Type>TG</Type>";
-							xmlFile << "<ID>" << tg << "</ID>";
-							if (g_Configure.Contains(g_Keys.svx.host))
-								xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.svx.host) << "</RemoteName>";
-							xmlFile << "</Mapping>" << std::endl;
-						}
-					} catch (...) {}
+					if (mi.module != m) continue;
+					xmlFile << "\t<Mapping><Protocol>SvxReflector</Protocol><Type>TG</Type>";
+					xmlFile << "<ID>" << mi.tg << "</ID>";
+					if (g_Configure.Contains(g_Keys.svx.host))
+						xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.svx.host) << "</RemoteName>";
+					if (!mi.is_static)
+					{
+						xmlFile << "<Dynamic>true</Dynamic>";
+						xmlFile << "<Remaining>" << mi.remainingSeconds << "</Remaining>";
+					}
+					xmlFile << "</Mapping>" << std::endl;
 				}
 			}
 		}
