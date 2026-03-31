@@ -55,18 +55,20 @@ protected:
 class CTCServer : public CTCSocket
 {
 public:
-	CTCServer() : CTCSocket() {}
-	~CTCServer() {}
+	CTCServer() : CTCSocket(), m_ListenFd(-1) {}
+	~CTCServer() { if (m_ListenFd >= 0) close(m_ListenFd); }
 	bool Open(const std::string &address, const std::string &modules, uint16_t port);
 	// Returns true if there is data
 	bool Receive(char module, STCPacket *packet, int ms);
 	bool ReceiveNoPoll(char module, STCPacket *packet);
 	bool AnyAreClosed();
-	bool Accept();
+	// Non-blocking: poll listen socket for ms and accept any pending connections
+	void TryAccept(int ms = 100);
 
 private:
 	CIp m_Ip;
-	bool acceptone(int fd);
+	int m_ListenFd;
+	bool acceptone();
 };
 
 class CTCClient : public CTCSocket

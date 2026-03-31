@@ -274,92 +274,90 @@ bool CTCServer::Open(const std::string &address, const std::string &modules, uin
 		pf.revents = 0;
 	}
 
-	return Accept();
-}
-
-bool CTCServer::Accept()
-{
-	auto fd = socket(m_Ip.GetFamily(), SOCK_STREAM, 0);
-	if (fd < 0)
+	// Create persistent listen socket
+	m_ListenFd = socket(m_Ip.GetFamily(), SOCK_STREAM, 0);
+	if (m_ListenFd < 0)
 	{
 		perror("Open socket");
 		return true;
 	}
 
 	int yes = 1;
-	auto rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-	if (rv < 0)
+	if (setsockopt(m_ListenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0)
 	{
-		close(fd);
+		close(m_ListenFd);
+		m_ListenFd = -1;
 		perror("Open setsockopt");
 		return true;
 	}
 
-	rv = bind(fd, m_Ip.GetCPointer(), m_Ip.GetSize());
-	if (rv < 0)
+	if (bind(m_ListenFd, m_Ip.GetCPointer(), m_Ip.GetSize()) < 0)
 	{
-		close(fd);
+		close(m_ListenFd);
+		m_ListenFd = -1;
 		perror("Open bind");
 		return true;
 	}
 
-	rv = listen(fd, 3);
-	if (rv < 0)
+	if (listen(m_ListenFd, 3) < 0)
 	{
 		perror("Open listen");
-		close(fd);
-		Close();
+		close(m_ListenFd);
+		m_ListenFd = -1;
 		return true;
 	}
 
-	std::string wmod;
-	for (const char c : m_Modules)
-	{
-		if (GetFD(c) < 0)
-			wmod.append(1, c);
-	}
+	std::cout << "Waiting at " << m_Ip << " for transcoder connections for modules " << m_Modules << "..." << std::endl;
 
-	std::cout << "Waiting at " << m_Ip << " for transcoder connection";
-	if (wmod.size() > 1)
-	{
-		std::cout << "s for modules ";
-	}
-	else
-	{
-		std::cout << " for module ";
-	}
-	std::cout << wmod << "..." << std::endl;
-
-	while (AnyAreClosed())
-	{
-		if (acceptone(fd))
-		{
-			close(fd);
-			Close();
-			return true;
-		}
-	}
-
-	close(fd);
-
+	// Non-blocking: don't wait for TCD here, maintenance thread handles it
 	return false;
 }
 
-bool CTCServer::acceptone(int fd)
+void CTCServer::TryAccept(int ms)
 {
-	CIp their_addr; // connector's address information
+	if (m_ListenFd < 0)
+		return;
 
+	// Poll listen socket for incoming connections
+	struct pollfd pfd = { m_ListenFd, POLLIN, 0 };
+	int rv = poll(&pfd, 1, ms);
+	if (rv <= 0)
+		return;
+
+	if (!(pfd.revents & POLLIN))
+		return;
+
+	// Accept all pending connections (there may be multiple modules connecting)
+	while (acceptone())
+		;
+}
+
+// Returns true if there are more connections to accept, false if done or error
+bool CTCServer::acceptone()
+{
+	// Non-blocking check if another connection is ready
+	struct pollfd pfd = { m_ListenFd, POLLIN, 0 };
+	int rv = poll(&pfd, 1, 0);
+	if (rv <= 0 || !(pfd.revents & POLLIN))
+		return false;
+
+	CIp their_addr;
 	socklen_t sin_size = sizeof(struct sockaddr_storage);
 
-	auto newfd = accept(fd, their_addr.GetPointer(), &sin_size);
+	auto newfd = accept(m_ListenFd, their_addr.GetPointer(), &sin_size);
 	if (newfd < 0)
 	{
-		perror("Accept accept");
-		return true;
+		if (errno != EAGAIN && errno != EWOULDBLOCK)
+			perror("Accept accept");
+		return false;
 	}
 
+	// Set a short timeout on the ID byte recv so we don't block forever
+	struct timeval tv = { 2, 0 };
+	setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
 	char mod;
-	int rv = recv(newfd, &mod, 1, MSG_WAITALL);	// block to get the identification byte
+	rv = recv(newfd, &mod, 1, MSG_WAITALL);
 	if (rv != 1)
 	{
 		if (rv < 0)
@@ -367,17 +365,28 @@ bool CTCServer::acceptone(int fd)
 		else
 			std::cerr << "recv got no identification byte!" << std::endl;
 		close(newfd);
-		return true;
+		return true; // try next pending connection
 	}
 
 	const auto pos = m_Modules.find(mod);
 	if (std::string::npos == pos)
 	{
 		std::cerr << "New connection for module '" << mod << "', but it's not configured!" << std::endl;
-		std::cerr << "The transcoded modules need to be configured identically for both urfd and tcd." << std::endl;
 		close(newfd);
 		return true;
 	}
+
+	// Close old stale connection if present
+	if (m_Pfd[pos].fd >= 0)
+	{
+		std::cerr << "Replacing stale connection on module '" << mod << "'" << std::endl;
+		shutdown(m_Pfd[pos].fd, SHUT_RDWR);
+		close(m_Pfd[pos].fd);
+	}
+
+	// Clear the recv timeout for normal operation
+	struct timeval notv = { 0, 0 };
+	setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, &notv, sizeof(notv));
 
 	// Enable TCP keepalive to detect dead connections
 	int keepalive = 1;
@@ -393,7 +402,7 @@ bool CTCServer::acceptone(int fd)
 
 	m_Pfd[pos].fd = newfd;
 
-	return false;
+	return true; // check for more
 }
 
 bool CTCClient::Open(const std::string &address, const std::string &modules, uint16_t port)
@@ -479,6 +488,16 @@ bool CTCClient::Connect(char module)
 		close(fd);
 		return true;
 	}
+
+	// Enable TCP keepalive to detect dead connections
+	int keepalive = 1;
+	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+	int idle = 10;      // start probes after 10s idle
+	int interval = 5;   // probe every 5s
+	int cnt = 3;        // 3 failed probes = dead
+	setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle));
+	setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &interval, sizeof(interval));
+	setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt));
 
 	{ std::ostringstream s; s << "File descriptor " << fd << " on " << ip << " opened for module '" << module << "'"; std::cout << s.str() << std::endl; }
 

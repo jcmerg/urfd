@@ -553,15 +553,15 @@ void CReflector::MaintenanceThread()
 		// and wait a bit and do something useful at the same time
 		for (int i=0; i< XML_UPDATE_PERIOD*10 && keep_running; i++)
 		{
-			if (tcport && g_TCServer.AnyAreClosed())
+			if (tcport)
 			{
-				if (g_TCServer.Accept())
-				{
-					std::cerr << "Unrecoverable error, aborting..." << std::endl;
-					abort();
-				}
+				g_TCServer.AnyAreClosed(); // probe and close dead sockets
+				g_TCServer.TryAccept(100); // non-blocking accept
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			else
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
 		}
 	}
 }
