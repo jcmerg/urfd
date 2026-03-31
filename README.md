@@ -221,14 +221,28 @@ Complete redesign with dark mode theme.
 Transcoded streams (DMR, YSF, SVX, M17, P25, USRP -> D-Star) now include proper D-Star slow data:
 - **Header**: Caller callsign (MY), reflector callsign (RPT1/RPT2)
 - **Text message**: Source protocol and TG/DG-ID, e.g. `via SVX TG317424`, `via DMR TG26363`, `via YSF DG28`
+- **Operator name**: If the caller's callsign is found in the DMR ID database, the operator's name is shown alternating with the protocol/TG info (~5 seconds each)
 
-Header and text message alternate every superframe (~420ms), so D-Star radios display both callsign info and source routing info.
+Header and text message alternate every superframe (~420ms). When an operator name is available, the text message cycles between protocol/TG info and name every ~5 seconds:
+
+```
+[Header: DL4JC > URF363 S] → [via DMR TG26363] → [Header] → [via DMR TG26363] → ...
+                    (after ~5s)
+[Header: DL4JC > URF363 S] → [Jens-Christian]   → [Header] → [Jens-Christian]   → ...
+                    (after ~5s, back to via/TG)
+```
+
+Name lookup works for all protocols — any callsign with a DMR ID database entry will have its name displayed on D-Star radios.
 
 ### Bug Fixes
+- Fix slow data name rotation showing blank text (CR from Windows line endings in DMR ID DB)
+- Fix echo/admin startup log interleaving (thread-unsafe concurrent cout)
+- Remove outdated transcoder module count warning (any number of modules is valid)
 - Fix SELECT_TG(0) spam when no dynamic SVX TGs are configured
 - Fix SVX TG expiry not unsubscribing from server (orphaned TalkerStart/Stop messages)
 - Fix dynamic TGs not shown in XML/JSON module overview
 - Fix cross-protocol timer inconsistency (SVX activity not refreshing MMDVM timer and vice versa)
+- Fix SIGHUP reload crash (JSON null key from missing IPv6, uncaught exception)
 - Fix missing end-of-TX frame on transcoded streams causing D-Star BER spikes at end of call
 - Fix SVX last-frame audio artifacts (squelch tail noise transcoded to AMBE)
 - Fix D-Star slow data missing TG number for dynamically mapped talkgroups
