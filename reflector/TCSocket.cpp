@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <netinet/tcp.h>
 
 #include "TCSocket.h"
 
@@ -70,6 +71,24 @@ void CTCSocket::Close(int fd)
 			return;
 		}
 	}
+}
+
+bool CTCSocket::IsModuleConnected(char module)
+{
+	auto pos = m_Modules.find(module);
+	if (std::string::npos == pos || m_Pfd[pos].fd < 0)
+		return false;
+
+	// Quick non-blocking poll to detect dead sockets (POLLHUP/POLLERR from keepalive)
+	struct pollfd pfd = { m_Pfd[pos].fd, POLLIN, 0 };
+	int rv = poll(&pfd, 1, 0);
+	if (rv > 0 && (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)))
+	{
+		std::cerr << "Transcoder module '" << module << "' connection lost" << std::endl;
+		Close(m_Pfd[pos].fd);
+		return false;
+	}
+	return true;
 }
 
 int CTCSocket::GetFD(char module) const
@@ -349,6 +368,16 @@ bool CTCServer::acceptone(int fd)
 		close(newfd);
 		return true;
 	}
+
+	// Enable TCP keepalive to detect dead connections
+	int keepalive = 1;
+	setsockopt(newfd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+	int idle = 10;      // start probes after 10s idle
+	int interval = 5;   // probe every 5s
+	int count = 3;      // 3 failed probes = dead
+	setsockopt(newfd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle));
+	setsockopt(newfd, IPPROTO_TCP, TCP_KEEPINTVL, &interval, sizeof(interval));
+	setsockopt(newfd, IPPROTO_TCP, TCP_KEEPCNT, &count, sizeof(count));
 
 	{ std::ostringstream s; s << "File descriptor " << newfd << " opened TCP port for module '" << mod << "' on " << their_addr; std::cout << s.str() << std::endl; }
 
