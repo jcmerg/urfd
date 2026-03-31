@@ -28,6 +28,8 @@
 #include "CodecStream.h"
 #include "Reflector.h"
 #include "DStarSlowData.h"
+#include "MMDVMClientProtocol.h"
+#include "SvxReflectorProtocol.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
@@ -127,39 +129,34 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 			}
 			msg = std::string("via ") + shortName;
 
-			// Append TG/DG-ID info from config mappings
-			const auto &cfg = g_Configure.GetData();
-			if (proto == EProtocol::svxreflector)
+			// Append TG/DG-ID info — query protocol TG maps (includes dynamic TGs)
+			if (proto == EProtocol::svxreflector || proto == EProtocol::mmdvmclient)
 			{
-				for (auto it = cfg.begin(); it != cfg.end(); ++it)
+				auto &protocols = g_Reflector.GetProtocols();
+				protocols.Lock();
+				if (proto == EProtocol::mmdvmclient)
 				{
-					const std::string &key = it.key();
-					if (key.substr(0, 5) == "svxTG" && it->is_string())
+					auto *p = protocols.FindByType(EProtocol::mmdvmclient);
+					if (p)
 					{
-						std::string val = it->get<std::string>();
-						if (!val.empty() && val[0] == m_CSModule)
-						{
-							msg += " TG" + key.substr(5);
-							break;
-						}
+						auto *mmdvm = static_cast<CMMDVMClientProtocol *>(p);
+						uint32_t tg = mmdvm->GetTGMap().ModuleToTG(m_CSModule);
+						if (tg != 0)
+							msg += " TG" + std::to_string(tg);
 					}
 				}
-			}
-			else if (proto == EProtocol::mmdvmclient)
-			{
-				for (auto it = cfg.begin(); it != cfg.end(); ++it)
+				else
 				{
-					const std::string &key = it.key();
-					if (key.substr(0, 10) == "mmdvmcliTG" && it->is_string())
+					auto *p = protocols.FindByType(EProtocol::svxreflector);
+					if (p)
 					{
-						std::string val = it->get<std::string>();
-						if (!val.empty() && val[0] == m_CSModule)
-						{
-							msg += " TG" + key.substr(10);
-							break;
-						}
+						auto *svx = static_cast<CSvxReflectorProtocol *>(p);
+						uint32_t tg = svx->ModuleToTG(m_CSModule);
+						if (tg != 0)
+							msg += " TG" + std::to_string(tg);
 					}
 				}
+				protocols.Unlock();
 			}
 			else if (proto == EProtocol::ysf)
 			{

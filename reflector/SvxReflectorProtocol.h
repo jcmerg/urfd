@@ -58,6 +58,7 @@ public:
 	bool RemoveDynamicTG(uint32_t tg);
 	std::vector<CTGModuleMap::STGInfo> GetTGMappings(void) const;
 	void RequestReconnect(void) { m_ReconnectRequested = true; }
+	uint32_t ModuleToTG(char module) const;
 
 protected:
 	// queue helper
@@ -95,7 +96,6 @@ protected:
 
 	// TG mapping
 	char TGToModule(uint32_t tg) const;
-	uint32_t ModuleToTG(char module) const;
 	void LoadTGMap(void);
 
 	// stream helpers
