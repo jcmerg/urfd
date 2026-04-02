@@ -76,7 +76,6 @@ void CP25Protocol::Task(void)
 	CBuffer   Buffer;
 	CIp       Ip;
 	CCallsign Callsign;
-	char      ToLinkModule;
 	std::unique_ptr<CDvHeaderPacket> Header;
 	std::unique_ptr<CDvFramePacket>  Frame;
 
@@ -121,7 +120,7 @@ void CP25Protocol::Task(void)
 					// create the client
 					auto newclient = std::make_shared<CP25Client>(Callsign, Ip);
 
-					// aautolink, if enabled
+					// autolink, if enabled
 					if (' ' != m_AutolinkModule)
 						newclient->SetReflectorModule(m_AutolinkModule);
 
@@ -155,10 +154,11 @@ void CP25Protocol::Task(void)
 		}
 		else
 		{
-			// invalid packet
+#ifdef DEBUG
 			std::string title("Unknown P25 packet from ");
 			title += Ip.GetAddress();
 			Buffer.Dump(title);
+#endif
 		}
 	}
 
@@ -376,7 +376,7 @@ bool CP25Protocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, s
 			CCallsign csMY = CCallsign("", uiSrcId);
 			CCallsign rpt1 = CCallsign("", uiSrcId);
 			CCallsign rpt2 = m_ReflectorCallsign;
-			rpt1.SetCSModule(P25_MODULE_ID);
+			rpt1.SetCSModule(m_AutolinkModule);
 			rpt2.SetCSModule(' ');
 			header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(csMY, CCallsign("CQCQCQ"), rpt1, rpt2, m_uiStreamId, false));
 		}
