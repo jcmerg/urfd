@@ -237,10 +237,14 @@ void CNXDNProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header,
 		{
 			// get client callsign
 			rpt1 = client->GetCallsign();
-			// get module it's linked to
-			auto m = client->GetReflectorModule();
+			// use module from RAN (already set in header by IsValidDvHeaderPacket/IsValidDvFramePacket)
+			auto m = Header->GetRpt1Callsign().GetCSModule();
+			if (m == ' ') m = client->GetReflectorModule();
 			Header->SetRpt2Module(m);
 			rpt2.SetCSModule(m);
+			// update client's linked module to match RAN
+			if (client->GetReflectorModule() != m)
+				client->SetReflectorModule(m);
 
 			// and try to open the stream
 			if ( (stream = g_Reflector.OpenStream(Header, client)) != nullptr )
