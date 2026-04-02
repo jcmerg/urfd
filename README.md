@@ -418,13 +418,14 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **SIGHUP config reload**: Hot-reload TG mappings, whitelist/blacklist/interlink, transcoder modules without dropping sessions — thread-safe via sigwait, exception-safe with rollback
 
 ### Audio & Transcoding
-- **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG info, operator name from DMR ID database — rotating every ~5 seconds
+- **NXDN RAN routing**: Module selection via RAN (Radio Access Number) — RAN 1-26 = Module A-Z, RAN 0 = AutoLinkModule. Client switches module per transmission (like YSF DG-ID). NXDN ID resolution via NXDN DB with DMR DB fallback. FallbackNxdnId for unknown callers (drop if unset). Fixed uninitialized `m_uiNXDNid` in CCallsign default constructor.
+- **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG/RAN info, operator name from DMR and NXDN ID databases — rotating every ~5 seconds
 - **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
 - **MMDVM late-entry**: Resolves DMR ID from active stream callsign (prefers cached ID from source protocol over DB lookup) — enables mid-stream block removal
 - **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister
 
 ### Dashboard & Output
-- **Dashboard v2.6.0**: Dark mode redesign, admin panel, module overview with TG mappings, protocol list, QuadNet Live proxy, reflector list with search/pagination
+- **Dashboard v2.6.0**: Dark mode redesign, admin panel, module overview with TG mappings and NXDN RAN, protocol-specific columns hidden when disabled, protocol list, QuadNet Live proxy, reflector list with search/pagination
 - **Extended XML/JSON**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
 - **Protocol blocking display**: Active blocks shown as clickable labels in admin panel
 
