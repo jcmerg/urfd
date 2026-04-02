@@ -192,10 +192,11 @@ void CDcsProtocol::Task(void)
 		}
 		else
 		{
-			// invalid packet
+#ifdef DEBUG
 			std::string title("Unknown DCS packet from ");
 			title += Ip.GetAddress();
 			Buffer.Dump(title);
+#endif
 		}
 	}
 
