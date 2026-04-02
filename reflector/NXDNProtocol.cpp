@@ -244,7 +244,11 @@ void CNXDNProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header,
 			rpt2.SetCSModule(m);
 			// update client's linked module to match RAN (like YSF DG-ID)
 			if (client->GetReflectorModule() != m)
+			{
+				std::cout << "NXDN: RAN module switch for " << client->GetCallsign()
+				          << " from " << client->GetReflectorModule() << " to " << m << std::endl;
 				client->SetReflectorModule(m);
+			}
 
 			// and try to open the stream
 			if ( (stream = g_Reflector.OpenStream(Header, client)) != nullptr )
