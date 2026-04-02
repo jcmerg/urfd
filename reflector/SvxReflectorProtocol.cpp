@@ -319,8 +319,20 @@ bool CSvxReflectorProtocol::TcpSendFrame(const uint8_t *data, uint32_t len)
 	hdr[2] = (len >> 8) & 0xFF;
 	hdr[3] = len & 0xFF;
 
-	if (send(m_TcpFd, hdr, 4, MSG_NOSIGNAL) != 4) return false;
-	if (send(m_TcpFd, data, len, MSG_NOSIGNAL) != (ssize_t)len) return false;
+	if (send(m_TcpFd, hdr, 4, MSG_NOSIGNAL) != 4)
+	{
+		std::cerr << "SvxReflector: TCP send failed: " << strerror(errno) << std::endl;
+		TcpDisconnect();
+		m_ReconnectTimer.start();
+		return false;
+	}
+	if (send(m_TcpFd, data, len, MSG_NOSIGNAL) != (ssize_t)len)
+	{
+		std::cerr << "SvxReflector: TCP send failed: " << strerror(errno) << std::endl;
+		TcpDisconnect();
+		m_ReconnectTimer.start();
+		return false;
+	}
 
 	m_TcpHeartbeatTimer.start();
 	return true;
@@ -679,12 +691,13 @@ void CSvxReflectorProtocol::Task(void)
 				break;
 			}
 
-			// Send TCP heartbeat
+			// Send TCP heartbeat (TcpSendFrame auto-disconnects on failure)
 			if (m_TcpHeartbeatTimer.time() >= SVX_TCP_KEEPALIVE_PERIOD)
 			{
 				std::vector<uint8_t> hb;
 				PackUint16(hb, SVX_TCP_MSG_HEARTBEAT);
-				TcpSendFrame(hb.data(), (uint32_t)hb.size());
+				if (!TcpSendFrame(hb.data(), (uint32_t)hb.size()))
+					break;  // already disconnected
 			}
 
 			if (m_State == EState::connected)
