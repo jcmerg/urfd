@@ -824,9 +824,9 @@ void CMMDVMClientProtocol::HandleQueue(void)
 				if (stream)
 				{
 					CCallsign cs = stream->GetUserCallsign();
-					srcId = CallsignToDmrId(cs);
+					srcId = cs.GetDmrid();
 					if (srcId == 0U)
-						srcId = cs.GetDmrid();
+						srcId = CallsignToDmrId(cs);
 				}
 				if (srcId == 0U)
 					srcId = m_FallbackDmrId;
