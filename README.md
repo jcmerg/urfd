@@ -380,29 +380,37 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 
 ## Changes from upstream
 
-- **MMDVMClient connector**: Full MMDVM protocol client for BrandMeister/DMR+ masters with multi-TG per module, primary/secondary routing, per-timeslot support, fallback DMR ID, options string generation
-- **SvxReflector client**: TCP/UDP client for SvxLink reflector servers with OPUS codec, bidirectional FM audio bridging, configurable RX/TX gain, SELECT_TG protocol support
-- **Admin interface**: JSON-over-TCP socket for runtime management — dynamic TG add/remove with auto-kerchunk, protocol reconnect, transcoder stats, live log viewer, protocol block rules
-- **Dashboard v2.6.0**: Complete dark mode redesign, admin panel, module overview with TG mappings, protocol list, QuadNet Live proxy, reflector list with search/pagination
-- **Dynamic TG management**: Runtime TG add/remove via admin API, configurable TTL, cross-protocol timer refresh, kerchunk-on-demand for BrandMeister, SELECT_TG(0) cleanup on expiry
-- **SIGHUP config reload**: Hot-reload TG mappings, whitelist/blacklist/interlink, transcoder modules without dropping client sessions. Thread-safe via sigwait, exception-safe with config rollback
-- **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG info, and operator name from DMR ID database, rotating every ~5 seconds
-- **Protocol blocking**: Bidirectional per-protocol audio routing blocks (e.g. block SVX→MMDVM)
-- **Extended XML/JSON output**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
-- **Echo module**: Built-in parrot with enable/disable flag
-- **M17 LSTN support**: Listen-only M17 clients accepted for monitoring services
-- **DCS interlinking**: Native DCS reflector-to-reflector peering with PeerCallsign and protocol field in interlink file
-- **BrandMeister API integration**: Optional REST API v2 for static TG management — startup sync (remove orphans, add missing), API-based TG add/remove instead of kerchunk, configurable via `BrandMeisterApiKey`
-- **Runtime protocol blocking**: Bidirectional block/unblock of any protocol pair at runtime via admin dashboard, thread-safe with shared_mutex, resets on restart
-- **SVX reconnect fix**: TcpSendFrame auto-disconnects on send failure for immediate reconnect instead of waiting for heartbeat timeout
-- **MMDVM late-entry**: Resolves DMR ID from active stream callsign (prefers cached ID from source protocol over DB lookup), rate-limited warning
-- **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister to prevent audio loops
+### Protocol Connectors
+- **MMDVMClient**: Full MMDVM protocol client for BrandMeister/DMR+ masters — multi-TG per module (primary TX/RX + secondary RX-only), per-timeslot support, fallback DMR ID, options string generation
+- **BrandMeister API**: Optional REST API v2 integration — startup sync (removes orphan TGs, adds missing), API-based TG add/remove instead of kerchunk, configurable via `BrandMeisterApiKey`
+- **SvxReflector**: TCP/UDP client for SvxLink FM servers — OPUS codec, bidirectional audio bridging, configurable RX/TX gain, SELECT_TG protocol, auto-disconnect on TCP send failure with immediate reconnect
+- **DCS interlinking**: Native DCS reflector-to-reflector peering with PeerCallsign override and protocol field in interlink file
+
+### Runtime Management
+- **Admin interface**: JSON-over-TCP socket + web dashboard — dynamic TG management, protocol reconnect, transcoder stats, live log viewer, runtime protocol blocking
+- **Runtime protocol blocking**: Bidirectional block/unblock of any protocol pair via admin dashboard — thread-safe with shared_mutex, clickable labels to remove, reset-to-config-default button, not persisted (resets on restart)
+- **Dynamic TG management**: Add/remove TGs at runtime with configurable TTL, cross-protocol timer refresh, BM API or kerchunk activation, SELECT_TG(0) cleanup on SVX expiry
+- **SIGHUP config reload**: Hot-reload TG mappings, whitelist/blacklist/interlink, transcoder modules without dropping sessions — thread-safe via sigwait, exception-safe with rollback
+
+### Audio & Transcoding
+- **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG info, operator name from DMR ID database — rotating every ~5 seconds
 - **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
-- **Transcoder resilience**: TCP keepalive + non-blocking poll for dead connection detection, queue drain on disconnect. Non-blocking accept/connect, client-side keepalive, active dead socket probing, automatic reconnect after network outages
-- **Database HTTP retry**: Retry with backoff on failed initial HTTP load for DMR/NXDN/YSF databases (prevents empty databases after transient network errors)
-- **Service optimizations**: Realtime scheduling and voice CPU priority in systemd service
-- **Thread-safe logging**: Atomic cout via ostringstream to prevent interleaved log lines from concurrent threads
-- **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection, CConfigure::GetBoolean safety
+- **MMDVM late-entry**: Resolves DMR ID from active stream callsign (prefers cached ID from source protocol over DB lookup) — enables mid-stream block removal
+- **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister
+
+### Dashboard & Output
+- **Dashboard v2.6.0**: Dark mode redesign, admin panel, module overview with TG mappings, protocol list, QuadNet Live proxy, reflector list with search/pagination
+- **Extended XML/JSON**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
+- **Protocol blocking display**: Active blocks shown as clickable labels in admin panel
+
+### Infrastructure
+- **Echo module**: Built-in parrot with enable/disable flag
+- **M17 LSTN support**: Listen-only M17 clients for monitoring services
+- **Transcoder resilience**: TCP keepalive, non-blocking poll, queue drain on disconnect, automatic reconnect after network outages
+- **Database HTTP retry**: Retry with backoff on failed initial load (prevents empty databases after transient errors)
+- **Service optimizations**: Realtime scheduling and voice CPU priority
+- **Thread-safe logging**: Atomic cout via ostringstream
+- **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection
 
 ## Copyright
 
