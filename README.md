@@ -55,6 +55,31 @@ TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
 
+### NXDN RAN-Based Module Routing
+Select reflector modules via NXDN RAN (Radio Access Number). RAN 1-26 maps directly to Module A-Z. RAN 0 maps to the AutoLinkModule (configurable fallback). Set the TX RAN on your NXDN radio to choose the target module — the client switches dynamically per transmission, like YSF DG-ID.
+
+```ini
+[NXDN]
+Enable = true
+Port = 41400
+AutoLinkModule = S             # Module for RAN 0 (comment out to disable)
+ReflectorID = 26363
+# FallbackNxdnId = 8970        # NXDN ID for unknown callers (0 or omit = drop)
+```
+
+**RAN-to-Module mapping** (fixed, no configuration needed):
+| RAN | Module | RAN | Module | RAN | Module |
+|-----|--------|-----|--------|-----|--------|
+| 1   | A      | 10  | J      | 19  | S      |
+| 2   | B      | 11  | K      | 20  | T      |
+| ...  | ...   | ... | ...    | 26  | Z      |
+
+**NXDN ID Resolution**: Incoming NXDN IDs are resolved to callsigns via the NXDN ID database. If not found, the DMR ID database is used as fallback (many operators reuse their DMR ID as NXDN ID). This enables cross-protocol callsign display and D-Star slow data name lookup. Unknown IDs are dropped unless FallbackNxdnId is configured.
+
+**D-Star Slow Data**: NXDN sources show `via NXDN RAN<n>` in the D-Star text field. Operator names are looked up from both DMR and NXDN databases.
+
+**Dashboard**: The NXDN RAN column is shown in the module overview when NXDN is enabled. DMR+ and YSF DG-ID columns are hidden when their respective protocols are disabled.
+
 ### Dynamic Talkgroup Timer Behavior
 
 Both MMDVM and SVX dynamic TGs have a 15-minute inactivity TTL. The timer is refreshed on any transmission start (DvHeader) on the module, regardless of which protocol originated the traffic. This means cross-protocol activity keeps all timers alive consistently.
@@ -196,7 +221,7 @@ Port = 41000
 The XML status file now includes:
 
 - **Reflector metadata**: callsign, country, sponsor, dashboard URL, email
-- **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID
+- **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID, NXDN RAN
 - **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient, SvxReflector) including dynamic TGs with remaining TTL
 - **Enabled protocols**: name and port for each active protocol
 - **Per-station protocol**: which protocol a user was heard on (DCS, MMDVMClient, YSF, etc.)
@@ -211,7 +236,7 @@ Complete redesign with dark mode theme.
 
 **New pages:**
 - **Active Users** - Connected nodes per module in card layout
-- **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, mappings (static + dynamic), transcoder status, connected nodes (collapsible for large lists)
+- **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, NXDN RANs, mappings (static + dynamic), transcoder status, connected nodes. Protocol columns hidden when disabled.
 - **Enabled Protocols** - All active protocols with ports and type classification
 
 **Features:**
@@ -230,8 +255,8 @@ Complete redesign with dark mode theme.
 ### D-Star Slow Data for Transcoded Streams
 Transcoded streams (DMR, YSF, SVX, M17, P25, USRP -> D-Star) now include proper D-Star slow data:
 - **Header**: Caller callsign (MY), reflector callsign (RPT1/RPT2)
-- **Text message**: Source protocol and TG/DG-ID, e.g. `via SVX TG317424`, `via DMR TG26363`, `via YSF DG28`
-- **Operator name**: If the caller's callsign is found in the DMR ID database, the operator's name is shown alternating with the protocol/TG info (~5 seconds each)
+- **Text message**: Source protocol and TG/DG-ID/RAN, e.g. `via SVX TG317424`, `via DMR TG26363`, `via YSF DG28`, `via NXDN RAN6`
+- **Operator name**: If the caller's callsign is found in the DMR or NXDN ID database, the operator's name is shown alternating with the protocol/TG info (~5 seconds each)
 
 Header and text message alternate every superframe (~420ms). When an operator name is available, the text message cycles between protocol/TG info and name every ~5 seconds:
 
