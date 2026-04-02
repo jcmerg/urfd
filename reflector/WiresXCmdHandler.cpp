@@ -158,7 +158,8 @@ void CWiresxCmdHandler::Task(void)
 		switch ( Cmd.GetCmd() )
 		{
 		case WIRESX_CMD_DX_REQ:
-			std::cout << "Wires-X DX_REQ command from " << Cmd.GetCallsign() << " at " << Cmd.GetIp() << std::endl;
+			std::cout << "Wires-X DX_REQ command from " << Cmd.GetCallsign() << " at " << Cmd.GetIp()
+			          << " linked=" << (cModule != ' ' ? cModule : '-') << std::endl;
 			// reply
 			ReplyToWiresxDxReqPacket(Cmd.GetIp(), Info, cModule);
 			break;
@@ -258,7 +259,7 @@ bool CWiresxCmdHandler::ReplyToWiresxDxReqPacket(const CIp &Ip, const CWiresxInf
 	else
 	{
 		data[34U] = '1';
-		data[35U] = '5';
+		data[35U] = '3';  // 3 = Normal (YSFGateway compat, '5' was undocumented)
 		// linked room
 		char item[16U];
 		// refl->m_id
@@ -318,7 +319,7 @@ bool CWiresxCmdHandler::ReplyToWiresxDxReqPacket(const CIp &Ip, const CWiresxInf
 bool CWiresxCmdHandler::ReplyToWiresxAllReqPacket(const CIp &Ip, const CWiresxInfo &WiresxInfo, int Start)
 {
 	bool ok = false;
-	uint8_t ALL_RESP[]  = {0x5DU, 0x46U, 0x5FU, 0x29U};
+	uint8_t ALL_RESP[]  = {0x5DU, 0x46U, 0x5FU, 0x26U};
 	uint8_t data[1100U];
 
 	// fill data buffer

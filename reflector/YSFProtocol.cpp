@@ -115,7 +115,14 @@ void CYsfProtocol::Task(void)
 #endif
 	{
 		// crack the packet
-		if ( IsValidDvPacket(Buffer, &Fich) )
+		// WiresX commands must be checked before voice packets (both are YSFD/155 bytes)
+		if ( IsValidwirexPacket(Buffer, &Fich, &Callsign, &iWiresxCmd, &iWiresxArg) )
+		{
+			WiresxCmd = CWiresxCmd(Ip, Callsign, iWiresxCmd, iWiresxArg);
+			m_WiresxCmdHandler.GetCmdQueue()->push(WiresxCmd);
+			m_WiresxCmdHandler.ReleaseCmdQueue();
+		}
+		else if ( IsValidDvPacket(Buffer, &Fich) )
 		{
 			if ( IsValidDvFramePacket(Ip, Fich, Buffer, Header, Frames) )
 			{
@@ -195,14 +202,6 @@ void CYsfProtocol::Task(void)
 				//Send(Buffer, Ip);
 			}
 			g_Reflector.ReleaseClients();
-		}
-		else if ( IsValidwirexPacket(Buffer, &Fich, &Callsign, &iWiresxCmd, &iWiresxArg) )
-		{
-			// std::cout << "Got a WiresX command from " << Callsign << " at " << Ip << " cmd=" <<iWiresxCmd << " arg=" << iWiresxArg << std::endl;
-			WiresxCmd = CWiresxCmd(Ip, Callsign, iWiresxCmd, iWiresxArg);
-			// and post it to hadler's queue
-			m_WiresxCmdHandler.GetCmdQueue()->push(WiresxCmd);
-			m_WiresxCmdHandler.ReleaseCmdQueue();
 		}
 		else if ( IsValidServerStatusPacket(Buffer) )
 		{
@@ -936,10 +935,18 @@ bool CYsfProtocol::IsValidwirexPacket(const CBuffer &Buffer, CYSFFICH *Fich, CCa
 					else if (memcmp(command + 1U, CONN_REQ, 3U) == 0)
 					{
 						*Cmd = WIRESX_CMD_CONN_REQ;
-						// Arg is the room number (1=A, 2=B, ..., 26=Z).
-						// Some radios/gateways put the Radio ID here instead,
-						// so only accept values in the valid module range.
-						if (*Arg < 1 || *Arg > 26)
+						// Arg parsing: extract full 5-digit room ID from command
+						char idbuf[6U];
+						memcpy(idbuf, command + 5U, 5U);
+						idbuf[5U] = 0x00U;
+						int roomId = ::atoi(idbuf);
+						// Room IDs 4001-4026 map to modules A-Z (from ALL_REQ response)
+						if (roomId >= 4001 && roomId <= 4026)
+							*Arg = roomId - 4000;
+						// Also accept direct module index 1-26
+						else if (*Arg >= 1 && *Arg <= 26)
+							; // keep Arg as-is
+						else
 							*Arg = 0;
 					}
 					else if (memcmp(command + 1U, DISC_REQ, 3U) == 0)
