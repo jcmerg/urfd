@@ -242,7 +242,7 @@ void CNXDNProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header,
 			if (m == ' ') m = client->GetReflectorModule();
 			Header->SetRpt2Module(m);
 			rpt2.SetCSModule(m);
-			// update client's linked module to match RAN
+			// update client's linked module to match RAN (like YSF DG-ID)
 			if (client->GetReflectorModule() != m)
 				client->SetReflectorModule(m);
 
