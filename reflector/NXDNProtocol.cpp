@@ -288,13 +288,28 @@ void CNXDNProtocol::HandleQueue(void)
 		// check if it's header
 		if ( packet->IsDvHeader() )
 		{
+			auto &hdr = (CDvHeaderPacket &)*packet.get();
+			// check if we can resolve an NXDN ID for outbound
+			uint16_t srcId = hdr.GetMyCallsign().GetNXDNid();
+			if (srcId == 0) srcId = hdr.GetUrCallsign().GetNXDNid();
+			if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
+			if (srcId == 0)
+			{
+				// no NXDN ID available — skip this stream for NXDN clients
+				static std::set<char> warned;
+				if (warned.insert(mod).second)
+					std::cout << "NXDN: dropping outbound stream from " << hdr.GetMyCallsign() << " on module " << mod << " - no NXDN ID" << std::endl;
+				m_StreamsCache.erase(mod);
+				continue;
+			}
+
 			// update local stream cache
 			// this relies on queue feeder setting valid module id
-			m_StreamsCache[mod].m_dvHeader = CDvHeaderPacket((CDvHeaderPacket &)*packet.get());
+			m_StreamsCache[mod].m_dvHeader = hdr;
 			m_StreamsCache[mod].m_iSeqCounter = 0;
 
 			// encode it
-			EncodeNXDNHeaderPacket((CDvHeaderPacket &)*packet.get(), buffer);
+			EncodeNXDNHeaderPacket(hdr, buffer);
 		}
 		// check if it's a last frame
 		else if ( packet->IsLastPacket() )
@@ -546,6 +561,7 @@ bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffe
 	Buffer.resize(43);
 	uint16_t srcId = Header.GetMyCallsign().GetNXDNid();
 	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
+	if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
 	if (srcId == 0) srcId = m_ReflectorId;
 	uint16_t dstId = m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
@@ -605,6 +621,7 @@ bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq
 	Buffer.resize(43);
 	uint16_t srcId = Header.GetMyCallsign().GetNXDNid();
 	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
+	if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
 	if (srcId == 0) srcId = m_ReflectorId;
 	uint16_t dstId = m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
