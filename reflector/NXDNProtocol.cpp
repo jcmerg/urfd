@@ -891,7 +891,7 @@ void CNXDNProtocol::set_layer3_dstid(uint16_t dst)
 
 void CNXDNProtocol::set_layer3_grp(bool grp)
 {
-	m_layer3[2U] |= grp ? 0x20U : 0x20U;
+	m_layer3[2U] = (m_layer3[2U] & ~0x20U) | (grp ? 0x20U : 0x00U);
 }
 
 void CNXDNProtocol::set_layer3_blks(uint8_t b)
