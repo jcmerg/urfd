@@ -30,6 +30,7 @@
 #include "DStarSlowData.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "NXDNProtocol.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
@@ -163,25 +164,39 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 				int dgid = 10 + (m_CSModule - 'A');
 				msg += " DG" + std::to_string(dgid);
 			}
+			else if (proto == EProtocol::nxdn)
+			{
+				uint8_t ran = CNXDNProtocol::ModuleToRAN(m_CSModule);
+				if (ran != 0)
+					msg += " RAN" + std::to_string(ran);
+			}
 
 			// D-Star text message is max 20 chars
 			if (msg.size() > 20)
 				msg.resize(20);
 		}
 
-		// Look up operator name from DMR ID database via callsign
+		// Look up operator name from DMR or NXDN ID database via callsign
 		std::string nameMsg;
 		uint32_t dmrid = g_LDid.FindDmrid(my.GetKey());
 		if (dmrid != 0)
 		{
 			std::string name = g_LDid.FindName(dmrid);
 			if (!name.empty())
-			{
-				if (name.size() > 20)
-					name.resize(20);
 				nameMsg = name;
+		}
+		if (nameMsg.empty())
+		{
+			uint16_t nxdnid = g_LNid.FindNXDNid(my.GetKey());
+			if (nxdnid != 0)
+			{
+				std::string name = g_LNid.FindName(nxdnid);
+				if (!name.empty())
+					nameMsg = name;
 			}
 		}
+		if (nameMsg.size() > 20)
+			nameMsg.resize(20);
 
 		m_SlowDataMsg1 = msg;
 		m_SlowDataMsg2 = nameMsg;
