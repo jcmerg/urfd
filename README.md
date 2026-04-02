@@ -425,6 +425,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister
 
 ### Dashboard & Output
+- **Protocol naming**: Consistent UI names — `MMDVM` = direct hotspot connections, `MMDVMClient` = BrandMeister/master server connection (previously both showed as "MMDVM" in different contexts)
 - **Dashboard v2.6.0**: Dark mode redesign, admin panel, module overview with TG mappings and NXDN RAN, protocol-specific columns hidden when disabled, protocol list, QuadNet Live proxy, reflector list with search/pagination
 - **Extended XML/JSON**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
 - **Protocol blocking display**: Active blocks shown as clickable labels in admin panel
