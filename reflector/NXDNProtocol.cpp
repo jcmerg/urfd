@@ -56,6 +56,9 @@ bool CNXDNProtocol::Initialize(const char *type, const EProtocol ptype, const ui
 	m_ReflectorId = g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid);
 	m_AutolinkModule = g_Configure.GetAutolinkModule(g_Keys.nxdn.autolinkmod);
 
+	// load TG mappings
+	LoadTGMappings();
+
 	// base class
 	if (! CProtocol::Initialize(type, ptype, port, has_ipv4, has_ipv6))
 		return false;
@@ -64,6 +67,55 @@ bool CNXDNProtocol::Initialize(const char *type, const EProtocol ptype, const ui
 	m_LastKeepaliveTime.start();
 
 	return true;
+}
+
+void CNXDNProtocol::LoadTGMappings(void)
+{
+	m_TGToModule.clear();
+	m_ModuleToTG.clear();
+
+	const auto &jdata = g_Configure.GetData();
+	for (auto it = jdata.begin(); it != jdata.end(); ++it)
+	{
+		const std::string &key = it.key();
+		if (key.substr(0, 6) != "nxdnTG") continue;
+		try
+		{
+			uint16_t tg = (uint16_t)std::stoul(key.substr(6));
+			std::string val = it.value().get<std::string>();
+			char mod = (val.size() >= 1 && val[0] >= 'A' && val[0] <= 'Z') ? val[0] : ' ';
+			if (mod >= 'A' && mod <= 'Z')
+			{
+				m_TGToModule[tg] = mod;
+				// first TG for a module becomes primary (used for outbound)
+				if (m_ModuleToTG.find(mod) == m_ModuleToTG.end())
+					m_ModuleToTG[mod] = tg;
+				std::cout << "NXDN TG mapping: TG" << tg << " <-> Module " << mod << std::endl;
+			}
+		}
+		catch (const std::exception &e)
+		{
+			std::cerr << "NXDN: failed to parse TG mapping key '" << key << "': " << e.what() << std::endl;
+		}
+	}
+	if (m_TGToModule.empty())
+		std::cout << "NXDN: no TG mappings configured (using AutoLinkModule fallback)" << std::endl;
+}
+
+char CNXDNProtocol::TGToModule(uint16_t tg) const
+{
+	auto it = m_TGToModule.find(tg);
+	if (it != m_TGToModule.end())
+		return it->second;
+	return ' ';
+}
+
+uint16_t CNXDNProtocol::ModuleToTG(char module) const
+{
+	auto it = m_ModuleToTG.find(module);
+	if (it != m_ModuleToTG.end())
+		return it->second;
+	return 0;
 }
 
 void CNXDNProtocol::Close(void)
@@ -80,6 +132,7 @@ void CNXDNProtocol::Task(void)
 	CBuffer    Buffer;
 	CIp        Ip;
 	CCallsign  Callsign;
+	uint16_t   connectTG = 0;
 
 	std::unique_ptr<CDvHeaderPacket>               Header;
 	std::array<std::unique_ptr<CDvFramePacket>, 4> Frames;
@@ -116,31 +169,44 @@ void CNXDNProtocol::Task(void)
 		{
 			m_uiStreamId = 0;
 		}
-		else if ( IsValidConnectPacket(Buffer, &Callsign) )
+		else if ( IsValidConnectPacket(Buffer, &Callsign, &connectTG) )
 		{
 			// callsign authorized?
 			if ( g_GateKeeper.MayLink(Callsign, Ip, EProtocol::nxdn) )
 			{
+				// determine module from TG, fallback to AutoLinkModule
+				char targetModule = TGToModule(connectTG);
+				if (targetModule == ' ')
+					targetModule = m_AutolinkModule;
+
 				// add client if needed
 				CClients *clients = g_Reflector.GetClients();
 				std::shared_ptr<CClient>client = clients->FindClient(Callsign, Ip, EProtocol::nxdn);
 				// client already connected ?
 				if ( client == nullptr )
 				{
-					std::cout << "NXDN connect packet from " << Callsign << " at " << Ip << std::endl;
+					if (targetModule != ' ')
+						std::cout << "NXDN connect from " << Callsign << " at " << Ip << " TG" << connectTG << " -> Module " << targetModule << std::endl;
+					else
+						std::cout << "NXDN connect from " << Callsign << " at " << Ip << " TG" << connectTG << " (no module mapped)" << std::endl;
 
 					// create the client
 					auto newclient = std::make_shared<CNXDNClient>(Callsign, Ip);
 
-					// aautolink, if enabled
-					if (' ' != m_AutolinkModule)
-						newclient->SetReflectorModule(m_AutolinkModule);
+					if (' ' != targetModule)
+						newclient->SetReflectorModule(targetModule);
 
 					// and append
 					clients->AddClient(newclient);
 				}
 				else
 				{
+					// client reconnecting — update module if TG changed
+					if (targetModule != ' ' && client->GetReflectorModule() != targetModule)
+					{
+						std::cout << "NXDN client " << Callsign << " switching to Module " << targetModule << " (TG" << connectTG << ")" << std::endl;
+						client->SetReflectorModule(targetModule);
+					}
 					client->Alive();
 				}
 
@@ -347,7 +413,7 @@ void CNXDNProtocol::HandleKeepalives(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // DV packet decoding helpers
 
-bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *callsign)
+bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *callsign, uint16_t *tg)
 {
 	uint8_t tag[] = { 'N','X','D','N','P' };
 
@@ -356,6 +422,8 @@ bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *calls
 	if ( (Buffer.size() == 17) && (Buffer.Compare(tag, sizeof(tag)) == 0) )
 	{
 		callsign->SetCallsign(Buffer.data()+5, 8);
+		// TG is at bytes 15-16 (big-endian)
+		*tg = ((uint16_t)Buffer.data()[15] << 8) | (uint16_t)Buffer.data()[16];
 		valid = (callsign->IsValid());
 	}
 	return valid;
@@ -380,11 +448,15 @@ bool CNXDNProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, 
 		if ( !stream )
 		{
 			uint16_t uiSrcId = ((Buffer.data()[5] << 8) & 0xff00) | (Buffer.data()[6] & 0xff);
+			uint16_t uiDstId = ((Buffer.data()[7] << 8) & 0xff00) | (Buffer.data()[8] & 0xff);
 			m_uiStreamId = static_cast<uint32_t>(::rand());
 			CCallsign csMY = CCallsign("", 0, uiSrcId);
 			CCallsign rpt1 = CCallsign("", 0, uiSrcId);
 			CCallsign rpt2 = m_ReflectorCallsign;
-			rpt1.SetCSModule(NXDN_MODULE_ID);
+			// determine module from destination TG
+			char mod = TGToModule(uiDstId);
+			if (mod == ' ') mod = m_AutolinkModule;
+			rpt1.SetCSModule(mod);
 			rpt2.SetCSModule(' ');
 			header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(csMY, CCallsign("CQCQCQ"), rpt1, rpt2, m_uiStreamId, false));
 		}
@@ -401,11 +473,15 @@ bool CNXDNProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffer, s
 		if ( !stream )
 		{
 			uint16_t uiSrcId = ((Buffer.data()[5] << 8) & 0xff00) | (Buffer.data()[6] & 0xff);
+			uint16_t uiDstId = ((Buffer.data()[7] << 8) & 0xff00) | (Buffer.data()[8] & 0xff);
 			m_uiStreamId = static_cast<uint32_t>(::rand());
 			CCallsign csMY = CCallsign("", 0, uiSrcId);
 			CCallsign rpt1 = CCallsign("", 0, uiSrcId);
 			CCallsign rpt2 = m_ReflectorCallsign;
-			rpt1.SetCSModule(NXDN_MODULE_ID);
+			// determine module from destination TG
+			char mod = TGToModule(uiDstId);
+			if (mod == ' ') mod = m_AutolinkModule;
+			rpt1.SetCSModule(mod);
 			rpt2.SetCSModule(' ');
 			header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(csMY, CCallsign("CQCQCQ"), rpt1, rpt2, m_uiStreamId, false));
 
@@ -479,13 +555,15 @@ bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffe
 {
 	Buffer.resize(43);
 	uint16_t NXDNId = Header.GetMyCallsign().GetNXDNid();
-	uint16_t RptrId = m_ReflectorId;
+	// use module's TG as destination, fallback to ReflectorID
+	uint16_t dstTG = ModuleToTG(Header.GetPacketModule());
+	if (dstTG == 0) dstTG = m_ReflectorId;
 
 	memcpy(Buffer.data(), "NXDND", 5);
 	Buffer.data()[5U] = (NXDNId >> 8) & 0xFFU;
 	Buffer.data()[6U] = (NXDNId >> 0) & 0xFFU;
-	Buffer.data()[7U] = (RptrId >> 8) & 0xFFU;
-	Buffer.data()[8U] = (RptrId >> 0) & 0xFFU;
+	Buffer.data()[7U] = (dstTG >> 8) & 0xFFU;
+	Buffer.data()[8U] = (dstTG >> 0) & 0xFFU;
 	Buffer.data()[9U] = 0x01U;
 
 	const uint8_t idle[3U] = {0x10, 0x00, 0x00};
@@ -509,7 +587,7 @@ bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffe
 		set_layer3_msgtype(NXDN_MESSAGE_TYPE_VCALL);
 	}
 	set_layer3_srcid(NXDNId);
-	set_layer3_dstid(RptrId);
+	set_layer3_dstid(dstTG);
 	set_layer3_grp(true);
 	set_layer3_blks(0U);
 	memcpy(&Buffer.data()[15U], m_layer3, 14U);
@@ -535,13 +613,15 @@ bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq
 	uint8_t ambe[28];
 	Buffer.resize(43);
 	uint16_t NXDNId = Header.GetMyCallsign().GetNXDNid();
-	uint16_t RptrId = m_ReflectorId;
+	// use module's TG as destination, fallback to ReflectorID
+	uint16_t dstTG = ModuleToTG(Header.GetPacketModule());
+	if (dstTG == 0) dstTG = m_ReflectorId;
 
 	memcpy(Buffer.data(), "NXDND", 5);
 	Buffer.data()[5U] = (NXDNId >> 8) & 0xFFU;
 	Buffer.data()[6U] = (NXDNId >> 0) & 0xFFU;
-	Buffer.data()[7U] = (RptrId >> 8) & 0xFFU;
-	Buffer.data()[8U] = (RptrId >> 0) & 0xFFU;
+	Buffer.data()[7U] = (dstTG >> 8) & 0xFFU;
+	Buffer.data()[8U] = (dstTG >> 0) & 0xFFU;
 	Buffer.data()[9U] = 0x01U;
 
 	uint8_t msg[3U];
@@ -558,7 +638,7 @@ bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq
 
 	set_layer3_msgtype(NXDN_MESSAGE_TYPE_VCALL);
 	set_layer3_srcid(NXDNId);
-	set_layer3_dstid(RptrId);
+	set_layer3_dstid(dstTG);
 	set_layer3_grp(true);
 	set_layer3_blks(0U);
 

@@ -44,6 +44,7 @@ if ($Reflector->GetXMLContent() !== null) {
                 'mappings'    => $mappings,
                 'dmrplus'     => $XML->GetElement($tmpModules[$i], 'DMRplus'),
                 'ysfdgid'     => $XML->GetElement($tmpModules[$i], 'YSFDGID'),
+                'nxdntg'      => $XML->GetElement($tmpModules[$i], 'NXDNTg'),
             );
         }
     }
@@ -73,6 +74,7 @@ foreach ($xmlModules as $mod => $data) {
         'mappings'    => $data['mappings'],
         'dmrplus'     => $data['dmrplus'],
         'ysfdgid'     => $data['ysfdgid'],
+        'nxdntg'      => $data['nxdntg'],
     );
 }
 
@@ -80,7 +82,7 @@ foreach ($xmlModules as $mod => $data) {
 if (isset($PageOptions['ModuleNames'])) {
     foreach ($PageOptions['ModuleNames'] as $mod => $name) {
         if (!isset($Modules[$mod]) && trim($name) != '') {
-            $Modules[$mod] = array('name' => $name, 'linkedNodes' => 0, 'transcoded' => false, 'mappings' => array(), 'dmrplus' => '', 'ysfdgid' => '');
+            $Modules[$mod] = array('name' => $name, 'linkedNodes' => 0, 'transcoded' => false, 'mappings' => array(), 'dmrplus' => '', 'ysfdgid' => '', 'nxdntg' => '');
         }
     }
 }
@@ -105,14 +107,23 @@ for ($i = 0; $i < $Reflector->StationCount(); $i++) {
 }
 ?>
 
+<?php
+// Determine which protocol-specific columns to show
+$protoNames = array_column($xmlProtocols, 'name');
+$showDmrPlus = in_array('DMRPlus', $protoNames);
+$showYsfDgid = in_array('YSF', $protoNames);
+$showNxdnTg  = in_array('NXDN', $protoNames);
+$colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnTg ? 1 : 0) + 1 + 1;
+?>
 <h2 class="sub-header">Overview Modules</h2>
 <div class="table-responsive">
     <table class="table table-striped table-hover">
         <tr class="table-center">
             <th>Module</th>
             <th>Name</th>
-            <th>DMR+</th>
-            <th>YSF DG-ID</th>
+            <?php if ($showDmrPlus) { ?><th>DMR+</th><?php } ?>
+            <?php if ($showYsfDgid) { ?><th>YSF DG-ID</th><?php } ?>
+            <?php if ($showNxdnTg)  { ?><th>NXDN TG</th><?php } ?>
             <th>Nodes</th>
             <th>Transcoded</th>
             <th>Mappings</th>
@@ -177,12 +188,14 @@ foreach ($Modules as $mod => $info) {
 
     $dmrpStr = ($info['dmrplus'] != '') ? htmlspecialchars($info['dmrplus']) : '<span class="text-muted">&mdash;</span>';
     $ysfStr  = ($info['ysfdgid'] != '') ? htmlspecialchars($info['ysfdgid']) : '<span class="text-muted">&mdash;</span>';
+    $nxdnStr = ($info['nxdntg'] != '')  ? htmlspecialchars($info['nxdntg'])  : '<span class="text-muted">&mdash;</span>';
 
     echo '<tr class="table-center">';
     echo '<td><strong>' . htmlspecialchars($mod) . '</strong></td>';
     echo '<td>' . htmlspecialchars($info['name']) . '</td>';
-    echo '<td>' . $dmrpStr . '</td>';
-    echo '<td>' . $ysfStr . '</td>';
+    if ($showDmrPlus) echo '<td>' . $dmrpStr . '</td>';
+    if ($showYsfDgid) echo '<td>' . $ysfStr . '</td>';
+    if ($showNxdnTg)  echo '<td>' . $nxdnStr . '</td>';
     echo '<td>' . $nodeCount . '</td>';
     echo '<td>' . $tcBadge . '</td>';
     echo '<td style="text-align:left;">' . $mappingsStr . '</td>';
@@ -191,7 +204,7 @@ foreach ($Modules as $mod => $info) {
 }
 
 if (count($Modules) == 0) {
-    echo '<tr><td colspan="8" class="text-muted">No modules configured</td></tr>';
+    echo '<tr><td colspan="' . $colCount . '" class="text-muted">No modules configured</td></tr>';
 }
 ?>
     </table>

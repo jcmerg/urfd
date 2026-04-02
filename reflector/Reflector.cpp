@@ -22,6 +22,7 @@
 #include "Global.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "NXDNProtocol.h"
 
 CReflector::CReflector()
 {
@@ -713,6 +714,18 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 			xmlFile << "\t<DMRplus>" << (4001 + modIdx) << "</DMRplus>" << std::endl;
 		if (XML_PROTO_ENABLED(g_Keys.ysf.enable))
 			xmlFile << "\t<YSFDGID>" << (10 + modIdx) << "</YSFDGID>" << std::endl;
+		// NXDN TG for this module (from TG mapping, not formula)
+		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
+		{
+			auto *nxdnProto = m_Protocols.FindByType(EProtocol::nxdn);
+			if (nxdnProto)
+			{
+				auto *nxdn = static_cast<CNXDNProtocol *>(nxdnProto);
+				uint16_t nxdnTg = nxdn->ModuleToTG(m);
+				if (nxdnTg != 0)
+					xmlFile << "\t<NXDNTg>" << nxdnTg << "</NXDNTg>" << std::endl;
+			}
+		}
 		// per-module protocol mappings (only if protocol is enabled)
 		if (XML_PROTO_ENABLED(g_Keys.ysf.enable)
 			&& g_Configure.Contains(g_Keys.ysf.autolinkmod) && g_Configure.GetString(g_Keys.ysf.autolinkmod)[0] == m)
@@ -724,13 +737,28 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.ysf.ysfreflectordb.name) << "</RemoteName>";
 			xmlFile << "</Mapping>" << std::endl;
 		}
-		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable)
-			&& g_Configure.Contains(g_Keys.nxdn.autolinkmod) && g_Configure.GetString(g_Keys.nxdn.autolinkmod)[0] == m)
+		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
 		{
-			xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>AutoLink</Type>";
-			if (g_Configure.Contains(g_Keys.nxdn.reflectorid))
-				xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid) << "</ID>";
-			xmlFile << "</Mapping>" << std::endl;
+			if (g_Configure.Contains(g_Keys.nxdn.autolinkmod) && g_Configure.GetString(g_Keys.nxdn.autolinkmod)[0] == m)
+			{
+				xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>AutoLink</Type>";
+				if (g_Configure.Contains(g_Keys.nxdn.reflectorid))
+					xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid) << "</ID>";
+				xmlFile << "</Mapping>" << std::endl;
+			}
+			// NXDN TG mappings for this module
+			auto *nxdnProto = m_Protocols.FindByType(EProtocol::nxdn);
+			if (nxdnProto)
+			{
+				auto *nxdn = static_cast<CNXDNProtocol *>(nxdnProto);
+				for (const auto &pair : nxdn->GetTGMap())
+				{
+					if (pair.second != m) continue;
+					xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>TG</Type>";
+					xmlFile << "<ID>" << pair.first << "</ID>";
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
 		}
 		if (XML_PROTO_ENABLED(g_Keys.p25.enable)
 			&& g_Configure.Contains(g_Keys.p25.autolinkmod) && g_Configure.GetString(g_Keys.p25.autolinkmod)[0] == m)
