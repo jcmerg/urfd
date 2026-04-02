@@ -174,9 +174,10 @@ foreach ($Modules as $mod => $info) {
         $label = $proto;
         $details = array();
         if ($type == 'TG')       $details[] = 'TG' . $id;
+        if ($type == 'RAN')      $details[] = 'RAN' . $id;
         if ($type == 'AutoLink') $details[] = 'AutoLink';
         if ($type == 'Bridge')   $details[] = 'Bridge';
-        if ($id != '' && $type != 'TG') $details[] = '#' . $id;
+        if ($id != '' && $type != 'TG' && $type != 'RAN') $details[] = '#' . $id;
         if ($ts != '')           $details[] = $ts;
         if ($rname != '')        $details[] = $rname;
         if (count($details) > 0) $label .= ': ' . implode(' ', $details);
