@@ -732,15 +732,13 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.ysf.ysfreflectordb.name) << "</RemoteName>";
 			xmlFile << "</Mapping>" << std::endl;
 		}
-		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
+		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable)
+			&& g_Configure.Contains(g_Keys.nxdn.autolinkmod) && g_Configure.GetString(g_Keys.nxdn.autolinkmod)[0] == m)
 		{
-			uint8_t ran = CNXDNProtocol::ModuleToRAN(m);
-			if (ran != 0)
-			{
-				xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>RAN</Type>";
-				xmlFile << "<ID>" << (int)ran << "</ID>";
-				xmlFile << "</Mapping>" << std::endl;
-			}
+			xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>AutoLink</Type>";
+			if (g_Configure.Contains(g_Keys.nxdn.reflectorid))
+				xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid) << "</ID>";
+			xmlFile << "</Mapping>" << std::endl;
 		}
 		if (XML_PROTO_ENABLED(g_Keys.p25.enable)
 			&& g_Configure.Contains(g_Keys.p25.autolinkmod) && g_Configure.GetString(g_Keys.p25.autolinkmod)[0] == m)
