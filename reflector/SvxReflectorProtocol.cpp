@@ -536,6 +536,9 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 		}
 	}
 
+	// Save config defaults for runtime reset
+	SaveBlockDefaults();
+
 	// Parse gain settings (dB, range -24 to +24, default 0)
 	if (g_Configure.Contains(g_Keys.svx.rxgain))
 	{

@@ -147,6 +147,23 @@ function doReconnect(protocol) {
     });
 }
 
+function doToggleBlock(action, a, b) {
+    if (!a) a = $('#block-proto-a').val();
+    if (!b) b = $('#block-proto-b').val();
+    if (!a || !b || a === b) { alert('Zwei verschiedene Protokolle auswählen'); return; }
+    adminPost({action: action, a: a, b: b}, function(resp) {
+        showAlert(resp);
+        refreshStatus();
+    });
+}
+
+function doBlockReset() {
+    adminPost({action: 'block_reset'}, function(resp) {
+        showAlert(resp);
+        refreshStatus();
+    });
+}
+
 function refreshLog() {
     adminPost({action: 'log', lines: 50}, function(resp) {
         if (resp.status === 'ok' && resp.lines) {
@@ -186,29 +203,38 @@ function refreshStatus() {
             if (resp.mmdvm_active) $('#btn-reconnect-mmdvm').show(); else $('#btn-reconnect-mmdvm').hide();
             if (resp.svx_active) $('#btn-reconnect-svx').show(); else $('#btn-reconnect-svx').hide();
 
-            // Block rules — merge bidirectional, skip self-blocks
+            // Block rules — collect bidirectional pairs
+            var blockedPairs = {};  // "A|B" (sorted) -> true
             if (resp.blocks && resp.blocks.length > 0) {
-                var seen = {};
-                var pairs = [];
                 resp.blocks.forEach(function(b) {
-                    if (b.from === b.to) return; // skip self-block
+                    if (b.from === b.to) return;
                     var key = [b.from, b.to].sort().join('|');
-                    if (!seen[key]) {
-                        seen[key] = {a: b.from, b: b.to, bidir: false};
-                    }
-                    // Check if reverse also exists
-                    var revKey = [b.to, b.from].sort().join('|');
-                    if (seen[revKey]) seen[revKey].bidir = true;
+                    blockedPairs[key] = true;
                 });
                 var html = '';
-                for (var k in seen) {
-                    var p = seen[k];
-                    var arrow = p.bidir ? ' &#8596; ' : ' &#8594; ';
-                    html += '<span class="label label-danger" style="margin-right:4px;">' + p.a + arrow + p.b + ' blocked</span> ';
+                for (var k in blockedPairs) {
+                    var parts = k.split('|');
+                    html += '<span class="label label-danger" style="margin-right:4px;cursor:pointer;" '
+                        + 'onclick="doToggleBlock(\'unblock\',\'' + parts[0] + '\',\'' + parts[1] + '\')" '
+                        + 'title="Klick zum Aufheben">'
+                        + parts[0] + ' &#8596; ' + parts[1] + ' &#10005;</span> ';
                 }
-                $('#block-rules').html(html || '<span class="label label-success">Keine Blockierungen</span>');
+                $('#block-rules').html(html);
             } else {
                 $('#block-rules').html('<span class="label label-success">Keine Blockierungen</span>');
+            }
+
+            // Populate protocol dropdowns from active protocols
+            if (resp.active_protocols) {
+                var selA = $('#block-proto-a'), selB = $('#block-proto-b');
+                var curA = selA.val(), curB = selB.val();
+                selA.empty(); selB.empty();
+                resp.active_protocols.sort().forEach(function(p) {
+                    selA.append('<option value="' + p + '">' + p + '</option>');
+                    selB.append('<option value="' + p + '">' + p + '</option>');
+                });
+                if (curA) selA.val(curA);
+                if (curB) selB.val(curB);
             }
         }
     });
@@ -421,6 +447,14 @@ $(document).ready(function() {
         <button class="btn btn-warning btn-sm" id="btn-reconnect-mmdvm" onclick="doReconnect('mmdvm')">MMDVM Reconnect</button>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-svx" onclick="doReconnect('svx')">SVX Reconnect</button>
         <div style="margin-top:10px;" id="block-rules"></div>
+        <div style="margin-top:10px;">
+            <select id="block-proto-a" class="form-control input-sm" style="width:140px;display:inline-block;"></select>
+            <span> &#8596; </span>
+            <select id="block-proto-b" class="form-control input-sm" style="width:140px;display:inline-block;"></select>
+            <button class="btn btn-danger btn-sm" onclick="doToggleBlock('block')">Block</button>
+            <button class="btn btn-success btn-sm" onclick="doToggleBlock('unblock')">Unblock</button>
+            <button class="btn btn-default btn-sm" onclick="doBlockReset()">Reset auf Config-Default</button>
+        </div>
     </div>
 
     <!-- Status -->

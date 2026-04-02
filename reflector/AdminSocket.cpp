@@ -21,6 +21,28 @@
 #define ADMIN_TOKEN_TTL_SECONDS   3600   // 1 hour session
 #define ADMIN_MAX_MSG_SIZE        8192
 
+static const std::map<std::string, EProtocol> s_NameToProto = {
+	{"MMDVM", EProtocol::mmdvmclient}, {"SVX", EProtocol::svxreflector},
+	{"DExtra", EProtocol::dextra}, {"DPlus", EProtocol::dplus},
+	{"DCS", EProtocol::dcs}, {"DMRPlus", EProtocol::dmrplus},
+	{"DMRMMDVM", EProtocol::dmrmmdvm}, {"YSF", EProtocol::ysf},
+	{"M17", EProtocol::m17}, {"NXDN", EProtocol::nxdn},
+	{"P25", EProtocol::p25}, {"USRP", EProtocol::usrp},
+	{"URF", EProtocol::urf}, {"XLXPeer", EProtocol::xlxpeer},
+	{"G3", EProtocol::g3},
+};
+
+static const std::map<EProtocol, std::string> s_ProtoToName = {
+	{EProtocol::mmdvmclient, "MMDVM"}, {EProtocol::svxreflector, "SVX"},
+	{EProtocol::dextra, "DExtra"}, {EProtocol::dplus, "DPlus"},
+	{EProtocol::dcs, "DCS"}, {EProtocol::dmrplus, "DMRPlus"},
+	{EProtocol::dmrmmdvm, "DMRMMDVM"}, {EProtocol::ysf, "YSF"},
+	{EProtocol::m17, "M17"}, {EProtocol::nxdn, "NXDN"},
+	{EProtocol::p25, "P25"}, {EProtocol::usrp, "USRP"},
+	{EProtocol::urf, "URF"}, {EProtocol::xlxpeer, "XLXPeer"},
+	{EProtocol::g3, "G3"},
+};
+
 CAdminSocket::CAdminSocket()
 	: m_ListenFd(-1)
 	, m_Port(10101)
@@ -200,6 +222,12 @@ nlohmann::json CAdminSocket::HandleCommand(const nlohmann::json &cmd, const std:
 		return CmdLog(cmd);
 	else if (command == "kerchunk")
 		return CmdKerchunk(cmd);
+	else if (command == "block")
+		return CmdBlock(cmd);
+	else if (command == "unblock")
+		return CmdUnblock(cmd);
+	else if (command == "block_reset")
+		return CmdBlockReset();
 
 	return {{"status", "error"}, {"message", "unknown command: " + command}};
 }
@@ -465,26 +493,26 @@ nlohmann::json CAdminSocket::CmdStatus(void)
 	status["mmdvm_active"] = (protocols.FindByType(EProtocol::mmdvmclient) != nullptr);
 	status["svx_active"] = (protocols.FindByType(EProtocol::svxreflector) != nullptr);
 
+	// List all active protocol names
+	nlohmann::json activeProtos = nlohmann::json::array();
+	for (auto it = protocols.begin(); it != protocols.end(); ++it)
+	{
+		auto nameIt = s_ProtoToName.find((*it)->GetProtocolType());
+		if (nameIt != s_ProtoToName.end())
+			activeProtos.push_back(nameIt->second);
+	}
+	status["active_protocols"] = activeProtos;
+
 	// Collect block rules
 	nlohmann::json blocks = nlohmann::json::array();
-	static const std::map<EProtocol, std::string> protoNames = {
-		{EProtocol::mmdvmclient, "MMDVM"}, {EProtocol::svxreflector, "SVX"},
-		{EProtocol::dextra, "DExtra"}, {EProtocol::dplus, "DPlus"},
-		{EProtocol::dcs, "DCS"}, {EProtocol::dmrplus, "DMRPlus"},
-		{EProtocol::dmrmmdvm, "DMRMMDVM"}, {EProtocol::ysf, "YSF"},
-		{EProtocol::m17, "M17"}, {EProtocol::nxdn, "NXDN"},
-		{EProtocol::p25, "P25"}, {EProtocol::usrp, "USRP"},
-		{EProtocol::urf, "URF"}, {EProtocol::xlxpeer, "XLXPeer"},
-		{EProtocol::g3, "G3"},
-	};
 
 	for (auto it = protocols.begin(); it != protocols.end(); ++it)
 	{
 		auto dstType = (*it)->GetProtocolType();
-		auto dstIt = protoNames.find(dstType);
-		if (dstIt == protoNames.end()) continue;
+		auto dstIt = s_ProtoToName.find(dstType);
+		if (dstIt == s_ProtoToName.end()) continue;
 
-		for (const auto &[proto, name] : protoNames)
+		for (const auto &[proto, name] : s_ProtoToName)
 		{
 			if (proto == dstType) continue;  // skip self-blocks
 			if ((*it)->IsSourceBlocked(proto))
@@ -640,4 +668,86 @@ nlohmann::json CAdminSocket::CmdKerchunk(const nlohmann::json &cmd)
 
 	std::cout << "Admin: kerchunk requested for TG" << tg << std::endl;
 	return {{"status", "ok"}, {"tg", tg}, {"module", std::string(1, module)}};
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Block commands — runtime protocol blocking (not persisted to config)
+
+nlohmann::json CAdminSocket::CmdBlock(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("a") || !cmd.contains("b"))
+		return {{"status", "error"}, {"message", "missing 'a' and 'b' fields"}};
+
+	std::string aName = cmd["a"];
+	std::string bName = cmd["b"];
+
+	auto aIt = s_NameToProto.find(aName);
+	auto bIt = s_NameToProto.find(bName);
+	if (aIt == s_NameToProto.end())
+		return {{"status", "error"}, {"message", "unknown protocol: " + aName}};
+	if (bIt == s_NameToProto.end())
+		return {{"status", "error"}, {"message", "unknown protocol: " + bName}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+
+	// Bidirectional: block A as source on B, and B as source on A
+	for (auto it = protocols.begin(); it != protocols.end(); ++it)
+	{
+		auto type = (*it)->GetProtocolType();
+		if (type == aIt->second)
+			(*it)->SetSourceBlocked(bIt->second);
+		if (type == bIt->second)
+			(*it)->SetSourceBlocked(aIt->second);
+	}
+
+	protocols.Unlock();
+	std::cout << "Admin: blocked " << aName << " <-> " << bName << std::endl;
+	return {{"status", "ok"}, {"message", aName + " <-> " + bName + " blocked"}};
+}
+
+nlohmann::json CAdminSocket::CmdUnblock(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("a") || !cmd.contains("b"))
+		return {{"status", "error"}, {"message", "missing 'a' and 'b' fields"}};
+
+	std::string aName = cmd["a"];
+	std::string bName = cmd["b"];
+
+	auto aIt = s_NameToProto.find(aName);
+	auto bIt = s_NameToProto.find(bName);
+	if (aIt == s_NameToProto.end())
+		return {{"status", "error"}, {"message", "unknown protocol: " + aName}};
+	if (bIt == s_NameToProto.end())
+		return {{"status", "error"}, {"message", "unknown protocol: " + bName}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+
+	// Bidirectional: unblock both directions
+	for (auto it = protocols.begin(); it != protocols.end(); ++it)
+	{
+		auto type = (*it)->GetProtocolType();
+		if (type == aIt->second)
+			(*it)->ClearSourceBlocked(bIt->second);
+		if (type == bIt->second)
+			(*it)->ClearSourceBlocked(aIt->second);
+	}
+
+	protocols.Unlock();
+	std::cout << "Admin: unblocked " << aName << " <-> " << bName << std::endl;
+	return {{"status", "ok"}, {"message", aName + " <-> " + bName + " unblocked"}};
+}
+
+nlohmann::json CAdminSocket::CmdBlockReset(void)
+{
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+
+	for (auto it = protocols.begin(); it != protocols.end(); ++it)
+		(*it)->ResetBlocksToDefault();
+
+	protocols.Unlock();
+	std::cout << "Admin: blocks reset to config defaults" << std::endl;
+	return {{"status", "ok"}, {"message", "all blocks reset to config defaults"}};
 }

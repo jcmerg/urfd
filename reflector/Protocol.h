@@ -23,6 +23,7 @@
 #include "DVHeaderPacket.h"
 #include "DVFramePacket.h"
 #include <set>
+#include <shared_mutex>
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -83,8 +84,13 @@ public:
 	// pass-through
 	void Push(std::unique_ptr<CPacket> p) { m_Queue.Push(std::move(p)); }
 
-	// protocol blocking (bidirectional)
-	bool IsSourceBlocked(EProtocol src) const { return m_BlockedSources.count(src) > 0; }
+	// protocol blocking (bidirectional, thread-safe for runtime changes)
+	bool IsSourceBlocked(EProtocol src) const { std::shared_lock lk(m_BlockMutex); return m_BlockedSources.count(src) > 0; }
+	void SetSourceBlocked(EProtocol src)      { std::unique_lock lk(m_BlockMutex); m_BlockedSources.insert(src); }
+	void ClearSourceBlocked(EProtocol src)    { std::unique_lock lk(m_BlockMutex); m_BlockedSources.erase(src); }
+	std::set<EProtocol> GetBlockedSources() const { std::shared_lock lk(m_BlockMutex); return m_BlockedSources; }
+	void ResetBlocksToDefault()               { std::unique_lock lk(m_BlockMutex); m_BlockedSources = m_ConfigBlockedSources; }
+	void SaveBlockDefaults()                  { std::shared_lock lk(m_BlockMutex); m_ConfigBlockedSources = m_BlockedSources; }
 	EProtocol GetProtocolType(void) const { return m_ProtocolType; }
 
 protected:
@@ -142,7 +148,9 @@ protected:
 
 	// protocol type and blocking
 	EProtocol m_ProtocolType = EProtocol::none;
+	mutable std::shared_mutex m_BlockMutex;
 	std::set<EProtocol> m_BlockedSources;
+	std::set<EProtocol> m_ConfigBlockedSources;  // startup defaults for reset
 
 	// data
 	uint16_t m_Port;

@@ -79,6 +79,9 @@ bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, c
 	// back to the master (which confuses BrandMeister and blocks other TS)
 	m_BlockedSources.insert(EProtocol::mmdvmclient);
 
+	// Save config defaults for runtime reset
+	SaveBlockDefaults();
+
 	// Load TG mappings (empty map is OK — dynamic TGs can be added via admin API)
 	m_TGMap.LoadFromConfig();
 

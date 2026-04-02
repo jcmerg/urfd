@@ -44,6 +44,11 @@ private:
 	nlohmann::json CmdLog(const nlohmann::json &cmd);
 	nlohmann::json CmdKerchunk(const nlohmann::json &cmd);
 
+	// Block commands
+	nlohmann::json CmdBlock(const nlohmann::json &cmd);
+	nlohmann::json CmdUnblock(const nlohmann::json &cmd);
+	nlohmann::json CmdBlockReset(void);
+
 	// Config
 	int m_ListenFd;
 	uint16_t m_Port;

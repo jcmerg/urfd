@@ -150,6 +150,28 @@ switch ($action) {
         ];
         break;
 
+    case 'block':
+        $cmd = [
+            'cmd'   => 'block',
+            'token' => $token,
+            'a'     => $input['a'] ?? '',
+            'b'     => $input['b'] ?? '',
+        ];
+        break;
+
+    case 'unblock':
+        $cmd = [
+            'cmd'   => 'unblock',
+            'token' => $token,
+            'a'     => $input['a'] ?? '',
+            'b'     => $input['b'] ?? '',
+        ];
+        break;
+
+    case 'block_reset':
+        $cmd = ['cmd' => 'block_reset', 'token' => $token];
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Unknown action: ' . $action]);
         exit;
