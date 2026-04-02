@@ -35,6 +35,7 @@ CCallsign::CCallsign()
 	m_Suffix.u = 0x20202020u;
 	m_Module = ' ';
 	m_uiDmrid = 0;
+	m_uiNXDNid = 0;
 	m_coded = 0;
 }
 
