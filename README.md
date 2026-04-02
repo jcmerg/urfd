@@ -22,11 +22,18 @@ TG26207 = S,TS1    # TG 26207 -> Module S (secondary, RX only)
 TG26363 = F,TS2    # TG 26363 -> Module F (primary)
 # FallbackDmrId = 1234567  # For callers not in DMR database (omit = drop stream)
 # BlockProtocols = SvxReflector,YSF  # Block audio from these protocols (comma-separated)
+# BrandMeisterApiKey = eyJ0eXAiOiJKV1Qi...  # Optional: BM API for static TG management
 ```
 
 **Multi-TG per Module**: The first TG listed for a module becomes the primary and is used for outbound traffic (TX). Additional TGs on the same module are secondary and only receive inbound traffic (RX). Dynamic TGs added via the Admin interface are always secondary unless the module has no primary yet.
 
 **FallbackDmrId**: When a callsign cannot be resolved to a DMR ID, this ID is used instead. If not configured or set to 0, the stream is dropped.
+
+**BrandMeisterApiKey** (optional): When set, enables BrandMeister REST API v2 integration. Get your key from BrandMeister SelfCare -> Profile -> Security -> API Keys. Effects:
+- **Startup sync**: Fetches BM's static TGs, removes orphans (TGs not in config), adds missing ones
+- **Dynamic TG add**: Registers as static on BM via API (no kerchunk needed)
+- **Dynamic TG remove**: Deletes from BM via API
+- Without API key, falls back to kerchunk behavior as before
 
 ### SvxReflector Client
 Connect to SvxLink SvxReflector servers (e.g. FM-Funknetz) for bidirectional FM audio bridging. Uses TCP for signaling and UDP for OPUS-encoded audio. Requires transcoded modules. Dynamic TGs can be added at runtime via the Admin interface.
@@ -76,14 +83,14 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 ```
 
 **Features:**
-- **Dynamic TG Management**: Add/remove talkgroups at runtime with configurable timeout (TTL). For MMDVM, triggers a reconnect to the master with updated options string and sends a kerchunk to activate the TG on BrandMeister. For SVX, sends a SELECT_TG command via TCP.
+- **Dynamic TG Management**: Add/remove talkgroups at runtime with configurable TTL. With BM API key: registers as static via REST API (no kerchunk needed). Without: kerchunk to activate on BM. For SVX, sends SELECT_TG via TCP.
+- **Runtime Protocol Blocking**: Block/unblock any protocol pair bidirectionally at runtime. Not persisted — resets on restart. "Reset to Config Default" button restores INI settings.
 - **Multi-TG per Module**: Dynamically add secondary TGs (RX only) to modules that already have a primary TG.
-- **Kerchunk on Demand**: Send a kerchunk to BrandMeister for a specific TG to extend its server-side subscription without a radio. MMDVM only.
+- **Kerchunk on Demand**: Send a kerchunk to BrandMeister for a specific TG without a radio. MMDVM only. Not needed when BM API key is configured.
 - **Protocol Reconnect**: Force reconnect of MMDVM or SVX connections.
-- **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time (min/avg/max) per transcoded module.
+- **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time per transcoded module.
 - **Live Log Viewer**: Last 200 log lines with timestamps, auto-refreshing every 10 seconds.
-- **Protocol Block Rules**: Shows active bidirectional block rules between protocols.
-- **Hidden Access**: No visible link in navigation. Access via the pi symbol in the bottom-right corner or directly via `?show=admin`.
+- **Hidden Access**: Access via the pi symbol in the bottom-right corner or directly via `?show=admin`.
 
 **Socket Protocol**: Line-delimited JSON over TCP. Authenticate first, then send commands with the returned token:
 ```json
@@ -96,6 +103,9 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "reconnect", "token": "...", "protocol": "mmdvm"}
 {"cmd": "log", "token": "...", "lines": 50}
 {"cmd": "status", "token": "..."}
+{"cmd": "block", "token": "...", "a": "SVX", "b": "MMDVM"}
+{"cmd": "unblock", "token": "...", "a": "SVX", "b": "MMDVM"}
+{"cmd": "block_reset", "token": "..."}
 ```
 
 ### SIGHUP Configuration Reload
@@ -382,6 +392,10 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **Echo module**: Built-in parrot with enable/disable flag
 - **M17 LSTN support**: Listen-only M17 clients accepted for monitoring services
 - **DCS interlinking**: Native DCS reflector-to-reflector peering with PeerCallsign and protocol field in interlink file
+- **BrandMeister API integration**: Optional REST API v2 for static TG management — startup sync (remove orphans, add missing), API-based TG add/remove instead of kerchunk, configurable via `BrandMeisterApiKey`
+- **Runtime protocol blocking**: Bidirectional block/unblock of any protocol pair at runtime via admin dashboard, thread-safe with shared_mutex, resets on restart
+- **SVX reconnect fix**: TcpSendFrame auto-disconnects on send failure for immediate reconnect instead of waiting for heartbeat timeout
+- **MMDVM late-entry**: Resolves DMR ID from active stream callsign (prefers cached ID from source protocol over DB lookup), rate-limited warning
 - **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister to prevent audio loops
 - **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
 - **Transcoder resilience**: TCP keepalive + non-blocking poll for dead connection detection, queue drain on disconnect. Non-blocking accept/connect, client-side keepalive, active dead socket probing, automatic reconnect after network outages
