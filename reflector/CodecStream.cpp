@@ -178,6 +178,7 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 
 		// Look up operator name from DMR or NXDN ID database via callsign
 		std::string nameMsg;
+		g_LDid.Lock();
 		uint32_t dmrid = g_LDid.FindDmrid(my.GetKey());
 		if (dmrid != 0)
 		{
@@ -185,8 +186,10 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 			if (!name.empty())
 				nameMsg = name;
 		}
+		g_LDid.Unlock();
 		if (nameMsg.empty())
 		{
+			g_LNid.Lock();
 			uint16_t nxdnid = g_LNid.FindNXDNid(my.GetKey());
 			if (nxdnid != 0)
 			{
@@ -194,6 +197,7 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 				if (!name.empty())
 					nameMsg = name;
 			}
+			g_LNid.Unlock();
 		}
 		if (nameMsg.size() > 20)
 			nameMsg.resize(20);
