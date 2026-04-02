@@ -58,8 +58,10 @@ struct SJsonKeys {
 	usrp { "usrpEnable", "usrpIpAddress", "urspTxPort", "usrpRxPort", "usrpModule", "usrpCallsign", "usrpFilePath" };
 
 	struct P25NXDN { const std::string port, autolinkmod, reflectorid, enable; }
-	p25 { "P25Port",  "P25AutolinkMod",   "P25ReflectorID",  "P25Enable" },
-	nxdn { "NXDNPort", "NXDNAutolinkMod", "NXDNReflectorID", "NXDNEnable" };
+	p25 { "P25Port",  "P25AutolinkMod",   "P25ReflectorID",  "P25Enable" };
+
+	struct NXDN { const std::string port, autolinkmod, reflectorid, enable, fallbacknxdnid; }
+	nxdn { "NXDNPort", "NXDNAutolinkMod", "NXDNReflectorID", "NXDNEnable", "NXDNFallbackNxdnId" };
 
 	struct YSF { const std::string port, autolinkmod, enabledgid, defaulttxfreq, defaultrxfreq, enable;
 		struct YSLREG { const std::string id, name, description; } ysfreflectordb; }

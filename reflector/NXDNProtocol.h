@@ -122,5 +122,6 @@ protected:
 	uint8_t m_layer3[22];
 
 	uint16_t m_ReflectorId;
+	uint16_t m_FallbackNxdnId;
 	char m_AutolinkModule;
 };

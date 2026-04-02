@@ -415,6 +415,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.nxdn.reflectorid] = getUnsigned(value, "NXDN ReflectorID", 0, 65535, 0);
 				else if (0 == key.compare(JENABLE))
 					data[g_Keys.nxdn.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare("FallbackNxdnId"))
+					data[g_Keys.nxdn.fallbacknxdnid] = getUnsigned(value, "NXDN FallbackNxdnId", 0, 65535, 0);
 				else
 					badParam(key);
 				break;

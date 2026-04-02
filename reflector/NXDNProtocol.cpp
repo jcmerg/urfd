@@ -55,6 +55,9 @@ bool CNXDNProtocol::Initialize(const char *type, const EProtocol ptype, const ui
 	// config value
 	m_ReflectorId = g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid);
 	m_AutolinkModule = g_Configure.GetAutolinkModule(g_Keys.nxdn.autolinkmod);
+	m_FallbackNxdnId = 0;
+	if (g_Configure.Contains(g_Keys.nxdn.fallbacknxdnid))
+		m_FallbackNxdnId = (uint16_t)g_Configure.GetUnsigned(g_Keys.nxdn.fallbacknxdnid);
 
 	std::cout << "NXDN: RAN-based module routing (RAN 1-26 = A-Z, RAN 0 = "
 	          << (m_AutolinkModule != ' ' ? std::string(1, m_AutolinkModule) : "none") << ")" << std::endl;
@@ -397,13 +400,28 @@ bool CNXDNProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, 
 		if ( !stream )
 		{
 			uint16_t uiSrcId = ((Buffer.data()[5] << 8) & 0xff00) | (Buffer.data()[6] & 0xff);
+			// resolve NXDN ID to callsign (NXDN DB -> DMR DB fallback, see Callsign.cpp)
+			CCallsign csMY = CCallsign("", 0, uiSrcId);
+			if (!csMY.IsValid())
+			{
+				if (m_FallbackNxdnId != 0)
+				{
+					csMY = CCallsign("", 0, m_FallbackNxdnId);
+					csMY.SetNXDNid(uiSrcId, false);
+					std::cout << "NXDN: using fallback for unknown ID " << uiSrcId << std::endl;
+				}
+				else
+				{
+					std::cout << "NXDN: dropping voice from unknown ID " << uiSrcId << " (no fallback)" << std::endl;
+					return false;
+				}
+			}
 			// extract RAN from SACCH byte 0 (lower 6 bits)
 			uint8_t ran = Buffer.data()[11] & 0x3F;
 			char mod = RANToModule(ran);
 			if (mod == ' ') mod = m_AutolinkModule;
 			m_uiStreamId = static_cast<uint32_t>(::rand());
-			CCallsign csMY = CCallsign("", 0, uiSrcId);
-			CCallsign rpt1 = CCallsign("", 0, uiSrcId);
+			CCallsign rpt1(csMY);
 			CCallsign rpt2 = m_ReflectorCallsign;
 			rpt1.SetCSModule(mod);
 			rpt2.SetCSModule(' ');
@@ -422,13 +440,26 @@ bool CNXDNProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffer, s
 		if ( !stream )
 		{
 			uint16_t uiSrcId = ((Buffer.data()[5] << 8) & 0xff00) | (Buffer.data()[6] & 0xff);
+			// resolve NXDN ID to callsign (NXDN DB -> DMR DB fallback)
+			CCallsign csMY = CCallsign("", 0, uiSrcId);
+			if (!csMY.IsValid())
+			{
+				if (m_FallbackNxdnId != 0)
+				{
+					csMY = CCallsign("", 0, m_FallbackNxdnId);
+					csMY.SetNXDNid(uiSrcId, false);
+				}
+				else
+				{
+					return false;
+				}
+			}
 			// extract RAN from SACCH byte 0 (lower 6 bits)
 			uint8_t ran = Buffer.data()[11] & 0x3F;
 			char mod = RANToModule(ran);
 			if (mod == ' ') mod = m_AutolinkModule;
 			m_uiStreamId = static_cast<uint32_t>(::rand());
-			CCallsign csMY = CCallsign("", 0, uiSrcId);
-			CCallsign rpt1 = CCallsign("", 0, uiSrcId);
+			CCallsign rpt1(csMY);
 			CCallsign rpt2 = m_ReflectorCallsign;
 			rpt1.SetCSModule(mod);
 			rpt2.SetCSModule(' ');
@@ -504,6 +535,7 @@ bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffe
 {
 	Buffer.resize(43);
 	uint16_t srcId = Header.GetMyCallsign().GetNXDNid();
+	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
 	if (srcId == 0) srcId = m_ReflectorId;
 	uint16_t dstId = m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
@@ -562,6 +594,7 @@ bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq
 	uint8_t ambe[28];
 	Buffer.resize(43);
 	uint16_t srcId = Header.GetMyCallsign().GetNXDNid();
+	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
 	if (srcId == 0) srcId = m_ReflectorId;
 	uint16_t dstId = m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
