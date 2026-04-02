@@ -439,6 +439,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **Thread-safe logging**: Atomic cout via ostringstream
 - **Thread-safe DB lookups**: DMR/NXDN ID database lookups in CodecStream hold proper mutex locks during access, preventing race conditions with background DB refresh
 - **P25 cleanup**: Removed dead `P25_MODULE_ID` hardcode, P25 now uses `AutoLinkModule` config consistently. Guard debug dumps.
+- **YSF fixes**: WiresX CONN_REQ module selection was broken (Arg forced to 0), now accepts valid room numbers 1-26. Fixed null pointer check in `YSFPayload::getSource()` (checked wrong member).
 - **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection
 
 ## Copyright
