@@ -7,6 +7,7 @@
 #include <string.h>
 #include <cstdlib>
 #include <sstream>
+#include <set>
 
 #include "Global.h"
 #include "MMDVMClientPeer.h"
@@ -817,10 +818,23 @@ void CMMDVMClientProtocol::HandleQueue(void)
 				if (tg == 0)
 					continue;
 
-				uint32_t srcId = m_FallbackDmrId;
+				// Try to resolve DMR ID from the active stream's callsign
+				uint32_t srcId = 0;
+				auto stream = g_Reflector.GetStream(module);
+				if (stream)
+				{
+					CCallsign cs = stream->GetUserCallsign();
+					srcId = CallsignToDmrId(cs);
+					if (srcId == 0U)
+						srcId = cs.GetDmrid();
+				}
+				if (srcId == 0U)
+					srcId = m_FallbackDmrId;
 				if (srcId == 0)
 				{
-					std::cout << "MMDVMClient: dropping late-entry frame on module " << module << " - no DMR ID available" << std::endl;
+					static std::set<char> warned;
+					if (warned.insert(module).second)
+						std::cout << "MMDVMClient: dropping late-entry frames on module " << module << " - no DMR ID" << std::endl;
 					continue;
 				}
 
