@@ -437,6 +437,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **Database HTTP retry**: Retry with backoff on failed initial load (prevents empty databases after transient errors)
 - **Service optimizations**: Realtime scheduling and voice CPU priority
 - **Thread-safe logging**: Atomic cout via ostringstream
+- **Thread-safe DB lookups**: DMR/NXDN ID database lookups in CodecStream hold proper mutex locks during access, preventing race conditions with background DB refresh
 - **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection
 
 ## Copyright
