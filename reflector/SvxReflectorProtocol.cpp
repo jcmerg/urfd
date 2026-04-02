@@ -525,7 +525,7 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 		const std::map<std::string, EProtocol> protoMap = {
 			{"MMDVMClient", EProtocol::mmdvmclient}, {"DExtra", EProtocol::dextra},
 			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
-			{"DMRPlus", EProtocol::dmrplus}, {"DMRMMDVM", EProtocol::dmrmmdvm},
+			{"DMRPlus", EProtocol::dmrplus}, {"MMDVM", EProtocol::dmrmmdvm},
 			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
 			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
 			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},

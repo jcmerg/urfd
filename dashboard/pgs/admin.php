@@ -86,7 +86,7 @@ function refreshTGList() {
                 if (!m['static']) {
                     actions += '<button class="btn btn-xs btn-danger" onclick="removeTG(\'' + m.protocol + '\',' + m.tg + ')">Entfernen</button> ';
                 }
-                if (m.protocol === 'mmdvm' && !m['static']) {
+                if (m.protocol === 'mmdvmclient' && !m['static']) {
                     actions += '<button class="btn btn-xs btn-info" onclick="doKerchunk(' + m.tg + ')" title="Kerchunk an BrandMeister senden">Kerchunk</button>';
                 }
                 var dirStr = m['primary'] ? 'TX/RX' : 'RX';
@@ -193,7 +193,7 @@ function refreshStatus() {
             // Show/hide protocol options based on what's active
             var protoSel = $('#add-protocol');
             protoSel.empty();
-            if (resp.mmdvm_active) protoSel.append('<option value="mmdvm">MMDVM</option>');
+            if (resp.mmdvm_active) protoSel.append('<option value="mmdvmclient">MMDVMClient</option>');
             if (resp.svx_active) protoSel.append('<option value="svx">SVX</option>');
             if (!resp.mmdvm_active && !resp.svx_active) {
                 protoSel.append('<option value="">Kein Protokoll aktiv</option>');
@@ -320,7 +320,7 @@ $(document).ready(function() {
 
     // Show/hide timeslot based on protocol selection
     $(document).on('change', '#add-protocol', function() {
-        if ($(this).val() === 'mmdvm') {
+        if ($(this).val() === 'mmdvmclient') {
             $('#ts-group').show();
         } else {
             $('#ts-group').hide();
@@ -366,7 +366,7 @@ $(document).ready(function() {
                 <div class="form-group">
                     <label>Protokoll</label>
                     <select class="form-control" id="add-protocol">
-                        <option value="mmdvm">MMDVM</option>
+                        <option value="mmdvmclient">MMDVMClient</option>
                         <option value="svx">SVX</option>
                     </select>
                 </div>
@@ -444,7 +444,7 @@ $(document).ready(function() {
     <!-- Protocol Controls -->
     <div class="admin-section">
         <h4>Protokoll-Steuerung</h4>
-        <button class="btn btn-warning btn-sm" id="btn-reconnect-mmdvm" onclick="doReconnect('mmdvm')">MMDVM Reconnect</button>
+        <button class="btn btn-warning btn-sm" id="btn-reconnect-mmdvm" onclick="doReconnect('mmdvmclient')">MMDVMClient Reconnect</button>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-svx" onclick="doReconnect('svx')">SVX Reconnect</button>
         <div style="margin-top:10px;" id="block-rules"></div>
         <div style="margin-top:10px;">

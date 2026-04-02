@@ -51,7 +51,7 @@ RxGain = 0               # Incoming audio gain in dB (-40 to +40, default 0)
 TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 ```
 
-**BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVMClient`, `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `DMRMMDVM`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
+**BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVM` (direct hotspots), `MMDVMClient` (BM connection), `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
 

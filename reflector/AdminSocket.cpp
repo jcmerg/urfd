@@ -22,10 +22,10 @@
 #define ADMIN_MAX_MSG_SIZE        8192
 
 static const std::map<std::string, EProtocol> s_NameToProto = {
-	{"MMDVM", EProtocol::mmdvmclient}, {"SVX", EProtocol::svxreflector},
+	{"MMDVMClient", EProtocol::mmdvmclient}, {"SVX", EProtocol::svxreflector},
 	{"DExtra", EProtocol::dextra}, {"DPlus", EProtocol::dplus},
 	{"DCS", EProtocol::dcs}, {"DMRPlus", EProtocol::dmrplus},
-	{"DMRMMDVM", EProtocol::dmrmmdvm}, {"YSF", EProtocol::ysf},
+	{"MMDVM", EProtocol::dmrmmdvm}, {"YSF", EProtocol::ysf},
 	{"M17", EProtocol::m17}, {"NXDN", EProtocol::nxdn},
 	{"P25", EProtocol::p25}, {"USRP", EProtocol::usrp},
 	{"URF", EProtocol::urf}, {"XLXPeer", EProtocol::xlxpeer},
@@ -33,10 +33,10 @@ static const std::map<std::string, EProtocol> s_NameToProto = {
 };
 
 static const std::map<EProtocol, std::string> s_ProtoToName = {
-	{EProtocol::mmdvmclient, "MMDVM"}, {EProtocol::svxreflector, "SVX"},
+	{EProtocol::mmdvmclient, "MMDVMClient"}, {EProtocol::svxreflector, "SVX"},
 	{EProtocol::dextra, "DExtra"}, {EProtocol::dplus, "DPlus"},
 	{EProtocol::dcs, "DCS"}, {EProtocol::dmrplus, "DMRPlus"},
-	{EProtocol::dmrmmdvm, "DMRMMDVM"}, {EProtocol::ysf, "YSF"},
+	{EProtocol::dmrmmdvm, "MMDVM"}, {EProtocol::ysf, "YSF"},
 	{EProtocol::m17, "M17"}, {EProtocol::nxdn, "NXDN"},
 	{EProtocol::p25, "P25"}, {EProtocol::usrp, "USRP"},
 	{EProtocol::urf, "URF"}, {EProtocol::xlxpeer, "XLXPeer"},
@@ -315,7 +315,7 @@ nlohmann::json CAdminSocket::CmdTGAdd(const nlohmann::json &cmd)
 	if (!g_Reflector.IsValidModule(module))
 		return {{"status", "error"}, {"message", std::string("module ") + module + " is not configured"}};
 
-	if (protocol == "mmdvm")
+	if (protocol == "mmdvmclient")
 	{
 		auto &protocols = g_Reflector.GetProtocols();
 		protocols.Lock();
@@ -379,7 +379,7 @@ nlohmann::json CAdminSocket::CmdTGRemove(const nlohmann::json &cmd)
 	std::string protocol = cmd["protocol"];
 	uint32_t tg = cmd["tg"];
 
-	if (protocol == "mmdvm")
+	if (protocol == "mmdvmclient")
 	{
 		auto &protocols = g_Reflector.GetProtocols();
 		protocols.Lock();
@@ -446,7 +446,7 @@ nlohmann::json CAdminSocket::CmdTGList(const nlohmann::json &cmd)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 
-	if (protocol == "all" || protocol == "mmdvm")
+	if (protocol == "all" || protocol == "mmdvmclient")
 	{
 		auto *proto = protocols.FindByType(EProtocol::mmdvmclient);
 		if (proto)
@@ -456,7 +456,7 @@ nlohmann::json CAdminSocket::CmdTGList(const nlohmann::json &cmd)
 			for (const auto &m : mappings)
 			{
 				result["mappings"].push_back({
-					{"protocol", "mmdvm"},
+					{"protocol", "mmdvmclient"},
 					{"tg", m.tg},
 					{"module", std::string(1, m.module)},
 					{"ts", m.timeslot},
@@ -556,14 +556,14 @@ nlohmann::json CAdminSocket::CmdReconnect(const nlohmann::json &cmd)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 
-	if (protocol == "mmdvm")
+	if (protocol == "mmdvmclient")
 	{
 		auto *proto = protocols.FindByType(EProtocol::mmdvmclient);
 		if (proto)
 		{
 			static_cast<CMMDVMClientProtocol *>(proto)->RequestReconnect();
 			protocols.Unlock();
-			return {{"status", "ok"}, {"message", "MMDVM reconnect requested"}};
+			return {{"status", "ok"}, {"message", "MMDVMClient reconnect requested"}};
 		}
 	}
 	else if (protocol == "svx")
