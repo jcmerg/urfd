@@ -86,6 +86,10 @@ bool CMMDVMClientProtocol::Initialize(const char *type, const EProtocol ptype, c
 	// Load TG mappings (empty map is OK — dynamic TGs can be added via admin API)
 	m_TGMap.LoadFromConfig();
 
+	// BrandMeister API (optional)
+	if (g_Configure.Contains(g_Keys.mmdvmclient.bmapikey))
+		m_BmApi.Configure(g_Configure.GetString(g_Keys.mmdvmclient.bmapikey), m_uiDmrId);
+
 	m_State = EHBState::DISCONNECTED;
 
 	if (!CProtocol::Initialize(type, ptype, port, has_ipv4, has_ipv6))
@@ -121,6 +125,13 @@ void CMMDVMClientProtocol::Task(void)
 		SendClose();
 		m_State = EHBState::DISCONNECTED;
 		m_RetryTimer.start();
+	}
+
+	// Sync BrandMeister static TGs once after first connect
+	if (m_State == EHBState::RUNNING && m_BmApi.IsConfigured() && !m_BmSynced)
+	{
+		m_BmSynced = true;
+		SyncBrandMeisterTGs();
 	}
 
 	// Handle pending kerchunk (only when RUNNING — waits for reconnect to complete)
@@ -1084,6 +1095,51 @@ void CMMDVMClientProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPack
 		buffer->ReplaceAt(38, (uint8_t)((buffer->at(38) & 0xF0) | ((emb[1] >> 4) & 0x0F)));
 		buffer->ReplaceAt(39, (uint8_t)((buffer->at(39) & 0x0F) | ((emb[1] << 4) & 0xF0)));
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// BrandMeister API — sync static talkgroups
+
+void CMMDVMClientProtocol::SyncBrandMeisterTGs()
+{
+	std::cout << "BrandMeister API: syncing static talkgroups..." << std::endl;
+
+	// Get our desired TGs from config (static only)
+	auto mappings = m_TGMap.GetAllMappings();
+	std::set<std::pair<uint32_t, uint8_t>> desired;  // (tg, slot)
+	for (const auto &m : mappings)
+	{
+		if (m.is_static)
+			desired.insert({m.tg, m.timeslot});
+	}
+
+	// Get current BM static TGs
+	std::vector<BMTalkgroup> bmTGs;
+	if (!m_BmApi.GetStaticTGs(bmTGs))
+	{
+		std::cerr << "BrandMeister API: failed to get static TGs, skipping sync" << std::endl;
+		return;
+	}
+
+	// Remove BM TGs that are not in our config
+	for (const auto &bm : bmTGs)
+	{
+		if (desired.find({bm.talkgroup, bm.slot}) == desired.end())
+			m_BmApi.RemoveStaticTG(bm.talkgroup, bm.slot);
+	}
+
+	// Add our TGs that are missing on BM
+	std::set<std::pair<uint32_t, uint8_t>> bmSet;
+	for (const auto &bm : bmTGs)
+		bmSet.insert({bm.talkgroup, bm.slot});
+
+	for (const auto &d : desired)
+	{
+		if (bmSet.find(d) == bmSet.end())
+			m_BmApi.AddStaticTG(d.first, d.second);
+	}
+
+	std::cout << "BrandMeister API: sync complete (" << desired.size() << " static TGs)" << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

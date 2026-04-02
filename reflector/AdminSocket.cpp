@@ -329,15 +329,24 @@ nlohmann::json CAdminSocket::CmdTGAdd(const nlohmann::json &cmd)
 		bool ok = mmdvm->GetTGMap().AddDynamic(tg, module, timeslot, ttl);
 		if (ok)
 		{
+			if (mmdvm->GetBmApi().IsConfigured())
+			{
+				// Register as static on BM via API (no kerchunk needed)
+				mmdvm->GetBmApi().AddStaticTG(tg, timeslot);
+			}
+			else
+			{
+				mmdvm->RequestKerchunk(tg);  // kerchunk to activate on BM
+			}
 			mmdvm->RequestReconnect();   // reconnect to update options string
-			mmdvm->RequestKerchunk(tg);  // kerchunk after reconnect to activate on BM
 		}
 		protocols.Unlock();
 
 		if (!ok)
 			return {{"status", "error"}, {"message", "failed to add TG (module in use or static conflict)"}};
 
-		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " -> Module " + module + " added, kerchunk pending"}};
+		std::string method = mmdvm->GetBmApi().IsConfigured() ? "API" : "kerchunk";
+		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " -> Module " + module + " added via " + method}};
 	}
 	else if (protocol == "svx")
 	{
@@ -381,15 +390,25 @@ nlohmann::json CAdminSocket::CmdTGRemove(const nlohmann::json &cmd)
 			return {{"status", "error"}, {"message", "MMDVMClient protocol not active"}};
 		}
 		auto *mmdvm = static_cast<CMMDVMClientProtocol *>(proto);
+		// Get timeslot before removing (needed for BM API)
+		uint8_t ts = 2;
+		auto &tgmap = mmdvm->GetTGMap().GetTGMap();
+		auto tgit = tgmap.find(tg);
+		if (tgit != tgmap.end())
+			ts = tgit->second.timeslot;
 		bool ok = mmdvm->GetTGMap().RemoveDynamic(tg);
 		if (ok)
+		{
+			if (mmdvm->GetBmApi().IsConfigured())
+				mmdvm->GetBmApi().RemoveStaticTG(tg, ts);
 			mmdvm->RequestReconnect();
+		}
 		protocols.Unlock();
 
 		if (!ok)
 			return {{"status", "error"}, {"message", "failed to remove TG (not found or static)"}};
 
-		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " removed, reconnecting"}};
+		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " removed"}};
 	}
 	else if (protocol == "svx")
 	{

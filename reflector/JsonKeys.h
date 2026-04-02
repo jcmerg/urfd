@@ -76,8 +76,8 @@ struct SJsonKeys {
 
 	struct FILES { const std::string pid, xml, json, white, black, interlink, terminal; }
 	files { "pidFilePath", "xmlFilePath", "jsonFilePath", "whitelistFilePath", "blacklistFilePath", "interlinkFilePath", "g3TerminalFilePath" };
-	struct MMDVMCLIENT { const std::string enable, address, port, localport, dmrid, password, callsign, latitude, longitude, location, description, url, rxfreq, txfreq, software, firmware, fallbackdmrid, blockprotocols; }
-	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware", "mmdvmcliFallbackDmrId", "mmdvmcliBlockProtocols" };
+	struct MMDVMCLIENT { const std::string enable, address, port, localport, dmrid, password, callsign, latitude, longitude, location, description, url, rxfreq, txfreq, software, firmware, fallbackdmrid, blockprotocols, bmapikey; }
+	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware", "mmdvmcliFallbackDmrId", "mmdvmcliBlockProtocols", "mmdvmcliBmApiKey" };
 	struct SVX { const std::string enable, host, port, callsign, password, blockprotocols, rxgain, txgain; }
 	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword", "svxBlockProtocols", "svxRxGain", "svxTxGain" };
 	struct ADMIN { const std::string enable, port, password, bindaddress; }

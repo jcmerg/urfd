@@ -551,6 +551,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.mmdvmclient.fallbackdmrid] = getUnsigned(value, "MMDVMClient FallbackDmrId", 0, 999999999, 0);
 				else if (0 == key.compare("BlockProtocols"))
 					data[g_Keys.mmdvmclient.blockprotocols] = value;
+				else if (0 == key.compare("BrandMeisterApiKey"))
+					data[g_Keys.mmdvmclient.bmapikey] = value;
 				else if (0 == key.compare(0, 2, "TG"))
 				{
 					// TG<number> = <Module>[,TS<1|2>]

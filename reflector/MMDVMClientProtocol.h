@@ -14,6 +14,7 @@
 #include "SHA256.h"
 #include "TGModuleMap.h"
 #include "BPTC19696.h"
+#include "BrandMeisterApi.h"
 
 // MMDVM protocol constants
 #define MMDVMCLI_RETRY_PERIOD       10  // seconds between retransmissions
@@ -57,6 +58,7 @@ public:
 	CTGModuleMap &GetTGMap(void) { return m_TGMap; }
 	void RequestReconnect(void) { m_ReconnectRequested = true; }
 	void RequestKerchunk(uint32_t tg) { m_PendingKerchunk = tg; }
+	CBrandMeisterApi &GetBmApi() { return m_BmApi; }
 
 protected:
 	// MMDVM state machine
@@ -120,6 +122,9 @@ private:
 	std::string     m_Callsign;
 	CIp             m_MasterIp;
 	uint16_t        m_MasterPort;
+	CBrandMeisterApi m_BmApi;
+	bool             m_BmSynced = false;
+	void SyncBrandMeisterTGs();
 
 	// State machine
 	EHBState        m_State;
