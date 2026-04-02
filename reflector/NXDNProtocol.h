@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <map>
 #include "Defines.h"
 #include "Timer.h"
 #include "Protocol.h"
@@ -52,6 +51,10 @@ public:
 	// task
 	void Task(void);
 
+	// RAN-to-module: RAN 1-26 = A-Z, RAN 0 = AutoLinkModule
+	static char RANToModule(uint8_t ran);
+	static uint8_t ModuleToRAN(char module);
+
 protected:
 	// queue helper
 	void HandleQueue(void);
@@ -62,12 +65,8 @@ protected:
 	// stream helpers
 	void OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &, const CIp &);
 
-	// TG mapping helpers
-	void LoadTGMappings(void);
-	char TGToModule(uint16_t tg) const;
-
 	// DV packet decoding helpers
-	bool IsValidConnectPacket(const CBuffer &, CCallsign *, uint16_t *tg);
+	bool IsValidConnectPacket(const CBuffer &, CCallsign *);
 	bool IsValidDisconnectPacket(const CBuffer &);
 	bool IsValidDvHeaderPacket(const CIp &, const CBuffer &, std::unique_ptr<CDvHeaderPacket> &);
 	bool IsValidDvFramePacket(const CIp &, const CBuffer &, std::unique_ptr<CDvHeaderPacket> &, std::array<std::unique_ptr<CDvFramePacket>, 4> &);
@@ -124,13 +123,4 @@ protected:
 
 	uint16_t m_ReflectorId;
 	char m_AutolinkModule;
-
-	// TG <-> Module mapping
-	std::map<uint16_t, char> m_TGToModule;   // TG -> module letter
-	std::map<char, uint16_t> m_ModuleToTG;   // module letter -> primary TG
-
-public:
-	// accessors for XML export and outbound encoding
-	const std::map<uint16_t, char> &GetTGMap(void) const { return m_TGToModule; }
-	uint16_t ModuleToTG(char module) const;
 };

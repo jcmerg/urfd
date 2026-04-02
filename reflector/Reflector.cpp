@@ -714,17 +714,12 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 			xmlFile << "\t<DMRplus>" << (4001 + modIdx) << "</DMRplus>" << std::endl;
 		if (XML_PROTO_ENABLED(g_Keys.ysf.enable))
 			xmlFile << "\t<YSFDGID>" << (10 + modIdx) << "</YSFDGID>" << std::endl;
-		// NXDN TG for this module (from TG mapping, not formula)
+		// NXDN RAN for this module (RAN 1-26 = A-Z)
 		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
 		{
-			auto *nxdnProto = m_Protocols.FindByType(EProtocol::nxdn);
-			if (nxdnProto)
-			{
-				auto *nxdn = static_cast<CNXDNProtocol *>(nxdnProto);
-				uint16_t nxdnTg = nxdn->ModuleToTG(m);
-				if (nxdnTg != 0)
-					xmlFile << "\t<NXDNTg>" << nxdnTg << "</NXDNTg>" << std::endl;
-			}
+			uint8_t ran = CNXDNProtocol::ModuleToRAN(m);
+			if (ran != 0)
+				xmlFile << "\t<NXDNRAN>" << (int)ran << "</NXDNRAN>" << std::endl;
 		}
 		// per-module protocol mappings (only if protocol is enabled)
 		if (XML_PROTO_ENABLED(g_Keys.ysf.enable)
@@ -739,25 +734,12 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		}
 		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
 		{
-			if (g_Configure.Contains(g_Keys.nxdn.autolinkmod) && g_Configure.GetString(g_Keys.nxdn.autolinkmod)[0] == m)
+			uint8_t ran = CNXDNProtocol::ModuleToRAN(m);
+			if (ran != 0)
 			{
-				xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>AutoLink</Type>";
-				if (g_Configure.Contains(g_Keys.nxdn.reflectorid))
-					xmlFile << "<ID>" << g_Configure.GetUnsigned(g_Keys.nxdn.reflectorid) << "</ID>";
+				xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>RAN</Type>";
+				xmlFile << "<ID>" << (int)ran << "</ID>";
 				xmlFile << "</Mapping>" << std::endl;
-			}
-			// NXDN TG mappings for this module
-			auto *nxdnProto = m_Protocols.FindByType(EProtocol::nxdn);
-			if (nxdnProto)
-			{
-				auto *nxdn = static_cast<CNXDNProtocol *>(nxdnProto);
-				for (const auto &pair : nxdn->GetTGMap())
-				{
-					if (pair.second != m) continue;
-					xmlFile << "\t<Mapping><Protocol>NXDN</Protocol><Type>TG</Type>";
-					xmlFile << "<ID>" << pair.first << "</ID>";
-					xmlFile << "</Mapping>" << std::endl;
-				}
 			}
 		}
 		if (XML_PROTO_ENABLED(g_Keys.p25.enable)
