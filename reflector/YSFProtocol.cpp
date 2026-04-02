@@ -936,10 +936,11 @@ bool CYsfProtocol::IsValidwirexPacket(const CBuffer &Buffer, CYSFFICH *Fich, CCa
 					else if (memcmp(command + 1U, CONN_REQ, 3U) == 0)
 					{
 						*Cmd = WIRESX_CMD_CONN_REQ;
-						// Fix: The "Argument" (bytes 7-9) in CONN_REQ overlaps with 
-						// the Radio ID (bytes 5-9) sent by YSFGateway/Yaesu radios.
-						// We must ignore this value to prevent unintended module switching.
-						*Arg = 0;
+						// Arg is the room number (1=A, 2=B, ..., 26=Z).
+						// Some radios/gateways put the Radio ID here instead,
+						// so only accept values in the valid module range.
+						if (*Arg < 1 || *Arg > 26)
+							*Arg = 0;
 					}
 					else if (memcmp(command + 1U, DISC_REQ, 3U) == 0)
 					{

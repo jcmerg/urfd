@@ -620,7 +620,7 @@ std::string CYSFPayload::getSource()
 {
 	std::string tmp;
 
-	if (m_dest)
+	if (m_source)
 		tmp.assign((const char *)m_source.get(), YSF_CALLSIGN_LENGTH);
 	else
 		tmp = "";
