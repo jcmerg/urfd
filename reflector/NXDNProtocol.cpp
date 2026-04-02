@@ -452,9 +452,11 @@ bool CNXDNProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffer, s
 				{
 					csMY = CCallsign("", 0, m_FallbackNxdnId);
 					csMY.SetNXDNid(uiSrcId, false);
+					std::cout << "NXDN: using fallback for unknown ID " << uiSrcId << std::endl;
 				}
 				else
 				{
+					std::cout << "NXDN: dropping voice from unknown ID " << uiSrcId << " (no fallback)" << std::endl;
 					return false;
 				}
 			}
