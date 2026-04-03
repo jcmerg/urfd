@@ -79,7 +79,7 @@ Map1 = ref001.dstargateway.org,20001,C,A # REF001 module C -> local module A
 
 **Map format**: `host,port,remote_module,local_module` — each mapping creates one connection to the remote reflector on the specified module and routes audio to the local module.
 
-**Callsign requirements**: DCS reflectors require callsign whitelisting. DPlus reflectors require registration at [dstargateway.org](https://regist.dstargateway.org/). DExtra reflectors are typically open.
+**Callsign requirements**: DPlus reflectors require registration at [dstargateway.org](https://regist.dstargateway.org/). DExtra and DCS reflectors are typically open.
 
 **Dynamic mappings**: Use the Admin dashboard "D-Star Client Mappings" section or the socket API:
 ```json
