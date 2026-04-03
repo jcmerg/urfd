@@ -226,6 +226,10 @@ if (count($Modules) == 0) {
         'MMDVM' => 'DMR', 'DMRPlus' => 'DMR', 'XLXPeer' => 'XLX/BM Peering', 'MMDVMClient' => 'DMR',
         'M17' => 'M17', 'YSF' => 'YSF/C4FM', 'P25' => 'P25', 'NXDN' => 'NXDN',
         'URF' => 'URF Interlink', 'G3' => 'D-Star (G3)', 'USRP' => 'AllStar/USRP',
+        'DCSClient' => 'D-Star (Client)', 'DExtraClient' => 'D-Star (Client)',
+        'DPlusClient' => 'D-Star (Client)',
+        'YSFClient' => 'YSF/C4FM (Client)',
+        'SvxReflector' => 'FM/SvxLink',
     );
 
     foreach ($xmlProtocols as $proto) {

@@ -92,6 +92,10 @@ bool CGateKeeper::MayLink(const CCallsign &callsign, const CIp &ip, EProtocol pr
 	case EProtocol::dmrplus:
 	case EProtocol::dmrmmdvm:
 	case EProtocol::mmdvmclient:
+	case EProtocol::dcsclient:
+	case EProtocol::dextraclient:
+	case EProtocol::dplusclient:
+	case EProtocol::ysfclient:
 	case EProtocol::ysf:
 	case EProtocol::m17:
 	case EProtocol::p25:
@@ -143,6 +147,10 @@ bool CGateKeeper::MayTransmit(const CCallsign &callsign, const CIp &ip, const EP
 	case EProtocol::dmrplus:
 	case EProtocol::dmrmmdvm:
 	case EProtocol::mmdvmclient:
+	case EProtocol::dcsclient:
+	case EProtocol::dextraclient:
+	case EProtocol::dplusclient:
+	case EProtocol::ysfclient:
 	case EProtocol::ysf:
 	case EProtocol::m17:
 	case EProtocol::p25:
@@ -318,6 +326,14 @@ const std::string CGateKeeper::ProtocolName(const EProtocol p) const
 			return "M17";
 		case EProtocol::dplus:
 			return "DPlus";
+		case EProtocol::dcsclient:
+			return "DCSClient";
+		case EProtocol::dextraclient:
+			return "DExtraClient";
+		case EProtocol::dplusclient:
+			return "DPlusClient";
+		case EProtocol::ysfclient:
+			return "YSFClient";
 		default:
 			return "NONE";
 	}

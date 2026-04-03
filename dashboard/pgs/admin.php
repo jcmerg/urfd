@@ -37,12 +37,16 @@ function showAdmin() {
     $('#admin-content').show();
     refreshStatus();
     refreshTGList();
+    refreshDcsMapList();
+    refreshYsfMapList();
     refreshTCStats();
     refreshLog();
-    // Auto-refresh TG list and TC stats every 10s (without reloading the page)
+    // Auto-refresh every 10s
     if (adminRefreshTimer) clearInterval(adminRefreshTimer);
     adminRefreshTimer = setInterval(function() {
         refreshTGList();
+        refreshDcsMapList();
+        refreshYsfMapList();
         refreshTCStats();
         refreshLog();
     }, 10000);
@@ -147,6 +151,121 @@ function doReconnect(protocol) {
     });
 }
 
+function refreshDcsMapList() {
+    // aggregate all D-Star client mappings (DCS, DExtra, DPlus)
+    var tbody = $('#dcs-map-table-body');
+    tbody.empty();
+    var allMappings = [];
+    var pending = 3;
+    function renderAll() {
+        if (--pending > 0) return;
+        allMappings.forEach(function(m) {
+            var connLabel = m.connected ?
+                '<span class="label label-success">verbunden</span>' :
+                '<span class="label label-danger">getrennt</span>';
+            tbody.append(
+                '<tr>' +
+                '<td>' + m.proto + '</td>' +
+                '<td>' + m.host + ':' + m.port + '</td>' +
+                '<td>' + m.remote_module + '</td>' +
+                '<td>' + m.local_module + '</td>' +
+                '<td>' + connLabel + '</td>' +
+                '<td><button class="btn btn-xs btn-danger" onclick="removeDstarMap(\'' + m.proto_key + '\',\'' + m.local_module + '\')">Entfernen</button></td>' +
+                '</tr>'
+            );
+        });
+        if (allMappings.length === 0) {
+            tbody.append('<tr><td colspan="6" class="text-center">Keine D-Star Client Mappings konfiguriert</td></tr>');
+        }
+    }
+    $.each([
+        {action: 'dcs_map_list', proto: 'DCS', key: 'dcs'},
+        {action: 'dextra_map_list', proto: 'DExtra', key: 'dextra'},
+        {action: 'dplus_map_list', proto: 'DPlus', key: 'dplus'}
+    ], function(_, p) {
+        adminPost({action: p.action}, function(resp) {
+            if (resp.status === 'ok' && resp.mappings) {
+                resp.mappings.forEach(function(m) {
+                    m.proto = p.proto; m.proto_key = p.key;
+                    allMappings.push(m);
+                });
+            }
+            renderAll();
+        });
+    });
+}
+
+function addDcsMap() {
+    var proto = $('#dcs-proto').val();
+    var portDefaults = {dcs: 30051, dextra: 30001, dplus: 20001};
+    var data = {
+        action: proto + '_map_add',
+        host: $('#dcs-host').val(),
+        port: parseInt($('#dcs-port').val()) || portDefaults[proto] || 30051,
+        remote_module: $('#dcs-remote-mod').val(),
+        local_module: $('#dcs-local-mod').val()
+    };
+    adminPost(data, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshDcsMapList();
+    });
+}
+
+function removeDstarMap(protoKey, localMod) {
+    adminPost({action: protoKey + '_map_remove', local_module: localMod}, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshDcsMapList();
+    });
+}
+
+function refreshYsfMapList() {
+    adminPost({action: 'ysf_map_list'}, function(resp) {
+        var tbody = $('#ysf-map-table-body');
+        tbody.empty();
+        if (resp.status === 'ok' && resp.mappings) {
+            resp.mappings.forEach(function(m) {
+                var connLabel = m.connected ?
+                    '<span class="label label-success">verbunden</span>' :
+                    '<span class="label label-danger">getrennt</span>';
+                var dgidLabel = m.dgid > 0 ? m.dgid : '-';
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + m.host + ':' + m.port + '</td>' +
+                    '<td>' + m.local_module + '</td>' +
+                    '<td>' + dgidLabel + '</td>' +
+                    '<td>' + connLabel + '</td>' +
+                    '<td><button class="btn btn-xs btn-danger" onclick="removeYsfMap(\'' + m.local_module + '\')">Entfernen</button></td>' +
+                    '</tr>'
+                );
+            });
+        }
+        if (!resp.mappings || resp.mappings.length === 0) {
+            tbody.append('<tr><td colspan="5" class="text-center">Keine YSF-Mappings konfiguriert</td></tr>');
+        }
+    });
+}
+
+function addYsfMap() {
+    var data = {
+        action: 'ysf_map_add',
+        host: $('#ysf-host').val(),
+        port: parseInt($('#ysf-port').val()) || 42000,
+        local_module: $('#ysf-local-mod').val(),
+        dgid: parseInt($('#ysf-dgid').val()) || 0
+    };
+    adminPost(data, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshYsfMapList();
+    });
+}
+
+function removeYsfMap(localMod) {
+    adminPost({action: 'ysf_map_remove', local_module: localMod}, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshYsfMapList();
+    });
+}
+
 function doToggleBlock(action, a, b) {
     if (!a) a = $('#block-proto-a').val();
     if (!b) b = $('#block-proto-b').val();
@@ -189,6 +308,15 @@ function refreshStatus() {
                     sel.append('<option value="' + m + '">' + m + '</option>');
                 }
                 if (current) sel.val(current);
+
+                // also populate DCS and YSF local module dropdowns
+                $.each(['#dcs-local-mod', '#ysf-local-mod'], function(_, sel) {
+                    var $s = $(sel), cur = $s.val();
+                    $s.empty();
+                    for (var i = 0; i < resp.modules.length; i++)
+                        $s.append('<option value="' + resp.modules[i] + '">' + resp.modules[i] + '</option>');
+                    if (cur) $s.val(cur);
+                });
             }
             // Show/hide protocol options based on what's active
             var protoSel = $('#add-protocol');
@@ -196,12 +324,17 @@ function refreshStatus() {
             if (resp.mmdvm_active) protoSel.append('<option value="mmdvmclient">MMDVMClient</option>');
             if (resp.svx_active) protoSel.append('<option value="svx">SVX</option>');
             if (!resp.mmdvm_active && !resp.svx_active) {
-                protoSel.append('<option value="">Kein Protokoll aktiv</option>');
+                protoSel.append('<option value="">Kein TG-Protokoll aktiv</option>');
             }
             protoSel.trigger('change');
             // Reconnect buttons
             if (resp.mmdvm_active) $('#btn-reconnect-mmdvm').show(); else $('#btn-reconnect-mmdvm').hide();
             if (resp.svx_active) $('#btn-reconnect-svx').show(); else $('#btn-reconnect-svx').hide();
+            if (resp.dcsclient_active) $('#btn-reconnect-dcsclient').show(); else $('#btn-reconnect-dcsclient').hide();
+            if (resp.dextraclient_active) $('#btn-reconnect-dextraclient').show(); else $('#btn-reconnect-dextraclient').hide();
+            if (resp.dplusclient_active) $('#btn-reconnect-dplusclient').show(); else $('#btn-reconnect-dplusclient').hide();
+            if (resp.dcsclient_active || resp.dextraclient_active || resp.dplusclient_active) $('#dcs-mapping-section').show(); else $('#dcs-mapping-section').hide();
+            if (resp.ysfclient_active) { $('#btn-reconnect-ysfclient').show(); $('#ysf-mapping-section').show(); } else { $('#btn-reconnect-ysfclient').hide(); $('#ysf-mapping-section').hide(); }
 
             // Block rules — collect bidirectional pairs
             var blockedPairs = {};  // "A|B" (sorted) -> true
@@ -419,6 +552,109 @@ $(document).ready(function() {
         <button class="btn btn-default btn-sm" onclick="refreshTGList()">Aktualisieren</button>
     </div>
 
+    <!-- D-Star Client Mappings (DCS, DExtra, DPlus) -->
+    <div class="admin-section" id="dcs-mapping-section" style="display:none;">
+        <h4>D-Star Client Mappings</h4>
+        <div class="well">
+            <form class="form-inline add-tg-form" onsubmit="addDcsMap(); return false;">
+                <div class="form-group">
+                    <label>Protokoll</label>
+                    <select class="form-control" id="dcs-proto" style="width:100px;" onchange="var p={dcs:30051,dextra:30001,dplus:20001};$('#dcs-port').val(p[this.value]||30051);">
+                        <option value="dcs">DCS</option>
+                        <option value="dextra">DExtra</option>
+                        <option value="dplus">DPlus</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Host</label>
+                    <input type="text" class="form-control" id="dcs-host" placeholder="z.B. dcs001.xreflector.net" style="width:220px;" required>
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" class="form-control" id="dcs-port" value="30051" style="width:90px;">
+                </div>
+                <div class="form-group">
+                    <label>Remote Modul</label>
+                    <select class="form-control" id="dcs-remote-mod" style="width:70px;">
+                        <script>for(var i=65;i<=90;i++) document.write('<option value="'+String.fromCharCode(i)+'">'+String.fromCharCode(i)+'</option>');</script>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Lokal Modul</label>
+                    <select class="form-control" id="dcs-local-mod" style="width:70px;">
+                        <option value="">-</option>
+                    </select>
+                </div>
+                <div class="form-group" style="vertical-align:bottom;">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-success" style="display:block;">Verbinden</button>
+                </div>
+            </form>
+        </div>
+        <table class="table table-striped table-condensed">
+            <thead>
+                <tr>
+                    <th>Protokoll</th>
+                    <th>Reflector</th>
+                    <th>Remote Modul</th>
+                    <th>Lokal Modul</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="dcs-map-table-body">
+                <tr><td colspan="6" class="text-center">Laden...</td></tr>
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-sm" onclick="refreshDcsMapList()">Aktualisieren</button>
+    </div>
+
+    <!-- YSF Client Mapping -->
+    <div class="admin-section" id="ysf-mapping-section" style="display:none;">
+        <h4>YSF Client Mappings</h4>
+        <div class="well">
+            <form class="form-inline add-tg-form" onsubmit="addYsfMap(); return false;">
+                <div class="form-group">
+                    <label>Host</label>
+                    <input type="text" class="form-control" id="ysf-host" placeholder="z.B. ysf.reflector.net" style="width:220px;" required>
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" class="form-control" id="ysf-port" value="42000" style="width:90px;">
+                </div>
+                <div class="form-group">
+                    <label>Lokal Modul</label>
+                    <select class="form-control" id="ysf-local-mod" style="width:70px;">
+                        <option value="">-</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>DG-ID</label>
+                    <input type="number" class="form-control" id="ysf-dgid" value="0" min="0" max="99" style="width:70px;">
+                </div>
+                <div class="form-group" style="vertical-align:bottom;">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-success" style="display:block;">Verbinden</button>
+                </div>
+            </form>
+        </div>
+        <table class="table table-striped table-condensed">
+            <thead>
+                <tr>
+                    <th>Reflector</th>
+                    <th>Lokal Modul</th>
+                    <th>DG-ID</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="ysf-map-table-body">
+                <tr><td colspan="4" class="text-center">Laden...</td></tr>
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-sm" onclick="refreshYsfMapList()">Aktualisieren</button>
+    </div>
+
     <!-- Transcoder Statistics -->
     <div class="admin-section">
         <h4>Transcoder</h4>
@@ -446,6 +682,10 @@ $(document).ready(function() {
         <h4>Protokoll-Steuerung</h4>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-mmdvm" onclick="doReconnect('mmdvmclient')">MMDVMClient Reconnect</button>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-svx" onclick="doReconnect('svx')">SVX Reconnect</button>
+        <button class="btn btn-warning btn-sm" id="btn-reconnect-dcsclient" onclick="doReconnect('dcsclient')" style="display:none;">DCS Client Reconnect</button>
+        <button class="btn btn-warning btn-sm" id="btn-reconnect-dextraclient" onclick="doReconnect('dextraclient')" style="display:none;">DExtra Client Reconnect</button>
+        <button class="btn btn-warning btn-sm" id="btn-reconnect-dplusclient" onclick="doReconnect('dplusclient')" style="display:none;">DPlus Client Reconnect</button>
+        <button class="btn btn-warning btn-sm" id="btn-reconnect-ysfclient" onclick="doReconnect('ysfclient')" style="display:none;">YSF Client Reconnect</button>
         <div style="margin-top:10px;" id="block-rules"></div>
         <div style="margin-top:10px;">
             <select id="block-proto-a" class="form-control input-sm" style="width:140px;display:inline-block;"></select>

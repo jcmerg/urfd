@@ -49,6 +49,26 @@ private:
 	nlohmann::json CmdUnblock(const nlohmann::json &cmd);
 	nlohmann::json CmdBlockReset(void);
 
+	// DCSClient mapping commands
+	nlohmann::json CmdDcsMapAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdDcsMapRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdDcsMapList(void);
+
+	// DExtraClient mapping commands
+	nlohmann::json CmdDExtraMapAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdDExtraMapRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdDExtraMapList(void);
+
+	// DPlusClient mapping commands
+	nlohmann::json CmdDPlusMapAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdDPlusMapRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdDPlusMapList(void);
+
+	// YSFClient mapping commands
+	nlohmann::json CmdYsfMapAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdYsfMapRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdYsfMapList(void);
+
 	// Config
 	int m_ListenFd;
 	uint16_t m_Port;

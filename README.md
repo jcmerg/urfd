@@ -55,6 +55,63 @@ TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
 
+### D-Star Client Connectors (DCS, DExtra, DPlus)
+Connect to external D-Star reflectors as a client node. Maps remote reflector modules to local reflector modules. All three D-Star linking protocols are supported with their respective wire formats. Mappings can be configured statically in `urfd.ini` or added dynamically at runtime via the Admin interface.
+
+```ini
+[DCSClient]
+Enable = true
+Callsign = DL4JC                         # Must be whitelisted on target reflector
+Map1 = dcs002.xreflector.net,30051,A,S   # DCS002 module A -> local module S
+Map2 = dcs009.xreflector.net,30051,B,F   # DCS009 module B -> local module F
+# BlockProtocols = MMDVMClient,YSF       # Optional: block audio from these protocols
+
+[DExtraClient]
+Enable = true
+Callsign = DL4JC
+Map1 = xrf757.openquad.net,30001,A,A     # XRF757 module A -> local module A
+
+[DPlusClient]
+Enable = true
+Callsign = DL4JC                         # Must be registered at dstargateway.org
+Map1 = ref001.dstargateway.org,20001,C,A # REF001 module C -> local module A
+```
+
+**Map format**: `host,port,remote_module,local_module` — each mapping creates one connection to the remote reflector on the specified module and routes audio to the local module.
+
+**Callsign requirements**: DCS reflectors require callsign whitelisting. DPlus reflectors require registration at [dstargateway.org](https://regist.dstargateway.org/). DExtra reflectors are typically open.
+
+**Dynamic mappings**: Use the Admin dashboard "D-Star Client Mappings" section or the socket API:
+```json
+{"cmd": "dcs_map_add", "token": "...", "host": "dcs002.xreflector.net", "port": 30051, "remote_module": "A", "local_module": "S"}
+{"cmd": "dcs_map_remove", "token": "...", "local_module": "S"}
+{"cmd": "dcs_map_list", "token": "..."}
+{"cmd": "dextra_map_add", "token": "...", "host": "xrf757.openquad.net", "port": 30001, "remote_module": "A", "local_module": "A"}
+{"cmd": "dplus_map_add", "token": "...", "host": "ref001.dstargateway.org", "port": 20001, "remote_module": "A", "local_module": "Z"}
+{"cmd": "reconnect", "token": "...", "protocol": "dcsclient"}
+```
+
+### YSF Client Connector
+Connect to external YSF reflectors as a client node. Supports optional DG-ID for room selection on DG-ID-aware reflectors. Maps each connection to a local reflector module.
+
+```ini
+[YSFClient]
+Enable = true
+Callsign = DL4JC
+Map1 = 90.187.72.177,42099,A             # YSF reflector -> local module A
+Map2 = 85.215.138.68,42000,F,15          # YSF reflector -> local module F, DG-ID 15
+# BlockProtocols = MMDVMClient            # Optional
+```
+
+**Map format**: `host,port,local_module[,dgid]` — DG-ID is optional (0 = disabled). When set, the DG-ID is included in the FICH header of all outbound voice packets.
+
+**Dynamic mappings**:
+```json
+{"cmd": "ysf_map_add", "token": "...", "host": "90.187.72.177", "port": 42099, "local_module": "A", "dgid": 0}
+{"cmd": "ysf_map_remove", "token": "...", "local_module": "A"}
+{"cmd": "ysf_map_list", "token": "..."}
+```
+
 ### NXDN RAN-Based Module Routing
 Select reflector modules via NXDN RAN (Radio Access Number). RAN 1-26 maps directly to Module A-Z. RAN 0 maps to the AutoLinkModule (configurable fallback). Set the TX RAN on your NXDN radio to choose the target module — the client switches dynamically per transmission, like YSF DG-ID.
 
@@ -112,7 +169,9 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 - **Runtime Protocol Blocking**: Block/unblock any protocol pair bidirectionally at runtime. Not persisted — resets on restart. "Reset to Config Default" button restores INI settings.
 - **Multi-TG per Module**: Dynamically add secondary TGs (RX only) to modules that already have a primary TG.
 - **Kerchunk on Demand**: Send a kerchunk to BrandMeister for a specific TG without a radio. MMDVM only. Not needed when BM API key is configured.
-- **Protocol Reconnect**: Force reconnect of MMDVM or SVX connections.
+- **D-Star Client Mappings**: Add/remove DCS, DExtra, DPlus reflector connections dynamically with module-to-module mapping. Protocol selector for DCS/DExtra/DPlus with auto-port defaults.
+- **YSF Client Mappings**: Add/remove YSF reflector connections with optional DG-ID.
+- **Protocol Reconnect**: Force reconnect of MMDVM, SVX, DCSClient, DExtraClient, DPlusClient, or YSFClient connections.
 - **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time per transcoded module.
 - **Live Log Viewer**: Last 200 log lines with timestamps, auto-refreshing every 10 seconds.
 - **Hidden Access**: Access via the pi symbol in the bottom-right corner or directly via `?show=admin`.
@@ -131,6 +190,11 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "block", "token": "...", "a": "SVX", "b": "MMDVM"}
 {"cmd": "unblock", "token": "...", "a": "SVX", "b": "MMDVM"}
 {"cmd": "block_reset", "token": "..."}
+{"cmd": "dcs_map_add", "token": "...", "host": "dcs002.xreflector.net", "port": 30051, "remote_module": "A", "local_module": "S"}
+{"cmd": "dcs_map_remove", "token": "...", "local_module": "S"}
+{"cmd": "dcs_map_list", "token": "..."}
+{"cmd": "ysf_map_add", "token": "...", "host": "90.187.72.177", "port": 42099, "local_module": "A", "dgid": 15}
+{"cmd": "ysf_map_list", "token": "..."}
 ```
 
 ### SIGHUP Configuration Reload
@@ -222,7 +286,7 @@ The XML status file now includes:
 
 - **Reflector metadata**: callsign, country, sponsor, dashboard URL, email
 - **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID, NXDN RAN
-- **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient, SvxReflector) including dynamic TGs with remaining TTL
+- **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient, SvxReflector), D-Star client mappings (DCSClient, DExtraClient, DPlusClient with connection status), YSF client mappings (YSFClient with DG-ID)
 - **Enabled protocols**: name and port for each active protocol
 - **Per-station protocol**: which protocol a user was heard on (DCS, MMDVMClient, YSF, etc.)
 - **Dynamic TG indicators**: `<Dynamic>true</Dynamic>` and `<Remaining>` seconds for runtime-added TGs
@@ -410,6 +474,8 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **BrandMeister API**: Optional REST API v2 integration — startup sync (removes orphan TGs, adds missing), API-based TG add/remove instead of kerchunk, configurable via `BrandMeisterApiKey`
 - **SvxReflector**: TCP/UDP client for SvxLink FM servers — OPUS codec, bidirectional audio bridging, configurable RX/TX gain, SELECT_TG protocol, auto-disconnect on TCP send failure with immediate reconnect
 - **DCS interlinking**: Native DCS reflector-to-reflector peering with PeerCallsign override and protocol field in interlink file
+- **D-Star client protocols**: DCSClient, DExtraClient, DPlusClient — connect to external D-Star reflectors as a client node with module-to-module mapping, dynamic add/remove via admin API, protocol blocking, dashboard integration
+- **YSF client protocol**: YSFClient — connect to external YSF reflectors with optional DG-ID, dynamic mapping via admin API
 
 ### Runtime Management
 - **Admin interface**: JSON-over-TCP socket + web dashboard — dynamic TG management, protocol reconnect, transcoder stats, live log viewer, runtime protocol blocking
@@ -440,6 +506,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **Thread-safe DB lookups**: DMR/NXDN ID database lookups in CodecStream hold proper mutex locks during access, preventing race conditions with background DB refresh
 - **P25 cleanup**: Removed dead `P25_MODULE_ID` hardcode, P25 now uses `AutoLinkModule` config consistently. Guard debug dumps.
 - **YSF fixes**: WiresX packet check moved before voice parser (CONN_REQ data frames were consumed as voice). CONN_REQ accepts room IDs 4001-4026 and direct index 1-26 (was forced to 0). DX_RESP status `'3'` (YSFGateway compat, was undocumented `'5'`). ALL_RESP byte `0x26` (was `0x29`). Fixed `YSFPayload::getSource()` null pointer (checked wrong member). Note: WiresX room switching requires direct YSF clients; MMDVMHost intercepts CONN_REQ locally. DG-ID is the primary module selection method.
+- **DCS server fix**: Ignore "EEEE" status packets (35 bytes) from ircDDBGateway clients instead of logging as unknown. Accept 9-byte keepalive variant.
 - **Cherry-picked from [dbehnke/urfd](https://github.com/dbehnke/urfd)**: Callsign sanitization, YSF radio ID collision fix, transcoder module ID enforcement, DG-ID module selection
 
 ## Copyright

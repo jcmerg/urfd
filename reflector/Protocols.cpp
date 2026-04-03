@@ -31,6 +31,10 @@
 #include "NXDNProtocol.h"
 #include "USRPProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "DCSClientProtocol.h"
+#include "DExtraClientProtocol.h"
+#include "DPlusClientProtocol.h"
+#include "YSFClientProtocol.h"
 #include "G3Protocol.h"
 #include "Protocols.h"
 #include "Global.h"
@@ -158,6 +162,34 @@ bool CProtocols::Init(void)
 				localport = uint16_t(g_Configure.GetUnsigned(g_Keys.mmdvmclient.localport));
 			m_Protocols.emplace_back(std::unique_ptr<CMMDVMClientProtocol>(new CMMDVMClientProtocol));
 			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::mmdvmclient, localport, DMR_IPV4, false))
+				return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.dcsclient.enable) && g_Configure.GetBoolean(g_Keys.dcsclient.enable))
+		{
+			m_Protocols.emplace_back(std::unique_ptr<CDcsClientProtocol>(new CDcsClientProtocol));
+			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::dcsclient, uint16_t(0), DSTAR_IPV4, false))
+				return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.ysfclient.enable) && g_Configure.GetBoolean(g_Keys.ysfclient.enable))
+		{
+			m_Protocols.emplace_back(std::unique_ptr<CYsfClientProtocol>(new CYsfClientProtocol));
+			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::ysfclient, uint16_t(0), YSF_IPV4, false))
+				return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.dextraclient.enable) && g_Configure.GetBoolean(g_Keys.dextraclient.enable))
+		{
+			m_Protocols.emplace_back(std::unique_ptr<CDExtraClientProtocol>(new CDExtraClientProtocol));
+			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::dextraclient, uint16_t(0), DSTAR_IPV4, false))
+				return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.dplusclient.enable) && g_Configure.GetBoolean(g_Keys.dplusclient.enable))
+		{
+			m_Protocols.emplace_back(std::unique_ptr<CDPlusClientProtocol>(new CDPlusClientProtocol));
+			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::dplusclient, uint16_t(0), DSTAR_IPV4, false))
 				return false;
 		}
 

@@ -89,6 +89,8 @@ public:
 	char GetMyModule(void) const                    { return m_csMY.GetCSModule(); }
 
 	// set callsigns
+	void SetRpt1Callsign(const CCallsign &cs)       { m_csRPT1 = cs; }
+	void SetRpt1Module(char c)                      { m_csRPT1.SetCSModule(c); }
 	void SetRpt2Callsign(const CCallsign &cs)       { m_csRPT2 = cs; }
 	void SetRpt2Module(char c)                      { m_csRPT2.SetCSModule(c); }
 

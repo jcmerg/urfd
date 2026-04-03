@@ -22,6 +22,10 @@
 #include "Global.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "DCSClientProtocol.h"
+#include "DExtraClientProtocol.h"
+#include "DPlusClientProtocol.h"
+#include "YSFClientProtocol.h"
 #include "NXDNProtocol.h"
 
 CReflector::CReflector()
@@ -803,6 +807,87 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				}
 			}
 		}
+		// DCSClient mappings for this module
+		if (g_Configure.Contains(g_Keys.dcsclient.enable) && g_Configure.GetBoolean(g_Keys.dcsclient.enable))
+		{
+			auto *proto = m_Protocols.FindByType(EProtocol::dcsclient);
+			if (proto)
+			{
+				auto *dcs = static_cast<CDcsClientProtocol *>(proto);
+				auto mappings = dcs->GetMappings();
+				for (const auto &mi : mappings)
+				{
+					if (mi.localModule != m) continue;
+					xmlFile << "\t<Mapping><Protocol>DCSClient</Protocol><Type>Module</Type>";
+					xmlFile << "<ID>" << mi.remoteModule << "</ID>";
+					xmlFile << "<RemoteName>" << mi.host << ":" << mi.port << "</RemoteName>";
+					if (mi.connected)
+						xmlFile << "<Connected>true</Connected>";
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
+		}
+		// DExtraClient mappings for this module
+		if (g_Configure.Contains(g_Keys.dextraclient.enable) && g_Configure.GetBoolean(g_Keys.dextraclient.enable))
+		{
+			auto *proto = m_Protocols.FindByType(EProtocol::dextraclient);
+			if (proto)
+			{
+				auto *dextra = static_cast<CDExtraClientProtocol *>(proto);
+				auto mappings = dextra->GetMappings();
+				for (const auto &mi : mappings)
+				{
+					if (mi.localModule != m) continue;
+					xmlFile << "\t<Mapping><Protocol>DExtraClient</Protocol><Type>Module</Type>";
+					xmlFile << "<ID>" << mi.remoteModule << "</ID>";
+					xmlFile << "<RemoteName>" << mi.host << ":" << mi.port << "</RemoteName>";
+					if (mi.connected)
+						xmlFile << "<Connected>true</Connected>";
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
+		}
+		// DPlusClient mappings for this module
+		if (g_Configure.Contains(g_Keys.dplusclient.enable) && g_Configure.GetBoolean(g_Keys.dplusclient.enable))
+		{
+			auto *proto = m_Protocols.FindByType(EProtocol::dplusclient);
+			if (proto)
+			{
+				auto *dplus = static_cast<CDPlusClientProtocol *>(proto);
+				auto mappings = dplus->GetMappings();
+				for (const auto &mi : mappings)
+				{
+					if (mi.localModule != m) continue;
+					xmlFile << "\t<Mapping><Protocol>DPlusClient</Protocol><Type>Module</Type>";
+					xmlFile << "<ID>" << mi.remoteModule << "</ID>";
+					xmlFile << "<RemoteName>" << mi.host << ":" << mi.port << "</RemoteName>";
+					if (mi.connected)
+						xmlFile << "<Connected>true</Connected>";
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
+		}
+		// YSFClient mappings for this module
+		if (g_Configure.Contains(g_Keys.ysfclient.enable) && g_Configure.GetBoolean(g_Keys.ysfclient.enable))
+		{
+			auto *proto = m_Protocols.FindByType(EProtocol::ysfclient);
+			if (proto)
+			{
+				auto *ysf = static_cast<CYsfClientProtocol *>(proto);
+				auto mappings = ysf->GetMappings();
+				for (const auto &mi : mappings)
+				{
+					if (mi.localModule != m) continue;
+					xmlFile << "\t<Mapping><Protocol>YSFClient</Protocol><Type>DG-ID</Type>";
+					if (mi.dgid > 0)
+						xmlFile << "<ID>" << (int)mi.dgid << "</ID>";
+					xmlFile << "<RemoteName>" << mi.host << ":" << mi.port << "</RemoteName>";
+					if (mi.connected)
+						xmlFile << "<Connected>true</Connected>";
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
+		}
 		xmlFile << "</Module>" << std::endl;
 	}
 	xmlFile << "</Modules>" << std::endl;
@@ -839,6 +924,14 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		xmlFile << "<Protocol><Name>G3</Name><Port>40000</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))
 		xmlFile << "<Protocol><Name>MMDVMClient</Name><Port>" << (g_Configure.Contains(g_Keys.mmdvmclient.localport) ? g_Configure.GetUnsigned(g_Keys.mmdvmclient.localport) : 0) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.dcsclient.enable) && g_Configure.GetBoolean(g_Keys.dcsclient.enable))
+		xmlFile << "<Protocol><Name>DCSClient</Name><Port>0</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.dextraclient.enable) && g_Configure.GetBoolean(g_Keys.dextraclient.enable))
+		xmlFile << "<Protocol><Name>DExtraClient</Name><Port>0</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.dplusclient.enable) && g_Configure.GetBoolean(g_Keys.dplusclient.enable))
+		xmlFile << "<Protocol><Name>DPlusClient</Name><Port>0</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.ysfclient.enable) && g_Configure.GetBoolean(g_Keys.ysfclient.enable))
+		xmlFile << "<Protocol><Name>YSFClient</Name><Port>0</Port></Protocol>" << std::endl;
 	xmlFile << "</Protocols>" << std::endl;
 
 	CCallsign cs = m_Callsign;

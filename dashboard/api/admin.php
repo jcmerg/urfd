@@ -172,6 +172,98 @@ switch ($action) {
         $cmd = ['cmd' => 'block_reset', 'token' => $token];
         break;
 
+    case 'dcs_map_add':
+        $cmd = [
+            'cmd'           => 'dcs_map_add',
+            'token'         => $token,
+            'host'          => $input['host'] ?? '',
+            'port'          => (int)($input['port'] ?? 30051),
+            'remote_module' => $input['remote_module'] ?? '',
+            'local_module'  => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'dcs_map_remove':
+        $cmd = [
+            'cmd'          => 'dcs_map_remove',
+            'token'        => $token,
+            'local_module' => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'dcs_map_list':
+        $cmd = ['cmd' => 'dcs_map_list', 'token' => $token];
+        break;
+
+    case 'dextra_map_add':
+        $cmd = [
+            'cmd'           => 'dextra_map_add',
+            'token'         => $token,
+            'host'          => $input['host'] ?? '',
+            'port'          => (int)($input['port'] ?? 30001),
+            'remote_module' => $input['remote_module'] ?? '',
+            'local_module'  => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'dextra_map_remove':
+        $cmd = [
+            'cmd'          => 'dextra_map_remove',
+            'token'        => $token,
+            'local_module' => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'dextra_map_list':
+        $cmd = ['cmd' => 'dextra_map_list', 'token' => $token];
+        break;
+
+    case 'dplus_map_add':
+        $cmd = [
+            'cmd'           => 'dplus_map_add',
+            'token'         => $token,
+            'host'          => $input['host'] ?? '',
+            'port'          => (int)($input['port'] ?? 20001),
+            'remote_module' => $input['remote_module'] ?? '',
+            'local_module'  => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'dplus_map_remove':
+        $cmd = [
+            'cmd'          => 'dplus_map_remove',
+            'token'        => $token,
+            'local_module' => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'dplus_map_list':
+        $cmd = ['cmd' => 'dplus_map_list', 'token' => $token];
+        break;
+
+    case 'ysf_map_add':
+        $cmd = [
+            'cmd'          => 'ysf_map_add',
+            'token'        => $token,
+            'host'         => $input['host'] ?? '',
+            'port'         => (int)($input['port'] ?? 42000),
+            'local_module' => $input['local_module'] ?? '',
+            'dgid'         => (int)($input['dgid'] ?? 0),
+        ];
+        break;
+
+    case 'ysf_map_remove':
+        $cmd = [
+            'cmd'          => 'ysf_map_remove',
+            'token'        => $token,
+            'local_module' => $input['local_module'] ?? '',
+        ];
+        break;
+
+    case 'ysf_map_list':
+        $cmd = ['cmd' => 'ysf_map_list', 'token' => $token];
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Unknown action: ' . $action]);
         exit;

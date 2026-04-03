@@ -82,6 +82,14 @@ struct SJsonKeys {
 	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware", "mmdvmcliFallbackDmrId", "mmdvmcliBlockProtocols", "mmdvmcliBmApiKey" };
 	struct SVX { const std::string enable, host, port, callsign, password, blockprotocols, rxgain, txgain; }
 	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword", "svxBlockProtocols", "svxRxGain", "svxTxGain" };
+	struct DCSCLIENT { const std::string enable, callsign, blockprotocols; }
+	dcsclient { "dcsClientEnable", "dcsClientCallsign", "dcsClientBlockProtocols" };
+	struct YSFCLIENT { const std::string enable, callsign, blockprotocols; }
+	ysfclient { "ysfClientEnable", "ysfClientCallsign", "ysfClientBlockProtocols" };
+	struct DEXTRACLIENT { const std::string enable, callsign, blockprotocols; }
+	dextraclient { "dextraClientEnable", "dextraClientCallsign", "dextraClientBlockProtocols" };
+	struct DPLUSCLIENT { const std::string enable, callsign, blockprotocols; }
+	dplusclient { "dplusClientEnable", "dplusClientCallsign", "dplusClientBlockProtocols" };
 	struct ADMIN { const std::string enable, port, password, bindaddress; }
 	admin { "adminEnable", "adminPort", "adminPassword", "adminBindAddress" };
 };

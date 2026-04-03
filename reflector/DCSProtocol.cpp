@@ -484,7 +484,7 @@ bool CDcsProtocol::IsValidDisconnectPacket(const CBuffer &Buffer, CCallsign *cal
 bool CDcsProtocol::IsValidKeepAlivePacket(const CBuffer &Buffer, CCallsign *callsign)
 {
 	bool valid = false;
-	if ( (Buffer.size() == 17) || (Buffer.size() == 15) || (Buffer.size() == 22) )
+	if ( (Buffer.size() == 9) || (Buffer.size() == 15) || (Buffer.size() == 17) || (Buffer.size() == 22) )
 	{
 		callsign->SetCallsign(Buffer.data(), 8);
 		valid = callsign->IsValid();
@@ -539,8 +539,15 @@ bool CDcsProtocol::IsIgnorePacket(const CBuffer &Buffer)
 {
 	uint8_t tag[] = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, };
 
+	// 15-byte all-zeros packet
 	if ( Buffer.size() == 15 && Buffer.Compare(tag, sizeof(tag)) == 0 )
 		return true;
+
+	// 35-byte "EEEE" status packet (ircDDBGateway sends these)
+	if ( Buffer.size() == 35 && Buffer.data()[0] == 'E' && Buffer.data()[1] == 'E' &&
+	     Buffer.data()[2] == 'E' && Buffer.data()[3] == 'E' )
+		return true;
+
 	return false;
 }
 

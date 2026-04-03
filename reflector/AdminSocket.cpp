@@ -17,12 +17,18 @@
 #include "LogBuffer.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "DCSClientProtocol.h"
+#include "DExtraClientProtocol.h"
+#include "DPlusClientProtocol.h"
+#include "YSFClientProtocol.h"
 
 #define ADMIN_TOKEN_TTL_SECONDS   3600   // 1 hour session
 #define ADMIN_MAX_MSG_SIZE        8192
 
 static const std::map<std::string, EProtocol> s_NameToProto = {
 	{"MMDVMClient", EProtocol::mmdvmclient}, {"SVX", EProtocol::svxreflector},
+	{"DCSClient", EProtocol::dcsclient}, {"DExtraClient", EProtocol::dextraclient},
+	{"DPlusClient", EProtocol::dplusclient}, {"YSFClient", EProtocol::ysfclient},
 	{"DExtra", EProtocol::dextra}, {"DPlus", EProtocol::dplus},
 	{"DCS", EProtocol::dcs}, {"DMRPlus", EProtocol::dmrplus},
 	{"MMDVM", EProtocol::dmrmmdvm}, {"YSF", EProtocol::ysf},
@@ -34,6 +40,8 @@ static const std::map<std::string, EProtocol> s_NameToProto = {
 
 static const std::map<EProtocol, std::string> s_ProtoToName = {
 	{EProtocol::mmdvmclient, "MMDVMClient"}, {EProtocol::svxreflector, "SVX"},
+	{EProtocol::dcsclient, "DCSClient"}, {EProtocol::dextraclient, "DExtraClient"},
+	{EProtocol::dplusclient, "DPlusClient"}, {EProtocol::ysfclient, "YSFClient"},
 	{EProtocol::dextra, "DExtra"}, {EProtocol::dplus, "DPlus"},
 	{EProtocol::dcs, "DCS"}, {EProtocol::dmrplus, "DMRPlus"},
 	{EProtocol::dmrmmdvm, "MMDVM"}, {EProtocol::ysf, "YSF"},
@@ -228,6 +236,30 @@ nlohmann::json CAdminSocket::HandleCommand(const nlohmann::json &cmd, const std:
 		return CmdUnblock(cmd);
 	else if (command == "block_reset")
 		return CmdBlockReset();
+	else if (command == "dcs_map_add")
+		return CmdDcsMapAdd(cmd);
+	else if (command == "dcs_map_remove")
+		return CmdDcsMapRemove(cmd);
+	else if (command == "dcs_map_list")
+		return CmdDcsMapList();
+	else if (command == "dextra_map_add")
+		return CmdDExtraMapAdd(cmd);
+	else if (command == "dextra_map_remove")
+		return CmdDExtraMapRemove(cmd);
+	else if (command == "dextra_map_list")
+		return CmdDExtraMapList();
+	else if (command == "dplus_map_add")
+		return CmdDPlusMapAdd(cmd);
+	else if (command == "dplus_map_remove")
+		return CmdDPlusMapRemove(cmd);
+	else if (command == "dplus_map_list")
+		return CmdDPlusMapList();
+	else if (command == "ysf_map_add")
+		return CmdYsfMapAdd(cmd);
+	else if (command == "ysf_map_remove")
+		return CmdYsfMapRemove(cmd);
+	else if (command == "ysf_map_list")
+		return CmdYsfMapList();
 
 	return {{"status", "error"}, {"message", "unknown command: " + command}};
 }
@@ -511,6 +543,10 @@ nlohmann::json CAdminSocket::CmdStatus(void)
 
 	status["mmdvm_active"] = (protocols.FindByType(EProtocol::mmdvmclient) != nullptr);
 	status["svx_active"] = (protocols.FindByType(EProtocol::svxreflector) != nullptr);
+	status["dcsclient_active"] = (protocols.FindByType(EProtocol::dcsclient) != nullptr);
+	status["dextraclient_active"] = (protocols.FindByType(EProtocol::dextraclient) != nullptr);
+	status["dplusclient_active"] = (protocols.FindByType(EProtocol::dplusclient) != nullptr);
+	status["ysfclient_active"] = (protocols.FindByType(EProtocol::ysfclient) != nullptr);
 
 	// List all active protocol names
 	nlohmann::json activeProtos = nlohmann::json::array();
@@ -574,6 +610,46 @@ nlohmann::json CAdminSocket::CmdReconnect(const nlohmann::json &cmd)
 			static_cast<CSvxReflectorProtocol *>(proto)->RequestReconnect();
 			protocols.Unlock();
 			return {{"status", "ok"}, {"message", "SVX reconnect requested"}};
+		}
+	}
+	else if (protocol == "dcsclient")
+	{
+		auto *proto = protocols.FindByType(EProtocol::dcsclient);
+		if (proto)
+		{
+			static_cast<CDcsClientProtocol *>(proto)->RequestReconnect();
+			protocols.Unlock();
+			return {{"status", "ok"}, {"message", "DCSClient reconnect requested"}};
+		}
+	}
+	else if (protocol == "dextraclient")
+	{
+		auto *proto = protocols.FindByType(EProtocol::dextraclient);
+		if (proto)
+		{
+			static_cast<CDExtraClientProtocol *>(proto)->RequestReconnect();
+			protocols.Unlock();
+			return {{"status", "ok"}, {"message", "DExtraClient reconnect requested"}};
+		}
+	}
+	else if (protocol == "dplusclient")
+	{
+		auto *proto = protocols.FindByType(EProtocol::dplusclient);
+		if (proto)
+		{
+			static_cast<CDPlusClientProtocol *>(proto)->RequestReconnect();
+			protocols.Unlock();
+			return {{"status", "ok"}, {"message", "DPlusClient reconnect requested"}};
+		}
+	}
+	else if (protocol == "ysfclient")
+	{
+		auto *proto = protocols.FindByType(EProtocol::ysfclient);
+		if (proto)
+		{
+			static_cast<CYsfClientProtocol *>(proto)->RequestReconnect();
+			protocols.Unlock();
+			return {{"status", "ok"}, {"message", "YSFClient reconnect requested"}};
 		}
 	}
 
@@ -769,4 +845,386 @@ nlohmann::json CAdminSocket::CmdBlockReset(void)
 	protocols.Unlock();
 	std::cout << "Admin: blocks reset to config defaults" << std::endl;
 	return {{"status", "ok"}, {"message", "all blocks reset to config defaults"}};
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// DCSClient mapping management
+
+nlohmann::json CAdminSocket::CmdDcsMapAdd(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("host") || !cmd.contains("port") || !cmd.contains("remote_module") || !cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required fields: host, port, remote_module, local_module"}};
+
+	std::string host = cmd["host"];
+	uint16_t port = cmd["port"];
+	std::string remoteMod = cmd["remote_module"];
+	std::string localMod = cmd["local_module"];
+
+	if (remoteMod.empty() || localMod.empty() || remoteMod[0] < 'A' || remoteMod[0] > 'Z' || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "modules must be A-Z"}};
+
+	if (!g_Reflector.IsValidModule(localMod[0]))
+		return {{"status", "error"}, {"message", std::string("module ") + localMod[0] + " is not configured"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dcsclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "DCSClient protocol not active"}};
+	}
+
+	auto *dcs = static_cast<CDcsClientProtocol *>(proto);
+	bool ok = dcs->AddMapping(host, port, remoteMod[0], localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "failed to add mapping (local module already mapped)"}};
+
+	return {{"status", "ok"}, {"message", "DCSClient mapping " + host + ":" + std::to_string(port) + " " + remoteMod[0] + " -> " + localMod[0] + " added"}};
+}
+
+nlohmann::json CAdminSocket::CmdDcsMapRemove(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required field: local_module"}};
+
+	std::string localMod = cmd["local_module"];
+	if (localMod.empty() || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "module must be A-Z"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dcsclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "DCSClient protocol not active"}};
+	}
+
+	auto *dcs = static_cast<CDcsClientProtocol *>(proto);
+	bool ok = dcs->RemoveMapping(localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
+
+	return {{"status", "ok"}, {"message", "DCSClient mapping for module " + localMod + " removed"}};
+}
+
+nlohmann::json CAdminSocket::CmdDcsMapList(void)
+{
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["mappings"] = nlohmann::json::array();
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dcsclient);
+	if (proto)
+	{
+		auto *dcs = static_cast<CDcsClientProtocol *>(proto);
+		auto mappings = dcs->GetMappings();
+		for (const auto &m : mappings)
+		{
+			result["mappings"].push_back({
+				{"host", m.host},
+				{"port", m.port},
+				{"remote_module", std::string(1, m.remoteModule)},
+				{"local_module", std::string(1, m.localModule)},
+				{"connected", m.connected}
+			});
+		}
+	}
+	protocols.Unlock();
+
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// DExtraClient mapping management
+
+nlohmann::json CAdminSocket::CmdDExtraMapAdd(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("host") || !cmd.contains("port") || !cmd.contains("remote_module") || !cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required fields: host, port, remote_module, local_module"}};
+
+	std::string host = cmd["host"];
+	uint16_t port = cmd["port"];
+	std::string remoteMod = cmd["remote_module"];
+	std::string localMod = cmd["local_module"];
+
+	if (remoteMod.empty() || localMod.empty() || remoteMod[0] < 'A' || remoteMod[0] > 'Z' || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "modules must be A-Z"}};
+
+	if (!g_Reflector.IsValidModule(localMod[0]))
+		return {{"status", "error"}, {"message", std::string("module ") + localMod[0] + " is not configured"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dextraclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "DExtraClient protocol not active"}};
+	}
+
+	auto *dextra = static_cast<CDExtraClientProtocol *>(proto);
+	bool ok = dextra->AddMapping(host, port, remoteMod[0], localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "failed to add mapping (local module already mapped)"}};
+
+	return {{"status", "ok"}, {"message", "DExtraClient mapping " + host + ":" + std::to_string(port) + " " + remoteMod[0] + " -> " + localMod[0] + " added"}};
+}
+
+nlohmann::json CAdminSocket::CmdDExtraMapRemove(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required field: local_module"}};
+
+	std::string localMod = cmd["local_module"];
+	if (localMod.empty() || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "module must be A-Z"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dextraclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "DExtraClient protocol not active"}};
+	}
+
+	auto *dextra = static_cast<CDExtraClientProtocol *>(proto);
+	bool ok = dextra->RemoveMapping(localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
+
+	return {{"status", "ok"}, {"message", "DExtraClient mapping for module " + localMod + " removed"}};
+}
+
+nlohmann::json CAdminSocket::CmdDExtraMapList(void)
+{
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["mappings"] = nlohmann::json::array();
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dextraclient);
+	if (proto)
+	{
+		auto *dextra = static_cast<CDExtraClientProtocol *>(proto);
+		auto mappings = dextra->GetMappings();
+		for (const auto &m : mappings)
+		{
+			result["mappings"].push_back({
+				{"host", m.host},
+				{"port", m.port},
+				{"remote_module", std::string(1, m.remoteModule)},
+				{"local_module", std::string(1, m.localModule)},
+				{"connected", m.connected}
+			});
+		}
+	}
+	protocols.Unlock();
+
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// DPlusClient mapping management
+
+nlohmann::json CAdminSocket::CmdDPlusMapAdd(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("host") || !cmd.contains("port") || !cmd.contains("remote_module") || !cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required fields: host, port, remote_module, local_module"}};
+
+	std::string host = cmd["host"];
+	uint16_t port = cmd["port"];
+	std::string remoteMod = cmd["remote_module"];
+	std::string localMod = cmd["local_module"];
+
+	if (remoteMod.empty() || localMod.empty() || remoteMod[0] < 'A' || remoteMod[0] > 'Z' || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "modules must be A-Z"}};
+
+	if (!g_Reflector.IsValidModule(localMod[0]))
+		return {{"status", "error"}, {"message", std::string("module ") + localMod[0] + " is not configured"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dplusclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "DPlusClient protocol not active"}};
+	}
+
+	auto *dplus = static_cast<CDPlusClientProtocol *>(proto);
+	bool ok = dplus->AddMapping(host, port, remoteMod[0], localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "failed to add mapping (local module already mapped)"}};
+
+	return {{"status", "ok"}, {"message", "DPlusClient mapping " + host + ":" + std::to_string(port) + " " + remoteMod[0] + " -> " + localMod[0] + " added"}};
+}
+
+nlohmann::json CAdminSocket::CmdDPlusMapRemove(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required field: local_module"}};
+
+	std::string localMod = cmd["local_module"];
+	if (localMod.empty() || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "module must be A-Z"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dplusclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "DPlusClient protocol not active"}};
+	}
+
+	auto *dplus = static_cast<CDPlusClientProtocol *>(proto);
+	bool ok = dplus->RemoveMapping(localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
+
+	return {{"status", "ok"}, {"message", "DPlusClient mapping for module " + localMod + " removed"}};
+}
+
+nlohmann::json CAdminSocket::CmdDPlusMapList(void)
+{
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["mappings"] = nlohmann::json::array();
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::dplusclient);
+	if (proto)
+	{
+		auto *dplus = static_cast<CDPlusClientProtocol *>(proto);
+		auto mappings = dplus->GetMappings();
+		for (const auto &m : mappings)
+		{
+			result["mappings"].push_back({
+				{"host", m.host},
+				{"port", m.port},
+				{"remote_module", std::string(1, m.remoteModule)},
+				{"local_module", std::string(1, m.localModule)},
+				{"connected", m.connected}
+			});
+		}
+	}
+	protocols.Unlock();
+
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// YSFClient mapping management
+
+nlohmann::json CAdminSocket::CmdYsfMapAdd(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("host") || !cmd.contains("port") || !cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required fields: host, port, local_module"}};
+
+	std::string host = cmd["host"];
+	uint16_t port = cmd["port"];
+	std::string localMod = cmd["local_module"];
+	uint8_t dgid = cmd.contains("dgid") ? (uint8_t)(int)cmd["dgid"] : 0;
+
+	if (localMod.empty() || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "module must be A-Z"}};
+
+	if (!g_Reflector.IsValidModule(localMod[0]))
+		return {{"status", "error"}, {"message", std::string("module ") + localMod[0] + " is not configured"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::ysfclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "YSFClient protocol not active"}};
+	}
+
+	auto *ysf = static_cast<CYsfClientProtocol *>(proto);
+	bool ok = ysf->AddMapping(host, port, localMod[0], dgid);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "failed to add mapping (local module already mapped)"}};
+
+	std::string msg = "YSFClient mapping " + host + ":" + std::to_string(port) + " -> " + localMod[0];
+	if (dgid > 0) msg += " DG-ID " + std::to_string(dgid);
+	return {{"status", "ok"}, {"message", msg + " added"}};
+}
+
+nlohmann::json CAdminSocket::CmdYsfMapRemove(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("local_module"))
+		return {{"status", "error"}, {"message", "missing required field: local_module"}};
+
+	std::string localMod = cmd["local_module"];
+	if (localMod.empty() || localMod[0] < 'A' || localMod[0] > 'Z')
+		return {{"status", "error"}, {"message", "module must be A-Z"}};
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::ysfclient);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "YSFClient protocol not active"}};
+	}
+
+	auto *ysf = static_cast<CYsfClientProtocol *>(proto);
+	bool ok = ysf->RemoveMapping(localMod[0]);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
+
+	return {{"status", "ok"}, {"message", "YSFClient mapping for module " + localMod + " removed"}};
+}
+
+nlohmann::json CAdminSocket::CmdYsfMapList(void)
+{
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["mappings"] = nlohmann::json::array();
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::ysfclient);
+	if (proto)
+	{
+		auto *ysf = static_cast<CYsfClientProtocol *>(proto);
+		auto mappings = ysf->GetMappings();
+		for (const auto &m : mappings)
+		{
+			result["mappings"].push_back({
+				{"host", m.host},
+				{"port", m.port},
+				{"local_module", std::string(1, m.localModule)},
+				{"dgid", m.dgid},
+				{"connected", m.connected}
+			});
+		}
+	}
+	protocols.Unlock();
+
+	return result;
 }

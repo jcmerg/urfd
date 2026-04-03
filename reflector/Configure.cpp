@@ -93,6 +93,7 @@
 #define JYSFTXRXDB               "YSF TX/RX DB"
 #define JMMDVMCLIENT             "MMDVMClient"
 #define JSVXREFLECTOR            "SvxReflector"
+#define JDCSCLIENT               "DCSClient"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
 {
@@ -228,6 +229,14 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::svx;
 			else if (0 == hname.compare(JFILES))
 				section = ESection::files;
+			else if (0 == hname.compare(JDCSCLIENT))
+				section = ESection::dcsclient;
+			else if (0 == hname.compare("YSFClient"))
+				section = ESection::ysfclient;
+			else if (0 == hname.compare("DExtraClient"))
+				section = ESection::dextraclient;
+			else if (0 == hname.compare("DPlusClient"))
+				section = ESection::dplusclient;
 			else if (0 == hname.compare("Admin"))
 				section = ESection::admin;
 			else
@@ -586,6 +595,67 @@ bool CConfigure::ReadData(const std::string &path)
 				{
 					std::string tgkey = "svxTG" + key.substr(2);
 					data[tgkey] = value;
+				}
+				else
+					badParam(key);
+				break;
+			case ESection::ysfclient:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.ysfclient.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.ysfclient.callsign] = value;
+				else if (0 == key.compare("BlockProtocols"))
+					data[g_Keys.ysfclient.blockprotocols] = value;
+				else if (0 == key.compare(0, 3, "Map"))
+				{
+					std::string mapkey = "ysfClientMap" + key.substr(3);
+					data[mapkey] = value;
+				}
+				else
+					badParam(key);
+				break;
+			case ESection::dplusclient:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.dplusclient.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.dplusclient.callsign] = value;
+				else if (0 == key.compare("BlockProtocols"))
+					data[g_Keys.dplusclient.blockprotocols] = value;
+				else if (0 == key.compare(0, 3, "Map"))
+				{
+					std::string mapkey = "dplusClientMap" + key.substr(3);
+					data[mapkey] = value;
+				}
+				else
+					badParam(key);
+				break;
+			case ESection::dextraclient:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.dextraclient.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.dextraclient.callsign] = value;
+				else if (0 == key.compare("BlockProtocols"))
+					data[g_Keys.dextraclient.blockprotocols] = value;
+				else if (0 == key.compare(0, 3, "Map"))
+				{
+					std::string mapkey = "dextraClientMap" + key.substr(3);
+					data[mapkey] = value;
+				}
+				else
+					badParam(key);
+				break;
+			case ESection::dcsclient:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.dcsclient.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLSIGN))
+					data[g_Keys.dcsclient.callsign] = value;
+				else if (0 == key.compare("BlockProtocols"))
+					data[g_Keys.dcsclient.blockprotocols] = value;
+				else if (0 == key.compare(0, 3, "Map"))
+				{
+					// Map<N> = <Host>,<Port>,<RemoteModule>,<LocalModule>
+					std::string mapkey = "dcsClientMap" + key.substr(3);
+					data[mapkey] = value;
 				}
 				else
 					badParam(key);
