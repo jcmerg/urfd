@@ -123,6 +123,11 @@ void CDExtraClientProtocol::Task(void)
 			{
 				SendDisconnect(m);
 				m.connected = false;
+				CClients *clients = g_Reflector.GetClients();
+				auto client = clients->FindClient(m.ip, EProtocol::dextraclient);
+				if (client)
+					clients->RemoveClient(client);
+				g_Reflector.ReleaseClients();
 			}
 			m.keepaliveTimer.start();
 		}

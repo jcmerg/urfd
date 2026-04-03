@@ -124,6 +124,14 @@ void CDPlusClientProtocol::Task(void)
 				CBuffer buf;
 				EncodeDisconnectPacket(&buf);
 				Send(buf, m.ip);
+				if (m.connected)
+				{
+					CClients *clients = g_Reflector.GetClients();
+					auto client = clients->FindClient(m.ip, EProtocol::dplusclient);
+					if (client)
+						clients->RemoveClient(client);
+					g_Reflector.ReleaseClients();
+				}
 				m.connected = false;
 				m.state = EDPlusState::DISCONNECTED;
 			}
@@ -538,7 +546,8 @@ bool CDPlusClientProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer, std::uni
 
 bool CDPlusClientProtocol::IsValidDvFramePacket(const CBuffer &Buffer, std::unique_ptr<CDvFramePacket> &dvframe)
 {
-	if (0 == memcmp(Buffer.data()+2, "DSVT", 4) && 0x80u == Buffer.data()[1] &&
+	if (Buffer.size() >= 29 && 0x80u == Buffer.data()[1] &&
+		0 == memcmp(Buffer.data()+2, "DSVT", 4) &&
 		0x20u == Buffer.data()[6] && 0x20u == Buffer.data()[10])
 	{
 		if (29 == Buffer.size() && 0x1du == Buffer.data()[0])
@@ -611,18 +620,22 @@ bool CDPlusClientProtocol::EncodeDvHeaderPacket(const CDvHeaderPacket &Packet, C
 
 bool CDPlusClientProtocol::EncodeDvFramePacket(const CDvFramePacket &Packet, CBuffer &Buffer) const
 {
-	uint8_t tag[] = { 0x1D,0x80,0x44,0x53,0x56,0x54,0x20,0x00,0x00,0x00,0x20,0x00,0x01,0x02 };
-
-	Buffer.Set(tag, sizeof(tag));
-	Buffer.Append(Packet.GetStreamId());
 	if (Packet.IsLastPacket())
 	{
+		// last frame: 32 bytes (tag byte 0x20)
+		uint8_t tag[] = { 0x20,0x80,0x44,0x53,0x56,0x54,0x20,0x00,0x00,0x00,0x20,0x00,0x01,0x02 };
 		uint8_t endtag[] = { 0x55,0xC8,0x7A,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x25,0x1A,0xC6 };
+		Buffer.Set(tag, sizeof(tag));
+		Buffer.Append(Packet.GetStreamId());
 		Buffer.Append((uint8_t)((Packet.GetPacketId() % 21) | 0x40));
 		Buffer.Append(endtag, sizeof(endtag));
 	}
 	else
 	{
+		// normal frame: 29 bytes (tag byte 0x1D)
+		uint8_t tag[] = { 0x1D,0x80,0x44,0x53,0x56,0x54,0x20,0x00,0x00,0x00,0x20,0x00,0x01,0x02 };
+		Buffer.Set(tag, sizeof(tag));
+		Buffer.Append(Packet.GetStreamId());
 		Buffer.Append((uint8_t)(Packet.GetPacketId() % 21));
 		Buffer.Append((uint8_t *)Packet.GetCodecData(ECodecType::dstar), 9);
 		Buffer.Append((uint8_t *)Packet.GetDvData(), 3);

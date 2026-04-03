@@ -34,9 +34,11 @@ bool CYsfClientProtocol::Initialize(const char *type, const EProtocol ptype, con
 		const std::map<std::string, EProtocol> protoMap = {
 			{"SvxReflector", EProtocol::svxreflector}, {"DExtra", EProtocol::dextra},
 			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
-			{"DCSClient", EProtocol::dcsclient}, {"DMRPlus", EProtocol::dmrplus},
-			{"MMDVM", EProtocol::dmrmmdvm}, {"MMDVMClient", EProtocol::mmdvmclient},
-			{"YSF", EProtocol::ysf}, {"M17", EProtocol::m17},
+			{"DCSClient", EProtocol::dcsclient}, {"DExtraClient", EProtocol::dextraclient},
+			{"DPlusClient", EProtocol::dplusclient}, {"YSFClient", EProtocol::ysfclient},
+			{"DMRPlus", EProtocol::dmrplus}, {"MMDVM", EProtocol::dmrmmdvm},
+			{"MMDVMClient", EProtocol::mmdvmclient}, {"YSF", EProtocol::ysf},
+			{"M17", EProtocol::m17},
 			{"NXDN", EProtocol::nxdn}, {"P25", EProtocol::p25},
 			{"USRP", EProtocol::usrp}, {"URF", EProtocol::urf},
 			{"XLXPeer", EProtocol::xlxpeer}, {"G3", EProtocol::g3},
@@ -143,6 +145,11 @@ void CYsfClientProtocol::Task(void)
 			{
 				SendDisconnect(m);
 				m.connected = false;
+				CClients *clients = g_Reflector.GetClients();
+				auto client = clients->FindClient(m.ip, EProtocol::ysfclient);
+				if (client)
+					clients->RemoveClient(client);
+				g_Reflector.ReleaseClients();
 			}
 			m.pollTimer.start();
 		}

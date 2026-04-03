@@ -28,6 +28,8 @@ bool CDcsClientProtocol::Initialize(const char *type, const EProtocol ptype, con
 		const std::map<std::string, EProtocol> protoMap = {
 			{"SvxReflector", EProtocol::svxreflector}, {"DExtra", EProtocol::dextra},
 			{"DPlus", EProtocol::dplus}, {"DCS", EProtocol::dcs},
+			{"DCSClient", EProtocol::dcsclient}, {"DExtraClient", EProtocol::dextraclient},
+			{"DPlusClient", EProtocol::dplusclient}, {"YSFClient", EProtocol::ysfclient},
 			{"DMRPlus", EProtocol::dmrplus}, {"MMDVM", EProtocol::dmrmmdvm},
 			{"MMDVMClient", EProtocol::mmdvmclient}, {"YSF", EProtocol::ysf},
 			{"M17", EProtocol::m17}, {"NXDN", EProtocol::nxdn},
@@ -131,6 +133,12 @@ void CDcsClientProtocol::Task(void)
 			{
 				SendDisconnect(m);
 				m.connected = false;
+				// remove virtual client
+				CClients *clients = g_Reflector.GetClients();
+				auto client = clients->FindClient(m.ip, EProtocol::dcsclient);
+				if (client)
+					clients->RemoveClient(client);
+				g_Reflector.ReleaseClients();
 			}
 			m.reconnectTimer.start();
 		}
