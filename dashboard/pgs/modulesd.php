@@ -221,23 +221,22 @@ if (count($Modules) == 0) {
             <th>Type</th>
         </tr>
 <?php
+    // client protocols connect outbound to external reflectors, hide from display
+    $hiddenProtos = array('MMDVMClient', 'DCSClient', 'DExtraClient', 'DPlusClient', 'YSFClient', 'SvxReflector');
+
     $protoTypes = array(
         'DExtra' => 'D-Star', 'DPlus' => 'D-Star', 'DCS' => 'D-Star',
-        'MMDVM' => 'DMR', 'DMRPlus' => 'DMR', 'XLXPeer' => 'XLX/BM Peering', 'MMDVMClient' => 'DMR',
+        'MMDVM' => 'DMR', 'DMRPlus' => 'DMR', 'XLXPeer' => 'XLX/BM Peering',
         'M17' => 'M17', 'YSF' => 'YSF/C4FM', 'P25' => 'P25', 'NXDN' => 'NXDN',
         'URF' => 'URF Interlink', 'G3' => 'D-Star (G3)', 'USRP' => 'AllStar/USRP',
-        'DCSClient' => 'D-Star (Client)', 'DExtraClient' => 'D-Star (Client)',
-        'DPlusClient' => 'D-Star (Client)',
-        'YSFClient' => 'YSF/C4FM (Client)',
-        'SvxReflector' => 'FM/SvxLink',
     );
 
     foreach ($xmlProtocols as $proto) {
+        if (in_array($proto['name'], $hiddenProtos)) continue;
         $type = isset($protoTypes[$proto['name']]) ? $protoTypes[$proto['name']] : 'Other';
-        $portDisplay = ($proto['port'] == '0') ? '<span class="text-muted">dynamic</span>' : htmlspecialchars($proto['port']);
         echo '<tr class="table-center">';
         echo '<td><strong>' . htmlspecialchars($proto['name']) . '</strong></td>';
-        echo '<td>' . $portDisplay . '</td>';
+        echo '<td>' . htmlspecialchars($proto['port']) . '</td>';
         echo '<td>' . htmlspecialchars($type) . '</td>';
         echo '</tr>';
     }
