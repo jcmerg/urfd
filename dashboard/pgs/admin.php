@@ -79,24 +79,24 @@ function refreshTGList() {
         if (resp.status === 'ok' && resp.mappings) {
             resp.mappings.forEach(function(m) {
                 var typeLabel;
-                if (m['static'] && m['primary']) typeLabel = '<span class="label label-info">statisch</span>';
-                else if (m['static'] && !m['primary']) typeLabel = '<span class="label label-default">statisch (secondary)</span>';
-                else if (m['primary']) typeLabel = '<span class="label label-warning">dynamisch</span>';
-                else typeLabel = '<span class="label label-warning">dynamisch (secondary)</span>';
+                if (m['static'] && m['primary']) typeLabel = '<span class="label label-info">static</span>';
+                else if (m['static'] && !m['primary']) typeLabel = '<span class="label label-default">static (secondary)</span>';
+                else if (m['primary']) typeLabel = '<span class="label label-warning">dynamic</span>';
+                else typeLabel = '<span class="label label-warning">dynamic (secondary)</span>';
 
                 var timeoutStr = m['static'] ? '-' :
                     '<span class="label label-default">' + formatSeconds(m.remaining) + '</span>';
                 var actions = '';
                 if (!m['static']) {
-                    actions += '<button class="btn btn-xs btn-danger" onclick="removeTG(\'' + m.protocol + '\',' + m.tg + ')">Entfernen</button> ';
+                    actions += '<button class="btn btn-xs btn-danger" onclick="removeTG(\'' + m.protocol + '\',' + m.tg + ')">Remove</button> ';
                 }
                 if (m.protocol === 'mmdvmclient' && !m['static']) {
-                    actions += '<button class="btn btn-xs btn-info" onclick="doKerchunk(' + m.tg + ')" title="Kerchunk an BrandMeister senden">Kerchunk</button>';
+                    actions += '<button class="btn btn-xs btn-info" onclick="doKerchunk(' + m.tg + ')" title="Send kerchunk to BrandMeister">Kerchunk</button>';
                 }
                 var dirStr = m['primary'] ? 'TX/RX' : 'RX';
                 tbody.append(
                     '<tr>' +
-                    '<td>' + m.protocol.toUpperCase() + '</td>' +
+                    '<td>' + ({mmdvmclient:'MMDVMClient',svxreflector:'SvxReflector'}[m.protocol] || m.protocol) + '</td>' +
                     '<td>' + m.tg + '</td>' +
                     '<td>' + m.module + '</td>' +
                     '<td>' + (m.ts || '-') + '</td>' +
@@ -109,7 +109,7 @@ function refreshTGList() {
             });
         }
         if (resp.mappings && resp.mappings.length === 0) {
-            tbody.append('<tr><td colspan="8" class="text-center">Keine TG-Mappings konfiguriert</td></tr>');
+            tbody.append('<tr><td colspan="8" class="text-center">No TG mappings configured</td></tr>');
         }
     });
 }
@@ -161,8 +161,8 @@ function refreshDcsMapList() {
         if (--pending > 0) return;
         allMappings.forEach(function(m) {
             var connLabel = m.connected ?
-                '<span class="label label-success">verbunden</span>' :
-                '<span class="label label-danger">getrennt</span>';
+                '<span class="label label-success">connected</span>' :
+                '<span class="label label-danger">disconnected</span>';
             tbody.append(
                 '<tr>' +
                 '<td>' + m.proto + '</td>' +
@@ -170,12 +170,12 @@ function refreshDcsMapList() {
                 '<td>' + m.remote_module + '</td>' +
                 '<td>' + m.local_module + '</td>' +
                 '<td>' + connLabel + '</td>' +
-                '<td><button class="btn btn-xs btn-danger" onclick="removeDstarMap(\'' + m.proto_key + '\',\'' + m.local_module + '\')">Entfernen</button></td>' +
+                '<td><button class="btn btn-xs btn-danger" onclick="removeDstarMap(\'' + m.proto_key + '\',\'' + m.local_module + '\')">Remove</button></td>' +
                 '</tr>'
             );
         });
         if (allMappings.length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center">Keine D-Star Client Mappings konfiguriert</td></tr>');
+            tbody.append('<tr><td colspan="6" class="text-center">No D-Star client mappings configured</td></tr>');
         }
     }
     $.each([
@@ -225,8 +225,8 @@ function refreshYsfMapList() {
         if (resp.status === 'ok' && resp.mappings) {
             resp.mappings.forEach(function(m) {
                 var connLabel = m.connected ?
-                    '<span class="label label-success">verbunden</span>' :
-                    '<span class="label label-danger">getrennt</span>';
+                    '<span class="label label-success">connected</span>' :
+                    '<span class="label label-danger">disconnected</span>';
                 var dgidLabel = m.dgid > 0 ? m.dgid : '-';
                 tbody.append(
                     '<tr>' +
@@ -234,13 +234,13 @@ function refreshYsfMapList() {
                     '<td>' + m.local_module + '</td>' +
                     '<td>' + dgidLabel + '</td>' +
                     '<td>' + connLabel + '</td>' +
-                    '<td><button class="btn btn-xs btn-danger" onclick="removeYsfMap(\'' + m.local_module + '\')">Entfernen</button></td>' +
+                    '<td><button class="btn btn-xs btn-danger" onclick="removeYsfMap(\'' + m.local_module + '\')">Remove</button></td>' +
                     '</tr>'
                 );
             });
         }
         if (!resp.mappings || resp.mappings.length === 0) {
-            tbody.append('<tr><td colspan="5" class="text-center">Keine YSF-Mappings konfiguriert</td></tr>');
+            tbody.append('<tr><td colspan="5" class="text-center">No YSF mappings configured</td></tr>');
         }
     });
 }
@@ -269,7 +269,7 @@ function removeYsfMap(localMod) {
 function doToggleBlock(action, a, b) {
     if (!a) a = $('#block-proto-a').val();
     if (!b) b = $('#block-proto-b').val();
-    if (!a || !b || a === b) { alert('Zwei verschiedene Protokolle auswählen'); return; }
+    if (!a || !b || a === b) { alert('Select two different protocols'); return; }
     adminPost({action: action, a: a, b: b}, function(resp) {
         showAlert(resp);
         refreshStatus();
@@ -322,9 +322,9 @@ function refreshStatus() {
             var protoSel = $('#add-protocol');
             protoSel.empty();
             if (resp.mmdvm_active) protoSel.append('<option value="mmdvmclient">MMDVMClient</option>');
-            if (resp.svx_active) protoSel.append('<option value="svx">SVX</option>');
+            if (resp.svx_active) protoSel.append('<option value="svxreflector">SvxReflector</option>');
             if (!resp.mmdvm_active && !resp.svx_active) {
-                protoSel.append('<option value="">Kein TG-Protokoll aktiv</option>');
+                protoSel.append('<option value="">No TG protocol active</option>');
             }
             protoSel.trigger('change');
             // Reconnect buttons
@@ -349,12 +349,12 @@ function refreshStatus() {
                     var parts = k.split('|');
                     html += '<span class="label label-danger" style="margin-right:4px;cursor:pointer;" '
                         + 'onclick="doToggleBlock(\'unblock\',\'' + parts[0] + '\',\'' + parts[1] + '\')" '
-                        + 'title="Klick zum Aufheben">'
+                        + 'title="Click to unblock">'
                         + parts[0] + ' &#8596; ' + parts[1] + ' &#10005;</span> ';
                 }
                 $('#block-rules').html(html);
             } else {
-                $('#block-rules').html('<span class="label label-success">Keine Blockierungen</span>');
+                $('#block-rules').html('<span class="label label-success">No active blocks</span>');
             }
 
             // Populate protocol dropdowns from active protocols
@@ -381,8 +381,8 @@ function refreshTCStats() {
             var codecNames = {0:'-', 1:'D-Star', 2:'DMR', 3:'Codec2/1600', 4:'Codec2/3200', 5:'P25', 6:'USRP/PCM', 7:'SVX/OPUS'};
             resp.modules.forEach(function(m) {
                 var connLabel = m.connected ?
-                    '<span class="label label-success">verbunden</span>' :
-                    '<span class="label label-danger">getrennt</span>';
+                    '<span class="label label-success">connected</span>' :
+                    '<span class="label label-danger">disconnected</span>';
                 var streamLabel = m.streaming ?
                     '<span class="label label-info">' + (m.user || '?') + '</span>' :
                     '<span class="label label-default">idle</span>';
@@ -413,7 +413,7 @@ function refreshTCStats() {
             });
         }
         if (!resp.modules || resp.modules.length === 0) {
-            tbody.append('<tr><td colspan="7" class="text-center">Keine transcodierten Module</td></tr>');
+            tbody.append('<tr><td colspan="7" class="text-center">No transcoded modules</td></tr>');
         }
     });
 }
@@ -497,18 +497,18 @@ $(document).ready(function() {
         <div class="well">
             <form class="form-inline add-tg-form" onsubmit="addTG(); return false;">
                 <div class="form-group">
-                    <label>Protokoll</label>
+                    <label>Protocol</label>
                     <select class="form-control" id="add-protocol">
                         <option value="mmdvmclient">MMDVMClient</option>
-                        <option value="svx">SVX</option>
+                        <option value="svxreflector">SvxReflector</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Talkgroup</label>
-                    <input type="number" class="form-control" id="add-tg" placeholder="z.B. 26207" style="width:120px;" required>
+                    <input type="number" class="form-control" id="add-tg" placeholder="e.g. 26207" style="width:120px;" required>
                 </div>
                 <div class="form-group">
-                    <label>Modul</label>
+                    <label>Module</label>
                     <select class="form-control" id="add-module" style="width:80px;" required>
                         <option value="">-</option>
                     </select>
@@ -521,12 +521,12 @@ $(document).ready(function() {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Timeout (Sek.)</label>
+                    <label>Timeout (sec)</label>
                     <input type="number" class="form-control" id="add-ttl" value="900" style="width:100px;">
                 </div>
                 <div class="form-group" style="vertical-align:bottom;">
                     <label>&nbsp;</label>
-                    <button type="submit" class="btn btn-success" style="display:block;">Aktivieren</button>
+                    <button type="submit" class="btn btn-success" style="display:block;">Add</button>
                 </div>
             </form>
         </div>
@@ -535,21 +535,21 @@ $(document).ready(function() {
         <table class="table table-striped table-condensed">
             <thead>
                 <tr>
-                    <th>Protokoll</th>
+                    <th>Protocol</th>
                     <th>Talkgroup</th>
-                    <th>Modul</th>
+                    <th>Module</th>
                     <th>Timeslot</th>
-                    <th>Typ</th>
-                    <th>Richtung</th>
+                    <th>Type</th>
+                    <th>Direction</th>
                     <th>Timeout</th>
-                    <th>Aktionen</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="tg-table-body">
-                <tr><td colspan="8" class="text-center">Laden...</td></tr>
+                <tr><td colspan="8" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
-        <button class="btn btn-default btn-sm" onclick="refreshTGList()">Aktualisieren</button>
+        <button class="btn btn-default btn-sm" onclick="refreshTGList()">Refresh</button>
     </div>
 
     <!-- D-Star Client Mappings (DCS, DExtra, DPlus) -->
@@ -558,7 +558,7 @@ $(document).ready(function() {
         <div class="well">
             <form class="form-inline add-tg-form" onsubmit="addDcsMap(); return false;">
                 <div class="form-group">
-                    <label>Protokoll</label>
+                    <label>Protocol</label>
                     <select class="form-control" id="dcs-proto" style="width:100px;" onchange="var p={dcs:30051,dextra:30001,dplus:20001};$('#dcs-port').val(p[this.value]||30051);">
                         <option value="dcs">DCS</option>
                         <option value="dextra">DExtra</option>
@@ -567,46 +567,46 @@ $(document).ready(function() {
                 </div>
                 <div class="form-group">
                     <label>Host</label>
-                    <input type="text" class="form-control" id="dcs-host" placeholder="z.B. dcs001.xreflector.net" style="width:220px;" required>
+                    <input type="text" class="form-control" id="dcs-host" placeholder="e.g. dcs001.xreflector.net" style="width:220px;" required>
                 </div>
                 <div class="form-group">
                     <label>Port</label>
                     <input type="number" class="form-control" id="dcs-port" value="30051" style="width:90px;">
                 </div>
                 <div class="form-group">
-                    <label>Remote Modul</label>
+                    <label>Remote Module</label>
                     <select class="form-control" id="dcs-remote-mod" style="width:70px;">
                         <script>for(var i=65;i<=90;i++) document.write('<option value="'+String.fromCharCode(i)+'">'+String.fromCharCode(i)+'</option>');</script>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Lokal Modul</label>
+                    <label>Local Module</label>
                     <select class="form-control" id="dcs-local-mod" style="width:70px;">
                         <option value="">-</option>
                     </select>
                 </div>
                 <div class="form-group" style="vertical-align:bottom;">
                     <label>&nbsp;</label>
-                    <button type="submit" class="btn btn-success" style="display:block;">Verbinden</button>
+                    <button type="submit" class="btn btn-success" style="display:block;">Connect</button>
                 </div>
             </form>
         </div>
         <table class="table table-striped table-condensed">
             <thead>
                 <tr>
-                    <th>Protokoll</th>
+                    <th>Protocol</th>
                     <th>Reflector</th>
-                    <th>Remote Modul</th>
-                    <th>Lokal Modul</th>
+                    <th>Remote Module</th>
+                    <th>Local Module</th>
                     <th>Status</th>
-                    <th>Aktionen</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="dcs-map-table-body">
-                <tr><td colspan="6" class="text-center">Laden...</td></tr>
+                <tr><td colspan="6" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
-        <button class="btn btn-default btn-sm" onclick="refreshDcsMapList()">Aktualisieren</button>
+        <button class="btn btn-default btn-sm" onclick="refreshDcsMapList()">Refresh</button>
     </div>
 
     <!-- YSF Client Mapping -->
@@ -616,14 +616,14 @@ $(document).ready(function() {
             <form class="form-inline add-tg-form" onsubmit="addYsfMap(); return false;">
                 <div class="form-group">
                     <label>Host</label>
-                    <input type="text" class="form-control" id="ysf-host" placeholder="z.B. ysf.reflector.net" style="width:220px;" required>
+                    <input type="text" class="form-control" id="ysf-host" placeholder="e.g. ysf.reflector.net" style="width:220px;" required>
                 </div>
                 <div class="form-group">
                     <label>Port</label>
                     <input type="number" class="form-control" id="ysf-port" value="42000" style="width:90px;">
                 </div>
                 <div class="form-group">
-                    <label>Lokal Modul</label>
+                    <label>Local Module</label>
                     <select class="form-control" id="ysf-local-mod" style="width:70px;">
                         <option value="">-</option>
                     </select>
@@ -634,7 +634,7 @@ $(document).ready(function() {
                 </div>
                 <div class="form-group" style="vertical-align:bottom;">
                     <label>&nbsp;</label>
-                    <button type="submit" class="btn btn-success" style="display:block;">Verbinden</button>
+                    <button type="submit" class="btn btn-success" style="display:block;">Connect</button>
                 </div>
             </form>
         </div>
@@ -642,17 +642,17 @@ $(document).ready(function() {
             <thead>
                 <tr>
                     <th>Reflector</th>
-                    <th>Lokal Modul</th>
+                    <th>Local Module</th>
                     <th>DG-ID</th>
                     <th>Status</th>
-                    <th>Aktionen</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="ysf-map-table-body">
-                <tr><td colspan="4" class="text-center">Laden...</td></tr>
+                <tr><td colspan="4" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
-        <button class="btn btn-default btn-sm" onclick="refreshYsfMapList()">Aktualisieren</button>
+        <button class="btn btn-default btn-sm" onclick="refreshYsfMapList()">Refresh</button>
     </div>
 
     <!-- Transcoder Statistics -->
@@ -661,27 +661,27 @@ $(document).ready(function() {
         <table class="table table-striped table-condensed">
             <thead>
                 <tr>
-                    <th>Modul</th>
-                    <th>Verbindung</th>
+                    <th>Module</th>
+                    <th>Connection</th>
                     <th>Stream</th>
                     <th>Codec</th>
-                    <th>Pakete</th>
+                    <th>Packets</th>
                     <th>Mismatches</th>
                     <th>RTT (min/avg/max)</th>
                 </tr>
             </thead>
             <tbody id="tc-table-body">
-                <tr><td colspan="8" class="text-center">Laden...</td></tr>
+                <tr><td colspan="8" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
-        <button class="btn btn-default btn-sm" onclick="refreshTCStats()">Aktualisieren</button>
+        <button class="btn btn-default btn-sm" onclick="refreshTCStats()">Refresh</button>
     </div>
 
     <!-- Protocol Controls -->
     <div class="admin-section">
-        <h4>Protokoll-Steuerung</h4>
+        <h4>Protocol Controls</h4>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-mmdvm" onclick="doReconnect('mmdvmclient')">MMDVMClient Reconnect</button>
-        <button class="btn btn-warning btn-sm" id="btn-reconnect-svx" onclick="doReconnect('svx')">SVX Reconnect</button>
+        <button class="btn btn-warning btn-sm" id="btn-reconnect-svx" onclick="doReconnect('svxreflector')">SvxReflector Reconnect</button>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-dcsclient" onclick="doReconnect('dcsclient')" style="display:none;">DCS Client Reconnect</button>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-dextraclient" onclick="doReconnect('dextraclient')" style="display:none;">DExtra Client Reconnect</button>
         <button class="btn btn-warning btn-sm" id="btn-reconnect-dplusclient" onclick="doReconnect('dplusclient')" style="display:none;">DPlus Client Reconnect</button>
@@ -693,7 +693,7 @@ $(document).ready(function() {
             <select id="block-proto-b" class="form-control input-sm" style="width:140px;display:inline-block;"></select>
             <button class="btn btn-danger btn-sm" onclick="doToggleBlock('block')">Block</button>
             <button class="btn btn-success btn-sm" onclick="doToggleBlock('unblock')">Unblock</button>
-            <button class="btn btn-default btn-sm" onclick="doBlockReset()">Reset auf Config-Default</button>
+            <button class="btn btn-default btn-sm" onclick="doBlockReset()">Reset to Config Default</button>
         </div>
     </div>
 
@@ -710,7 +710,7 @@ $(document).ready(function() {
     <div class="admin-section">
         <h4>Log</h4>
         <pre id="log-output" style="max-height:300px;overflow-y:auto;font-size:11px;background:#1a1a1a;color:#ccc;padding:8px;border:1px solid #333;"></pre>
-        <button class="btn btn-default btn-sm" onclick="refreshLog()">Aktualisieren</button>
+        <button class="btn btn-default btn-sm" onclick="refreshLog()">Refresh</button>
     </div>
 
     <hr>

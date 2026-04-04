@@ -26,7 +26,7 @@
 #define ADMIN_MAX_MSG_SIZE        8192
 
 static const std::map<std::string, EProtocol> s_NameToProto = {
-	{"MMDVMClient", EProtocol::mmdvmclient}, {"SVX", EProtocol::svxreflector},
+	{"MMDVMClient", EProtocol::mmdvmclient}, {"SvxReflector", EProtocol::svxreflector},
 	{"DCSClient", EProtocol::dcsclient}, {"DExtraClient", EProtocol::dextraclient},
 	{"DPlusClient", EProtocol::dplusclient}, {"YSFClient", EProtocol::ysfclient},
 	{"DExtra", EProtocol::dextra}, {"DPlus", EProtocol::dplus},
@@ -39,7 +39,7 @@ static const std::map<std::string, EProtocol> s_NameToProto = {
 };
 
 static const std::map<EProtocol, std::string> s_ProtoToName = {
-	{EProtocol::mmdvmclient, "MMDVMClient"}, {EProtocol::svxreflector, "SVX"},
+	{EProtocol::mmdvmclient, "MMDVMClient"}, {EProtocol::svxreflector, "SvxReflector"},
 	{EProtocol::dcsclient, "DCSClient"}, {EProtocol::dextraclient, "DExtraClient"},
 	{EProtocol::dplusclient, "DPlusClient"}, {EProtocol::ysfclient, "YSFClient"},
 	{EProtocol::dextra, "DExtra"}, {EProtocol::dplus, "DPlus"},
@@ -380,7 +380,7 @@ nlohmann::json CAdminSocket::CmdTGAdd(const nlohmann::json &cmd)
 		std::string method = mmdvm->GetBmApi().IsConfigured() ? "API" : "kerchunk";
 		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " -> Module " + module + " added via " + method}};
 	}
-	else if (protocol == "svx")
+	else if (protocol == "svxreflector")
 	{
 		auto &protocols = g_Reflector.GetProtocols();
 		protocols.Lock();
@@ -442,7 +442,7 @@ nlohmann::json CAdminSocket::CmdTGRemove(const nlohmann::json &cmd)
 
 		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " removed"}};
 	}
-	else if (protocol == "svx")
+	else if (protocol == "svxreflector")
 	{
 		auto &protocols = g_Reflector.GetProtocols();
 		protocols.Lock();
@@ -500,7 +500,7 @@ nlohmann::json CAdminSocket::CmdTGList(const nlohmann::json &cmd)
 		}
 	}
 
-	if (protocol == "all" || protocol == "svx")
+	if (protocol == "all" || protocol == "svxreflector")
 	{
 		auto *proto = protocols.FindByType(EProtocol::svxreflector);
 		if (proto)
@@ -510,7 +510,7 @@ nlohmann::json CAdminSocket::CmdTGList(const nlohmann::json &cmd)
 			for (const auto &m : mappings)
 			{
 				result["mappings"].push_back({
-					{"protocol", "svx"},
+					{"protocol", "svxreflector"},
 					{"tg", m.tg},
 					{"module", std::string(1, m.module)},
 					{"static", m.is_static},
@@ -602,7 +602,7 @@ nlohmann::json CAdminSocket::CmdReconnect(const nlohmann::json &cmd)
 			return {{"status", "ok"}, {"message", "MMDVMClient reconnect requested"}};
 		}
 	}
-	else if (protocol == "svx")
+	else if (protocol == "svxreflector")
 	{
 		auto *proto = protocols.FindByType(EProtocol::svxreflector);
 		if (proto)
