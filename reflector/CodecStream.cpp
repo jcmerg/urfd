@@ -31,6 +31,10 @@
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
 #include "NXDNProtocol.h"
+#include "DCSClientProtocol.h"
+#include "DExtraClientProtocol.h"
+#include "DPlusClientProtocol.h"
+#include "YSFClientProtocol.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
@@ -126,11 +130,15 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 				case EProtocol::p25:         shortName = "P25"; break;
 				case EProtocol::nxdn:        shortName = "NXDN"; break;
 				case EProtocol::usrp:        shortName = "USRP"; break;
+				case EProtocol::dcsclient:   shortName = "DCS"; break;
+				case EProtocol::dextraclient:shortName = "DExtra"; break;
+				case EProtocol::dplusclient: shortName = "DPlus"; break;
+				case EProtocol::ysfclient:   shortName = "YSF"; break;
 				default:                     shortName = owner->GetProtocolName(); break;
 			}
 			msg = std::string("via ") + shortName;
 
-			// Append TG/DG-ID info — query protocol TG maps (includes dynamic TGs)
+			// Append TG/DG-ID/module info — query protocol TG/mapping data
 			if (proto == EProtocol::svxreflector || proto == EProtocol::mmdvmclient)
 			{
 				auto &protocols = g_Reflector.GetProtocols();
@@ -169,6 +177,78 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 				uint8_t ran = CNXDNProtocol::ModuleToRAN(m_CSModule);
 				if (ran != 0)
 					msg += " RAN" + std::to_string(ran);
+			}
+			else if (proto == EProtocol::dcsclient || proto == EProtocol::dextraclient || proto == EProtocol::dplusclient)
+			{
+				// Show remote host + module, e.g. "via DCS DCS002 A"
+				auto &protocols = g_Reflector.GetProtocols();
+				protocols.Lock();
+				auto *p = protocols.FindByType(proto);
+				if (p)
+				{
+					if (proto == EProtocol::dcsclient)
+					{
+						auto *cp = static_cast<CDcsClientProtocol *>(p);
+						for (auto &m : cp->GetMappings())
+							if (m.localModule == m_CSModule)
+							{
+								// extract reflector name from host (e.g. "dcs002.xreflector.net" -> "DCS002")
+								std::string h = m.host;
+								auto dot = h.find('.');
+								if (dot != std::string::npos) h = h.substr(0, dot);
+								for (auto &c : h) c = toupper(c);
+								msg = "via " + h + " " + m.remoteModule;
+								break;
+							}
+					}
+					else if (proto == EProtocol::dextraclient)
+					{
+						auto *cp = static_cast<CDExtraClientProtocol *>(p);
+						for (auto &m : cp->GetMappings())
+							if (m.localModule == m_CSModule)
+							{
+								std::string h = m.host;
+								auto dot = h.find('.');
+								if (dot != std::string::npos) h = h.substr(0, dot);
+								for (auto &c : h) c = toupper(c);
+								msg = "via " + h + " " + m.remoteModule;
+								break;
+							}
+					}
+					else
+					{
+						auto *cp = static_cast<CDPlusClientProtocol *>(p);
+						for (auto &m : cp->GetMappings())
+							if (m.localModule == m_CSModule)
+							{
+								std::string h = m.host;
+								auto dot = h.find('.');
+								if (dot != std::string::npos) h = h.substr(0, dot);
+								for (auto &c : h) c = toupper(c);
+								msg = "via " + h + " " + m.remoteModule;
+								break;
+							}
+					}
+				}
+				protocols.Unlock();
+			}
+			else if (proto == EProtocol::ysfclient)
+			{
+				// Show DG-ID if configured, e.g. "via YSF DG15"
+				auto &protocols = g_Reflector.GetProtocols();
+				protocols.Lock();
+				auto *p = protocols.FindByType(EProtocol::ysfclient);
+				if (p)
+				{
+					auto *cp = static_cast<CYsfClientProtocol *>(p);
+					for (auto &m : cp->GetMappings())
+						if (m.localModule == m_CSModule && m.dgid > 0)
+						{
+							msg += " DG" + std::to_string(m.dgid);
+							break;
+						}
+				}
+				protocols.Unlock();
 			}
 
 			// D-Star text message is max 20 chars

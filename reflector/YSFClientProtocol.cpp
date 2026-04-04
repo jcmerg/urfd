@@ -723,9 +723,13 @@ bool CYsfClientProtocol::EncodeYSFHeaderPacket(const CDvHeaderPacket &Header, ui
 	fich.setSQ(dgid);
 	fich.encode(fichd);
 	Buffer->Append(fichd, YSF_FICH_LENGTH_BYTES);
-	// payload
+	// payload: csd1 = radio(10) + source callsign(10), csd2 = unused(20)
 	unsigned char csd1[20U], csd2[20U];
-	memset(csd1, '*', YSF_CALLSIGN_LENGTH);
+	// radio field: reflector callsign (e.g. "URF363    ")
+	memset(csd1, ' ', YSF_CALLSIGN_LENGTH);
+	g_Reflector.GetCallsign().GetCallsignString((char *)csd1);
+	csd1[::strlen((char *)csd1)] = ' ';
+	// source callsign
 	memset(csd1 + YSF_CALLSIGN_LENGTH, ' ', YSF_CALLSIGN_LENGTH);
 	Header.GetMyCallsign().GetCallsignString(sz);
 	memcpy(csd1 + YSF_CALLSIGN_LENGTH, sz, ::strlen(sz));
@@ -795,7 +799,8 @@ bool CYsfClientProtocol::EncodeYSFPacket(const CDvHeaderPacket &Header, const CD
 		payload.writeVDMode2Data(temp, (const unsigned char*)m_szCallsign);
 		break;
 	case 5:
-		payload.writeVDMode2Data(temp, (const unsigned char*)"     G0gBJ");
+		// reflector callsign in DT2 slot 5
+		payload.writeVDMode2Data(temp, (const unsigned char*)m_szCallsign);
 		break;
 	case 6:
 		payload.writeVDMode2Data(temp, gps);
@@ -837,8 +842,11 @@ bool CYsfClientProtocol::EncodeLastYSFPacket(const CDvHeaderPacket &Header, uint
 	fich.setSQ(dgid);
 	fich.encode(fichd);
 	Buffer->Append(fichd, YSF_FICH_LENGTH_BYTES);
+	// payload: csd1 = radio(10) + source callsign(10), csd2 = unused(20)
 	unsigned char csd1[20U], csd2[20U];
-	memset(csd1, '*', YSF_CALLSIGN_LENGTH);
+	memset(csd1, ' ', YSF_CALLSIGN_LENGTH);
+	g_Reflector.GetCallsign().GetCallsignString((char *)csd1);
+	csd1[::strlen((char *)csd1)] = ' ';
 	memset(csd1 + YSF_CALLSIGN_LENGTH, ' ', YSF_CALLSIGN_LENGTH);
 	Header.GetMyCallsign().GetCallsignString(sz);
 	memcpy(csd1 + YSF_CALLSIGN_LENGTH, sz, ::strlen(sz));

@@ -51,7 +51,7 @@ RxGain = 0               # Incoming audio gain in dB (-40 to +40, default 0)
 TxGain = 0               # Outgoing audio gain in dB (-40 to +40, default 0)
 ```
 
-**BlockProtocols** (MMDVMClient and SvxReflector): Prevents audio routing between the specified protocols bidirectionally. Available protocols: `MMDVM` (direct hotspots), `MMDVMClient` (BM connection), `SvxReflector`, `DExtra`, `DPlus`, `DCS`, `DMRPlus`, `YSF`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
+**BlockProtocols** (all client protocols): Supported on MMDVMClient, SvxReflector, DCSClient, DExtraClient, DPlusClient, and YSFClient. Prevents audio from the listed source protocols from being routed through this connector. Each client protocol also always blocks self-routing (e.g. DCSClient never routes DCSClient-originated audio back out). Available protocol names: `MMDVM`, `MMDVMClient`, `SvxReflector`, `DExtra`, `DExtraClient`, `DPlus`, `DPlusClient`, `DCS`, `DCSClient`, `DMRPlus`, `YSF`, `YSFClient`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain.
 
@@ -301,7 +301,7 @@ Complete redesign with dark mode theme.
 **New pages:**
 - **Active Users** - Connected nodes per module in card layout
 - **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, NXDN RANs, mappings (static + dynamic), transcoder status, connected nodes. Protocol columns hidden when disabled.
-- **Enabled Protocols** - All active protocols with ports and type classification
+- **Enabled Protocols** - Server-side protocols with ports and type classification (client protocols like MMDVMClient, SvxReflector, D-Star/YSF clients are hidden as they connect outbound)
 
 **Features:**
 - Dark mode with CSS custom properties
