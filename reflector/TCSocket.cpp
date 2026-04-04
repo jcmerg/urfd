@@ -529,6 +529,8 @@ bool CTCClient::Connect(char module, bool blocking)
 void CTCClient::ReConnect() // and sometimes ping
 {
 	static std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+	static std::chrono::steady_clock::time_point last_attempt = {};
+	static double backoff_secs = 0.0;
 	auto now = std::chrono::system_clock::now();
 	std::chrono::duration<double> secs = now - start;
 
@@ -536,15 +538,44 @@ void CTCClient::ReConnect() // and sometimes ping
 	for (char m : m_Modules)
 		IsModuleConnected(m);
 
+	// Check if any module needs reconnecting
+	bool need_reconnect = false;
 	for (char m : m_Modules)
+		if (0 > GetFD(m)) { need_reconnect = true; break; }
+
+	if (need_reconnect)
 	{
-		if (0 > GetFD(m))
+		auto steady_now = std::chrono::steady_clock::now();
+		std::chrono::duration<double> since_last = steady_now - last_attempt;
+
+		if (since_last.count() >= backoff_secs)
 		{
-			std::cout << "Reconnecting module " << m << "..." << std::endl;
-			Connect(m, false); // non-blocking: try once, don't hold up other modules
+			for (char m : m_Modules)
+			{
+				if (0 > GetFD(m))
+				{
+					std::cout << "Reconnecting module " << m << "..." << std::endl;
+					Connect(m, false);
+				}
+			}
+			last_attempt = steady_now;
+
+			// Check if still disconnected → increase backoff (max 5s)
+			bool still_down = false;
+			for (char m : m_Modules)
+				if (0 > GetFD(m)) { still_down = true; break; }
+
+			if (still_down)
+				backoff_secs = (backoff_secs < 0.5) ? 0.5 : std::min(backoff_secs * 2.0, 5.0);
+			else
+				backoff_secs = 0.0;
 		}
 	}
-	
+	else
+	{
+		backoff_secs = 0.0;
+	}
+
 	if(secs.count() > 5.0)
 	{
 		if (m_Pfd.size() > 0 && m_Pfd[0].fd >= 0)
