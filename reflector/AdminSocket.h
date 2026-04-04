@@ -9,6 +9,7 @@
 #include <mutex>
 #include <atomic>
 #include <future>
+#include <thread>
 #include <nlohmann/json.hpp>
 
 class CAdminSocket

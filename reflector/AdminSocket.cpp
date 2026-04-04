@@ -153,15 +153,15 @@ void CAdminSocket::ListenThread(void)
 		inet_ntop(AF_INET, &clientAddr.sin_addr, addrStr, sizeof(addrStr));
 		std::string addr(addrStr);
 
-		// Handle client in the listen thread — commands are fast, no blocking
-		ClientThread(clientFd, addr);
+		// Handle client in a detached thread so the listen loop stays responsive
+		std::thread(&CAdminSocket::ClientThread, this, clientFd, addr).detach();
 	}
 }
 
 void CAdminSocket::ClientThread(int clientFd, const std::string &clientAddr)
 {
 	struct timeval tv;
-	tv.tv_sec = 30;
+	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	setsockopt(clientFd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
