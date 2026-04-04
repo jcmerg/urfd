@@ -464,12 +464,16 @@ CCallsign::operator const char *() const
 
 	// empty
 	memset(sz, 0, sizeof(sz));
-	// callsign
+	// callsign (trim trailing spaces)
 	memcpy(sz, m_Callsign.c, CALLSIGN_LEN);
+	int len = CALLSIGN_LEN;
+	while (len > 0 && sz[len-1] == ' ') len--;
+	sz[len] = '\0';
 	// module
 	if ( HasModule() )
 	{
-		sz[CALLSIGN_LEN] = m_Module;
+		sz[len] = m_Module;
+		sz[len+1] = '\0';
 	}
 	// suffix
 	if ( HasSuffix() )
