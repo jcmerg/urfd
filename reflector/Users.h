@@ -39,6 +39,7 @@ public:
 	// management
 	int    GetSize(void) const          { return (int)m_Users.size(); }
 	void   AddUser(const CUser &);
+	void   Clear(void)                  { m_Users.clear(); }
 
 	// pass-through
 	std::list<CUser>::iterator begin()              { return m_Users.begin(); }

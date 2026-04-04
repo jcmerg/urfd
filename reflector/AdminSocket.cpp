@@ -260,6 +260,13 @@ nlohmann::json CAdminSocket::HandleCommand(const nlohmann::json &cmd, const std:
 		return CmdYsfMapRemove(cmd);
 	else if (command == "ysf_map_list")
 		return CmdYsfMapList();
+	else if (command == "clear_users")
+	{
+		auto *users = g_Reflector.GetUsers();
+		users->Clear();
+		g_Reflector.ReleaseUsers();
+		return {{"status", "ok"}, {"message", "last heard list cleared"}};
+	}
 
 	return {{"status", "error"}, {"message", "unknown command: " + command}};
 }

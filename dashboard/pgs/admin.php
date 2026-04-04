@@ -283,6 +283,12 @@ function doBlockReset() {
     });
 }
 
+function doClearUsers() {
+    adminPost({action: 'clear_users'}, function(resp) {
+        showAlert(resp);
+    });
+}
+
 function refreshLog() {
     adminPost({action: 'log', lines: 50}, function(resp) {
         if (resp.status === 'ok' && resp.lines) {
@@ -704,6 +710,7 @@ $(document).ready(function() {
             <tr><td>Reflector</td><td id="status-reflector">-</td></tr>
             <tr><td>Version</td><td id="status-version">-</td></tr>
         </table>
+        <button class="btn btn-warning btn-sm" onclick="doClearUsers()">Clear Last Heard</button>
     </div>
 
     <!-- Live Log -->

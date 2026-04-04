@@ -176,6 +176,7 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 - **Protocol Reconnect**: Force reconnect of MMDVM, SVX, DCSClient, DExtraClient, DPlusClient, or YSFClient connections.
 - **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time per transcoded module.
 - **Live Log Viewer**: Last 200 log lines with timestamps, auto-refreshing every 10 seconds.
+- **Clear Last Heard**: Clears the last heard users list from the dashboard.
 - **Hidden Access**: Access via the pi symbol in the bottom-right corner or directly via `?show=admin`.
 
 **Socket Protocol**: Line-delimited JSON over TCP. Authenticate first, then send commands with the returned token:
@@ -197,6 +198,7 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "dcs_map_list", "token": "..."}
 {"cmd": "ysf_map_add", "token": "...", "host": "90.187.72.177", "port": 42099, "local_module": "A", "dgid": 15}
 {"cmd": "ysf_map_list", "token": "..."}
+{"cmd": "clear_users", "token": "..."}
 ```
 
 ### SIGHUP Configuration Reload

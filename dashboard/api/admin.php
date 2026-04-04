@@ -172,6 +172,10 @@ switch ($action) {
         $cmd = ['cmd' => 'block_reset', 'token' => $token];
         break;
 
+    case 'clear_users':
+        $cmd = ['cmd' => 'clear_users', 'token' => $token];
+        break;
+
     case 'dcs_map_add':
         $cmd = [
             'cmd'           => 'dcs_map_add',
