@@ -27,6 +27,7 @@ CPacketStream::CPacketStream(char module) : m_PSModule(module)
 	m_bOpen = false;
 	m_uiStreamId = 0;
 	m_uiPacketCntr = 0;
+	m_uiSourceTG = 0;
 	m_OwnerClient = nullptr;
 	m_CodecStream = nullptr;
 }
@@ -55,6 +56,7 @@ bool CPacketStream::OpenPacketStream(const CDvHeaderPacket &DvHeader, std::share
 		m_bOpen = true;
 		m_uiStreamId = DvHeader.GetStreamId();
 		m_uiPacketCntr = 0;
+		m_uiSourceTG = 0;
 		m_DvHeader = DvHeader;
 		m_OwnerClient = client;
 		m_LastPacketTime.start();

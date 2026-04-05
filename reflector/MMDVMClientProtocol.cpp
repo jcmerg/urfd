@@ -646,6 +646,8 @@ void CMMDVMClientProtocol::OnDMRDVoiceHeaderIn(const CBuffer &Buffer, uint32_t s
 	auto stream = GetStream(urfStreamId, &m_MasterIp);
 	if (!stream)
 		m_IncomingStreams[streamId] = 0; // sentinel: rejected
+	else
+		stream->SetSourceTG(dstId);
 }
 
 void CMMDVMClientProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t srcId, uint32_t dstId, uint32_t streamId)
@@ -1104,13 +1106,13 @@ void CMMDVMClientProtocol::SyncBrandMeisterTGs()
 {
 	std::cout << "BrandMeister API: syncing static talkgroups..." << std::endl;
 
-	// Get our desired TGs from config (static only)
+	// Get all active TGs (static + dynamic) — dynamic TGs added via admin
+	// have already been registered on BM via API and must not be removed
 	auto mappings = m_TGMap.GetAllMappings();
 	std::set<std::pair<uint32_t, uint8_t>> desired;  // (tg, slot)
 	for (const auto &m : mappings)
 	{
-		if (m.is_static)
-			desired.insert({m.tg, m.timeslot});
+		desired.insert({m.tg, m.timeslot});
 	}
 
 	// Get current BM static TGs

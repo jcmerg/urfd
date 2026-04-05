@@ -1036,6 +1036,9 @@ void CSvxReflectorProtocol::OnUdpAudio(const CBuffer &buffer)
 			new CDvHeaderPacket(my, CCallsign("CQCQCQ"), rpt1, rpt2, m_InStream.streamId, true));
 		OnDvHeaderPacketIn(header, m_ServerIp);
 		m_InStream.open = true;
+		auto stream = g_Reflector.GetStream(m_InStream.module);
+		if (stream)
+			stream->SetSourceTG(m_InStream.tg);
 		std::cout << "SvxReflector: stream opened for " << userCs << " (DMR ID " << my.GetDmrid() << ") on module " << m_InStream.module << std::endl;
 	}
 

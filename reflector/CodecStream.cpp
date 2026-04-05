@@ -138,34 +138,11 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 			}
 			msg = std::string("via ") + shortName;
 
-			// Append TG/DG-ID/module info — query protocol TG/mapping data
+			// For TG-based protocols, TG is appended later via UpdateSlowDataTG()
+			// because the source TG is not yet known at stream-open time
 			if (proto == EProtocol::svxreflector || proto == EProtocol::mmdvmclient)
 			{
-				auto &protocols = g_Reflector.GetProtocols();
-				protocols.Lock();
-				if (proto == EProtocol::mmdvmclient)
-				{
-					auto *p = protocols.FindByType(EProtocol::mmdvmclient);
-					if (p)
-					{
-						auto *mmdvm = static_cast<CMMDVMClientProtocol *>(p);
-						uint32_t tg = mmdvm->GetTGMap().ModuleToTG(m_CSModule);
-						if (tg != 0)
-							msg += " TG" + std::to_string(tg);
-					}
-				}
-				else
-				{
-					auto *p = protocols.FindByType(EProtocol::svxreflector);
-					if (p)
-					{
-						auto *svx = static_cast<CSvxReflectorProtocol *>(p);
-						uint32_t tg = svx->ModuleToTG(m_CSModule);
-						if (tg != 0)
-							msg += " TG" + std::to_string(tg);
-					}
-				}
-				protocols.Unlock();
+				// msg stays as "via DMR" or "via SVX" — TG appended by UpdateSlowDataTG
 			}
 			else if (proto == EProtocol::ysf)
 			{
@@ -302,6 +279,26 @@ void CCodecStream::ReportStats()
 		std::cout << std::fixed << "TC round-trip time(ms): " << min << '/' << ave << '/' << max << ", " << m_RTCount << " total packets" << std::endl;
 		std::cout.precision(prec);
 	}
+}
+
+void CCodecStream::UpdateSlowDataTG(uint32_t tg)
+{
+	if (tg == 0 || m_SlowDataMsg1.empty())
+		return;
+
+	// Append TG to existing message (e.g. "via DMR" -> "via DMR TG2625")
+	std::string updated = m_SlowDataMsg1 + " TG" + std::to_string(tg);
+	if (updated.size() > 20)
+		updated.resize(20);
+	m_SlowDataMsg1 = updated;
+
+	// Re-init slow data with updated message
+	CCallsign my = m_PacketStream ? m_PacketStream->GetUserCallsign() : CCallsign();
+	CCallsign rpt1 = g_Reflector.GetCallsign();
+	rpt1.SetCSModule(m_CSModule);
+	CCallsign rpt2 = g_Reflector.GetCallsign();
+	rpt2.SetCSModule('G');
+	m_SlowData.Init(my, rpt1, rpt2, m_SlowDataMsg1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

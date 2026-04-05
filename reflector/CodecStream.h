@@ -50,6 +50,9 @@ public:
 	ECodecType GetCodecIn(void) const         { return m_eCodecIn; }
 	char     GetModule(void) const            { return m_CSModule; }
 
+	// update slow data TG after source TG is known
+	void     UpdateSlowDataTG(uint32_t tg);
+
 	// stats accessors (for admin interface)
 	double   GetRTMin(void) const             { return m_RTMin; }
 	double   GetRTMax(void) const             { return m_RTMax; }

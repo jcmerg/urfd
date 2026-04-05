@@ -57,6 +57,8 @@ public:
 	CCodecStream    *GetCodecStream(void) const     { return m_CodecStream.get(); }
 	bool             HasCodecStream(void) const      { return m_CodecStream != nullptr; }
 	bool             IsCodecPipelineEmpty(void) { return !m_CodecStream || m_CodecStream->IsPipelineEmpty(); }
+	uint32_t         GetSourceTG(void) const        { return m_uiSourceTG; }
+	void             SetSourceTG(uint32_t tg)       { m_uiSourceTG = tg; if (m_CodecStream) m_CodecStream->UpdateSlowDataTG(tg); }
 
 	// pass-through
 	std::unique_ptr<CPacket> Pop()        { return m_Queue.Pop(); }
@@ -74,4 +76,5 @@ protected:
 	CDvHeaderPacket     m_DvHeader;
 	std::shared_ptr<CClient> m_OwnerClient;
 	std::unique_ptr<CCodecStream> m_CodecStream;
+	uint32_t            m_uiSourceTG;
 };
