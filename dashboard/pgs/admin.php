@@ -366,24 +366,31 @@ function refreshMmdvmPeerList() {
     adminPost({action: 'mmdvm_peer_list'}, function(resp) {
         var tbody = $('#mmdvm-peers-table-body');
         tbody.empty();
-        if (resp.status === 'ok' && resp.peers) {
+        if (resp.status === 'ok' && resp.peers && resp.peers.length > 0) {
             resp.peers.forEach(function(p) {
-                var loc = (p.peer_info && p.peer_info.location) ? p.peer_info.location : '';
-                var sw = (p.peer_info && p.peer_info.softwareId) ? p.peer_info.softwareId : '';
+                var info  = p.peer_info || {};
+                var dmrid = info.dmrid || '';
+                var loc   = info.location || '';
+                var sw    = [info.packageId, info.softwareId].filter(Boolean).join(' / ');
+                var rx    = info.rxFreq ? (info.rxFreq / 1e6).toFixed(4) : '';
+                var tx    = info.txFreq ? (info.txFreq / 1e6).toFixed(4) : '';
+                var freq  = (rx && tx) ? rx + ' / ' + tx : (rx || tx || '');
+                var since = p.connected_since ? new Date(p.connected_since * 1000).toLocaleString() : '';
+                var cs    = (p.callsign || '').trim();
                 tbody.append(
                     '<tr>' +
-                    '<td>' + (p.callsign || '') + '</td>' +
-                    '<td>' + (p.dmrid || '') + '</td>' +
+                    '<td>' + cs + '</td>' +
+                    '<td>' + dmrid + '</td>' +
+                    '<td>' + freq + '</td>' +
                     '<td>' + loc + '</td>' +
                     '<td>' + sw + '</td>' +
-                    '<td>' + (p.module || '') + '</td>' +
-                    '<td>' + (p.connected_since || '') + '</td>' +
+                    '<td>' + (p.module && p.module !== ' ' ? p.module : '') + '</td>' +
+                    '<td>' + since + '</td>' +
                     '</tr>'
                 );
             });
-        }
-        if (!resp.peers || resp.peers.length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center">No MMDVM nodes connected</td></tr>');
+        } else {
+            tbody.append('<tr><td colspan="7" class="text-center">No MMDVM nodes connected</td></tr>');
         }
     });
 }
@@ -394,16 +401,17 @@ function refreshSvxsPeerList() {
         tbody.empty();
         if (resp.status === 'ok' && resp.peers) {
             resp.peers.forEach(function(p) {
-                var tgs = p.subscribed_tgs ? p.subscribed_tgs.join(', ') : '';
-                var sw = (p.node_info && p.node_info.software) ? p.node_info.software : '';
-                var udp = p.udp_discovered ? 'Yes' : 'No';
+                var tgs   = p.subscribed_tgs ? p.subscribed_tgs.join(', ') : '';
+                var sw    = (p.node_info && p.node_info.software) ? p.node_info.software : '';
+                var udp   = p.udp_discovered ? 'Yes' : 'No';
+                var since = p.connected_since ? new Date(p.connected_since * 1000).toLocaleString() : '';
                 tbody.append(
                     '<tr>' +
-                    '<td>' + (p.callsign || '') + '</td>' +
+                    '<td>' + (p.callsign || '').trim() + '</td>' +
                     '<td>' + tgs + '</td>' +
                     '<td>' + sw + '</td>' +
                     '<td>' + udp + '</td>' +
-                    '<td>' + (p.connected_since || '') + '</td>' +
+                    '<td>' + since + '</td>' +
                     '</tr>'
                 );
             });
@@ -907,14 +915,15 @@ $(document).ready(function() {
                 <tr>
                     <th>Callsign</th>
                     <th>DMR ID</th>
+                    <th>RX / TX (MHz)</th>
                     <th>Location</th>
-                    <th>Software</th>
+                    <th>Modem / SW</th>
                     <th>Module</th>
                     <th>Connected Since</th>
                 </tr>
             </thead>
             <tbody id="mmdvm-peers-table-body">
-                <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                <tr><td colspan="7" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
         <button class="btn btn-default btn-sm" onclick="refreshMmdvmPeerList()">Refresh</button>

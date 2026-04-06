@@ -34,7 +34,7 @@ public:
 
 	// identity
 	EProtocol GetProtocol(void) const           { return EProtocol::dmrmmdvm; }
-	const char *GetProtocolName(void) const     { return "DMRMmdvm"; }
+	const char *GetProtocolName(void) const     { return "MMDVM"; }
 	bool IsNode(void) const                     { return true; }
 
 	// status
