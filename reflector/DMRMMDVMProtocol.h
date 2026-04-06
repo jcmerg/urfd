@@ -182,6 +182,9 @@ protected:
 	// TG mapping
 	CTGModuleMap m_TGMap;
 
+	// INI file access
+	std::mutex m_IniMutex;
+
 	// peer info — keyed by IP address string
 	std::unordered_map<std::string, SPeerInfo> m_PeerInfoMap;
 

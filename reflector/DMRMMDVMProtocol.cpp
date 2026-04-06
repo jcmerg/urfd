@@ -737,7 +737,8 @@ bool CDmrmmdvmProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer, std::unique
 				uint32_t uiDstId = MAKEDWORD(MAKEWORD(Buffer.data()[10],Buffer.data()[9]),MAKEWORD(Buffer.data()[8],0));
 				uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[14],Buffer.data()[13]),MAKEWORD(Buffer.data()[12],Buffer.data()[11]));
 				//uint8_t uiVoiceSeq = (Buffer.data()[15] & 0x0F);
-				uint32_t uiStreamId = *(uint32_t *)(&Buffer.data()[16]);
+				uint32_t uiStreamId;
+				memcpy(&uiStreamId, &Buffer.data()[16], sizeof(uiStreamId));
 				// encode slot into streamId high byte
 				uiStreamId = (uiStreamId & 0x00FFFFFF) | ((uint32_t)uiSlot << 24);
 
@@ -798,7 +799,8 @@ bool CDmrmmdvmProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffe
 			uint32_t uiDstId = MAKEDWORD(MAKEWORD(Buffer.data()[10],Buffer.data()[9]),MAKEWORD(Buffer.data()[8],0));
 			uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[14],Buffer.data()[13]),MAKEWORD(Buffer.data()[12],Buffer.data()[11]));
 			uint8_t uiVoiceSeq = (Buffer.data()[15] & 0x0F);
-			uint32_t uiStreamId = *(uint32_t *)(&Buffer.data()[16]);
+			uint32_t uiStreamId;
+			memcpy(&uiStreamId, &Buffer.data()[16], sizeof(uiStreamId));
 			// encode slot into streamId high byte
 			uiStreamId = (uiStreamId & 0x00FFFFFF) | ((uint32_t)uiSlot << 24);
 
@@ -919,7 +921,8 @@ bool CDmrmmdvmProtocol::IsValidDvLastFramePacket(const CBuffer &Buffer, std::uni
 				//uint32_t uiDstId = MAKEDWORD(MAKEWORD(Buffer.data()[10],Buffer.data()[9]),MAKEWORD(Buffer.data()[8],0));
 				//uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[14],Buffer.data()[13]),MAKEWORD(Buffer.data()[12],Buffer.data()[11]));
 				//uint8_t uiVoiceSeq = (Buffer.data()[15] & 0x0F);
-				uint32_t uiStreamId = *(uint32_t *)(&Buffer.data()[16]);
+				uint32_t uiStreamId;
+				memcpy(&uiStreamId, &Buffer.data()[16], sizeof(uiStreamId));
 				// encode slot into streamId high byte
 				uiStreamId = (uiStreamId & 0x00FFFFFF) | ((uint32_t)uiSlot << 24);
 
@@ -1475,6 +1478,8 @@ bool CDmrmmdvmProtocol::IniAddUser(uint32_t baseId, const std::string &password)
 	const std::string &path = g_Reflector.GetConfigPath();
 	if (path.empty()) return false;
 
+	std::lock_guard<std::mutex> lock(m_IniMutex);
+
 	std::string key = std::to_string(baseId);
 
 	// Read INI file
@@ -1541,6 +1546,8 @@ bool CDmrmmdvmProtocol::IniRemoveUser(uint32_t baseId)
 {
 	const std::string &path = g_Reflector.GetConfigPath();
 	if (path.empty()) return false;
+
+	std::lock_guard<std::mutex> lock(m_IniMutex);
 
 	std::string key = std::to_string(baseId);
 

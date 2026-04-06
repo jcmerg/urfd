@@ -421,7 +421,8 @@ bool CXlxPeerProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *ca
 	if ((Buffer.size() == 39) && (Buffer.data()[0] == 'L') && (Buffer.data()[38] == 0))
 	{
 		callsign->SetCallsign((const uint8_t *)&(Buffer.data()[1]), 8);
-		::strcpy(modules, (const char *)&(Buffer.data()[12]));
+		::strncpy(modules, (const char *)&(Buffer.data()[12]), 26);
+		modules[26] = '\0';
 		valid = callsign->IsValid();
 		*version = CVersion(Buffer.data()[9], Buffer.data()[10], Buffer.data()[11]);
 		for ( unsigned i = 0; i < ::strlen(modules); i++ )
@@ -449,7 +450,8 @@ bool CXlxPeerProtocol::IsValidAckPacket(const CBuffer &Buffer, CCallsign *callsi
 	if ((Buffer.size() == 39) && (Buffer.data()[0] == 'A') && (Buffer.data()[38] == 0))
 	{
 		callsign->SetCallsign((const uint8_t *)&(Buffer.data()[1]), 8);
-		::strcpy(modules, (const char *)&(Buffer.data()[12]));
+		::strncpy(modules, (const char *)&(Buffer.data()[12]), 26);
+		modules[26] = '\0';
 		valid = callsign->IsValid();
 		*version = CVersion(Buffer.data()[9], Buffer.data()[10], Buffer.data()[11]);
 		for ( unsigned i = 0; i < ::strlen(modules); i++ )

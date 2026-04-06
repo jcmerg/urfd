@@ -405,8 +405,12 @@ bool CDmrplusProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffe
 			// more frames details
 			//uint8_t uiSeqId = Buffer.data()[4];
 			//uint8_t uiVoiceSeq = (Buffer.data()[18] & 0x0F) - 7; // aka slot type
-			uint32_t uiDstId = *(uint32_t *)(&Buffer.data()[64]) & 0x00FFFFFF;
-			uint32_t uiSrcId = *(uint32_t *)(&Buffer.data()[68]) & 0x00FFFFFF;
+			uint32_t uiDstId;
+			memcpy(&uiDstId, &Buffer.data()[64], sizeof(uiDstId));
+			uiDstId &= 0x00FFFFFF;
+			uint32_t uiSrcId;
+			memcpy(&uiSrcId, &Buffer.data()[68], sizeof(uiSrcId));
+			uiSrcId &= 0x00FFFFFF;
 
 			// build DVHeader
 			CCallsign csMY =  CCallsign("", uiSrcId);

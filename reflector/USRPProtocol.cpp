@@ -285,7 +285,7 @@ void CUSRPProtocol::HandleQueue(void)
 
 bool CUSRPProtocol::IsValidDvPacket(const CIp &Ip, const CBuffer &Buffer, std::unique_ptr<CDvHeaderPacket> &header, std::unique_ptr<CDvFramePacket> &frame)
 {
-	if(!memcmp(Buffer.data(), "USRP", 4) && (Buffer.size() == 352) && (Buffer.data()[20] == USRP_TYPE_VOICE) && (Buffer.data()[15] == USRP_KEYUP_TRUE) )
+	if((Buffer.size() == 352) && !memcmp(Buffer.data(), "USRP", 4) && (Buffer.data()[20] == USRP_TYPE_VOICE) && (Buffer.data()[15] == USRP_KEYUP_TRUE) )
 	{
 		auto stream = GetStream(m_uiStreamId, &Ip);
 		if ( !stream )
@@ -313,7 +313,7 @@ bool CUSRPProtocol::IsValidDvPacket(const CIp &Ip, const CBuffer &Buffer, std::u
 
 bool CUSRPProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, std::unique_ptr<CDvHeaderPacket> &header)
 {
-	if(!memcmp(Buffer.data(), "USRP", 4) && (Buffer.size() == 352) && (Buffer.data()[20] == USRP_TYPE_TEXT) && (Buffer.data()[32] == TLV_TAG_SET_INFO) ){
+	if((Buffer.size() == 352) && !memcmp(Buffer.data(), "USRP", 4) && (Buffer.data()[20] == USRP_TYPE_TEXT) && (Buffer.data()[32] == TLV_TAG_SET_INFO) ){
 		auto stream = GetStream(m_uiStreamId, &Ip);
 		if ( !stream )
 		{
@@ -333,7 +333,7 @@ bool CUSRPProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, 
 
 bool CUSRPProtocol::IsValidDvLastPacket(const CBuffer &Buffer)
 {
-	if(!memcmp(Buffer.data(), "USRP", 4) && (Buffer.size() == 32) && (Buffer.data()[15] == USRP_KEYUP_FALSE) )
+	if((Buffer.size() == 32) && !memcmp(Buffer.data(), "USRP", 4) && (Buffer.data()[15] == USRP_KEYUP_FALSE) )
 	{
 		return true;
 	}

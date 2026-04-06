@@ -417,7 +417,7 @@ bool CNXDNProtocol::IsValidDisconnectPacket(const CBuffer &Buffer)
 
 bool CNXDNProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, std::unique_ptr<CDvHeaderPacket> &header)
 {
-	if(!memcmp(Buffer.data(), "NXDND", 5) && (Buffer.size() == 43) && (Buffer.data()[10] == NXDN_LICH_USC_SACCH_NS) && (Buffer.data()[9] == 1) )
+	if((Buffer.size() == 43) && !memcmp(Buffer.data(), "NXDND", 5) && (Buffer.data()[10] == NXDN_LICH_USC_SACCH_NS) && (Buffer.data()[9] == 1) )
 	{
 		auto stream = GetStream(m_uiStreamId, &Ip);
 		if ( !stream )
@@ -457,7 +457,7 @@ bool CNXDNProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, 
 
 bool CNXDNProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffer, std::unique_ptr<CDvHeaderPacket> &header, std::array<std::unique_ptr<CDvFramePacket>, 4> &frames)
 {
-	if(!memcmp(Buffer.data(), "NXDND", 5) && (Buffer.size() == 43) && (Buffer.data()[10] != NXDN_LICH_USC_SACCH_NS) )
+	if((Buffer.size() == 43) && !memcmp(Buffer.data(), "NXDND", 5) && (Buffer.data()[10] != NXDN_LICH_USC_SACCH_NS) )
 	{
 		auto stream = GetStream(m_uiStreamId, &Ip);
 		if ( !stream )
@@ -546,7 +546,7 @@ bool CNXDNProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffer, s
 
 bool CNXDNProtocol::IsValidDvLastFramePacket(const CIp &Ip, const CBuffer &Buffer)
 {
-	if(!memcmp(Buffer.data(), "NXDND", 5) && (Buffer.size() == 43) && (Buffer.data()[10] == NXDN_LICH_USC_SACCH_NS) && ((Buffer.data()[9U] & 0x08) == 0x08) )
+	if((Buffer.size() == 43) && !memcmp(Buffer.data(), "NXDND", 5) && (Buffer.data()[10] == NXDN_LICH_USC_SACCH_NS) && ((Buffer.data()[9U] & 0x08) == 0x08) )
 	{
 			return true;
 	}
