@@ -56,11 +56,11 @@ bool CTGModuleMap::LoadFromConfig(const std::string &prefix)
 					if (isPrimary)
 					{
 						m_ModuleToTG[mod] = tg;
-						std::cout << "MMDVMClient TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << " (primary)" << std::endl;
+						std::cout << prefix << " TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << " (primary)" << std::endl;
 					}
 					else
 					{
-						std::cout << "MMDVMClient TG mapping: TG" << tg << " -> Module " << mod << " on TS" << (int)ts << " (secondary, inbound only)" << std::endl;
+						std::cout << prefix << " TG mapping: TG" << tg << " -> Module " << mod << " on TS" << (int)ts << " (secondary, inbound only)" << std::endl;
 					}
 				}
 				else
