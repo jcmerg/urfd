@@ -956,14 +956,26 @@ bool CConfigure::ReadData(const std::string &path)
 	}
 
 	// NXDN
-	isDefined(ErrorLevel::fatal, JNXDN, JPORT, g_Keys.nxdn.port, rval);
-	checkAutoLink(JNXDN, JAUTOLINKMODULE, g_Keys.nxdn.autolinkmod, rval);
-	isDefined(ErrorLevel::fatal, JNXDN, JREFLECTORID, g_Keys.nxdn.reflectorid, rval);
+	if (isDefined(ErrorLevel::mild, JNXDN, JENABLE, g_Keys.nxdn.enable, rval))
+	{
+		if (GetBoolean(g_Keys.nxdn.enable))
+		{
+			isDefined(ErrorLevel::fatal, JNXDN, JPORT, g_Keys.nxdn.port, rval);
+			checkAutoLink(JNXDN, JAUTOLINKMODULE, g_Keys.nxdn.autolinkmod, rval);
+			isDefined(ErrorLevel::fatal, JNXDN, JREFLECTORID, g_Keys.nxdn.reflectorid, rval);
+		}
+	}
 
 	// P25
-	isDefined(ErrorLevel::fatal, JP25, JPORT, g_Keys.p25.port, rval);
-	checkAutoLink(JP25, JAUTOLINKMODULE, g_Keys.p25.autolinkmod, rval);
-	isDefined(ErrorLevel::fatal, JP25, JREFLECTORID, g_Keys.p25.reflectorid, rval);
+	if (isDefined(ErrorLevel::mild, JP25, JENABLE, g_Keys.p25.enable, rval))
+	{
+		if (GetBoolean(g_Keys.p25.enable))
+		{
+			isDefined(ErrorLevel::fatal, JP25, JPORT, g_Keys.p25.port, rval);
+			checkAutoLink(JP25, JAUTOLINKMODULE, g_Keys.p25.autolinkmod, rval);
+			isDefined(ErrorLevel::fatal, JP25, JREFLECTORID, g_Keys.p25.reflectorid, rval);
+		}
+	}
 
 	// USRP
 	if (isDefined(ErrorLevel::fatal, JUSRP, JENABLE, g_Keys.usrp.enable, rval))
@@ -998,7 +1010,7 @@ bool CConfigure::ReadData(const std::string &path)
 			}
 			else
 			{
-				std::cerr << "ERROR: " << JUSRP << " requires a transoder" << std::endl;
+				std::cerr << "ERROR: " << JUSRP << " requires a transcoder" << std::endl;
 				rval = true;
 			}
 		}
