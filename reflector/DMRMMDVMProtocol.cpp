@@ -165,7 +165,7 @@ void CDmrmmdvmProtocol::Task(void)
 		}
 		else if ( IsValidConnectPacket(Buffer, &Callsign, Ip, &rawDmrId) )
 		{
-			std::cout << "DMRmmdvm connect packet from " << Callsign << " at " << Ip << std::endl;
+			std::cout << "MMDVM: connect from " << Callsign << " at " << Ip << std::endl;
 
 			// callsign authorized?
 			if ( g_GateKeeper.MayLink(Callsign, Ip, EProtocol::dmrmmdvm) )
@@ -186,7 +186,7 @@ void CDmrmmdvmProtocol::Task(void)
 		}
 		else if ( IsValidAuthenticationPacket(Buffer, &Callsign, Ip, &rawDmrId) )
 		{
-			std::cout << "DMRmmdvm authentication packet from " << Callsign << " at " << Ip << std::endl;
+			std::cout << "MMDVM: auth from " << Callsign << " at " << Ip << std::endl;
 
 			// verify password if authentication is enabled
 			bool authOk = true;
@@ -207,7 +207,7 @@ void CDmrmmdvmProtocol::Task(void)
 				// client already connected ?
 				if ( client == nullptr )
 				{
-					std::cout << "DMRmmdvm login from " << Callsign << " at " << Ip << std::endl;
+					std::cout << "MMDVM: login " << Callsign << " at " << Ip << std::endl;
 
 					// create the client and append
 					clients->AddClient(std::make_shared<CDmrmmdvmClient>(Callsign, Ip));
@@ -222,7 +222,7 @@ void CDmrmmdvmProtocol::Task(void)
 			else
 			{
 				if (!authOk)
-					std::cout << "DMRmmdvm authentication FAILED for " << Callsign << " (DMR ID " << rawDmrId << ") at " << Ip << std::endl;
+					std::cout << "MMDVM: auth FAILED for " << Callsign << " (DMR ID " << rawDmrId << ") at " << Ip << std::endl;
 				// deny the request
 				EncodeNackPacket(&Buffer, Callsign);
 				Send(Buffer, Ip);
@@ -231,7 +231,7 @@ void CDmrmmdvmProtocol::Task(void)
 		}
 		else if ( IsValidDisconnectPacket(Buffer, &Callsign) )
 		{
-			std::cout << "DMRmmdvm disconnect packet from " << Callsign << " at " << Ip << std::endl;
+			std::cout << "MMDVM: disconnect from " << Callsign << " at " << Ip << std::endl;
 
 			// find client & remove it
 			CClients *clients = g_Reflector.GetClients();
@@ -244,7 +244,7 @@ void CDmrmmdvmProtocol::Task(void)
 		}
 		else if ( IsValidConfigPacket(Buffer, &Callsign, Ip) )
 		{
-			std::cout << "DMRmmdvm configuration packet from " << Callsign << " at " << Ip << std::endl;
+			std::cout << "MMDVM: config from " << Callsign << " at " << Ip << std::endl;
 
 			// acknowledge the request
 			EncodeAckPacket(&Buffer, Callsign);
@@ -280,7 +280,7 @@ void CDmrmmdvmProtocol::Task(void)
 		}
 		else if ( IsValidOptionPacket(Buffer, &Callsign) )
 		{
-			std::cout << "DMRmmdvm options packet from " << Callsign << " at " << Ip << std::endl;
+			std::cout << "MMDVM: options from " << Callsign << " at " << Ip << std::endl;
 
 			// acknowledge the request
 			EncodeAckPacket(&Buffer, Callsign);
@@ -348,19 +348,19 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 				{
 					if ( g_Reflector.IsValidModule(rpt2.GetCSModule()) )
 					{
-						std::cout << "DMRmmdvm client " << client->GetCallsign() << " linking on module " << rpt2.GetCSModule() << std::endl;
+						std::cout << "MMDVM: " << client->GetCallsign() << " linking on module " << rpt2.GetCSModule() << std::endl;
 						// link
 						client->SetReflectorModule(rpt2.GetCSModule());
 					}
 					else
 					{
-						std::cout << "DMRMMDVM node " << rpt1 << " link attempt on non-existing module" << std::endl;
+						std::cout << "MMDVM: " << rpt1 << " link attempt on non-existing module" << std::endl;
 					}
 				}
 				else if ( cmd == CMD_NONE && rpt2.GetCSModule() != ' ' && g_Reflector.IsValidModule(rpt2.GetCSModule()) )
 				{
 					// TG mapping resolved to a valid module — auto-link
-					std::cout << "DMRmmdvm client " << client->GetCallsign() << " auto-linking on module " << rpt2.GetCSModule() << " (TG mapping)" << std::endl;
+					std::cout << "MMDVM: " << client->GetCallsign() << " auto-linking on module " << rpt2.GetCSModule() << std::endl;
 					client->SetReflectorModule(rpt2.GetCSModule());
 				}
 			}
@@ -370,13 +370,13 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 				char targetMod = rpt2.GetCSModule();
 				if ( targetMod != ' ' && targetMod != client->GetReflectorModule() && g_Reflector.IsValidModule(targetMod) )
 				{
-					std::cout << "DMRmmdvm client " << client->GetCallsign() << " switching to module " << targetMod << " (TG mapping)" << std::endl;
+					std::cout << "MMDVM: " << client->GetCallsign() << " switching to module " << targetMod << std::endl;
 					client->SetReflectorModule(targetMod);
 				}
 
 				if ( cmd == CMD_UNLINK )
 				{
-					std::cout << "DMRmmdvm client " << client->GetCallsign() << " unlinking" << std::endl;
+					std::cout << "MMDVM: " << client->GetCallsign() << " unlinking" << std::endl;
 					// unlink
 					client->SetReflectorModule(' ');
 				}
@@ -530,7 +530,7 @@ void CDmrmmdvmProtocol::HandleKeepalives(void)
 			Send(disconnect, client->GetIp());
 
 			// remove it
-			std::cout << "DMRmmdvm client " << client->GetCallsign() << " keepalive timeout" << std::endl;
+			std::cout << "MMDVM: " << client->GetCallsign() << " keepalive timeout" << std::endl;
 			clients->RemoveClient(client);
 		}
 
@@ -584,7 +584,7 @@ bool CDmrmmdvmProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *c
 		}
 		if ( !valid)
 		{
-			std::cout << "Invalid callsign in DMRmmdvm RPTL packet from IP: " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
+			std::cout << "MMDVM: invalid callsign in RPTL from " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
 		}
 	}
 	return valid;
@@ -612,7 +612,7 @@ bool CDmrmmdvmProtocol::IsValidAuthenticationPacket(const CBuffer &Buffer, CCall
 		}
 		if ( !valid)
 		{
-			std::cout << "Invalid callsign in DMRmmdvm RPTK packet from IP: " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
+			std::cout << "MMDVM: invalid callsign in RPTK from " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
 		}
 
 	}
@@ -659,7 +659,7 @@ bool CDmrmmdvmProtocol::IsValidConfigPacket(const CBuffer &Buffer, CCallsign *ca
 		}
 		if ( !valid)
 		{
-			std::cout << "Invalid callsign in DMRmmdvm RPTC packet from IP: " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
+			std::cout << "MMDVM: invalid callsign in RPTC from " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
 		}
 
 	}
@@ -764,11 +764,12 @@ bool CDmrmmdvmProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer, std::unique
 				// resolve extended DMR IDs to base for callsign lookup
 				uint32_t mySrcId = (uiSrcId > 9999999) ? uiSrcId / 100 : uiSrcId;
 				uint32_t myRptrId = (uiRptrId > 9999999) ? uiRptrId / 100 : uiRptrId;
+				char dstModule = DmrDstIdToModule(uiDstId);
 				CCallsign csMY = CCallsign("", mySrcId);
 				CCallsign rpt1 = CCallsign("", myRptrId);
 				rpt1.SetCSModule(MMDVM_MODULE_ID);
 				CCallsign rpt2 = m_ReflectorCallsign;
-				rpt2.SetCSModule(DmrDstIdToModule(uiDstId));
+				rpt2.SetCSModule(dstModule);
 
 				// and packet
 				header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(mySrcId, CCallsign("CQCQCQ"), rpt1, rpt2, uiStreamId, 0, 0));
@@ -806,9 +807,7 @@ bool CDmrmmdvmProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffe
 			auto stream = GetStream(uiStreamId, &Ip);
 			if ( !stream )
 			{
-				std::cout << std::showbase << std::hex;
-				std::cout << "Late entry DMR voice frame, creating DMR header for DMR stream ID " << ntohl(uiStreamId) << std::noshowbase << std::dec << " on " << Ip << std::endl;
-				std::cout << std::noshowbase << std::dec;
+				std::cout << "MMDVM: late entry voice frame, stream " << std::hex << ntohl(uiStreamId) << std::dec << " from " << Ip << std::endl;
 				uint8_t cmd;
 
 				// link/unlink command ?
@@ -1641,6 +1640,6 @@ void CDmrmmdvmProtocol::ParseConfigPacket(const CBuffer &Buffer, const CIp &Ip)
 
 	m_PeerInfoMap[Ip.GetAddress()] = info;
 
-	std::cout << "DMRmmdvm config from " << info.callsign << ": " << info.softwareId
+	std::cout << "MMDVM: config from " << info.callsign << ": " << info.softwareId
 	          << " @ " << info.location << " (" << info.rxFreq << "/" << info.txFreq << " Hz)" << std::endl;
 }
