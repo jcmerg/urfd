@@ -229,6 +229,7 @@ if (count($Modules) == 0) {
         'MMDVM' => 'DMR', 'DMRPlus' => 'DMR', 'XLXPeer' => 'XLX/BM Peering',
         'M17' => 'M17', 'YSF' => 'YSF/C4FM', 'P25' => 'P25', 'NXDN' => 'NXDN',
         'URF' => 'URF Interlink', 'G3' => 'D-Star (G3)', 'USRP' => 'AllStar/USRP',
+        'SVX' => 'SVX Server',
     );
 
     foreach ($xmlProtocols as $proto) {

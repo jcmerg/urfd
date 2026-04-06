@@ -17,6 +17,7 @@
 #include "LogBuffer.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "SvxProtocol.h"
 #include "DCSClientProtocol.h"
 #include "DExtraClientProtocol.h"
 #include "DPlusClientProtocol.h"
@@ -26,7 +27,7 @@
 #define ADMIN_MAX_MSG_SIZE        8192
 
 static const std::map<std::string, EProtocol> s_NameToProto = {
-	{"MMDVMClient", EProtocol::mmdvmclient}, {"SvxReflector", EProtocol::svxreflector},
+	{"MMDVMClient", EProtocol::mmdvmclient}, {"SvxReflector", EProtocol::svxreflector}, {"SVX", EProtocol::svx},
 	{"DCSClient", EProtocol::dcsclient}, {"DExtraClient", EProtocol::dextraclient},
 	{"DPlusClient", EProtocol::dplusclient}, {"YSFClient", EProtocol::ysfclient},
 	{"DExtra", EProtocol::dextra}, {"DPlus", EProtocol::dplus},
@@ -39,7 +40,7 @@ static const std::map<std::string, EProtocol> s_NameToProto = {
 };
 
 static const std::map<EProtocol, std::string> s_ProtoToName = {
-	{EProtocol::mmdvmclient, "MMDVMClient"}, {EProtocol::svxreflector, "SvxReflector"},
+	{EProtocol::mmdvmclient, "MMDVMClient"}, {EProtocol::svxreflector, "SvxReflector"}, {EProtocol::svx, "SVX"},
 	{EProtocol::dcsclient, "DCSClient"}, {EProtocol::dextraclient, "DExtraClient"},
 	{EProtocol::dplusclient, "DPlusClient"}, {EProtocol::ysfclient, "YSFClient"},
 	{EProtocol::dextra, "DExtra"}, {EProtocol::dplus, "DPlus"},
@@ -260,6 +261,12 @@ nlohmann::json CAdminSocket::HandleCommand(const nlohmann::json &cmd, const std:
 		return CmdYsfMapRemove(cmd);
 	else if (command == "ysf_map_list")
 		return CmdYsfMapList();
+	else if (command == "svxs_user_add")
+		return CmdSvxsUserAdd(cmd);
+	else if (command == "svxs_user_remove")
+		return CmdSvxsUserRemove(cmd);
+	else if (command == "svxs_user_list")
+		return CmdSvxsUserList();
 	else if (command == "clear_users")
 	{
 		auto *users = g_Reflector.GetUsers();
@@ -406,6 +413,25 @@ nlohmann::json CAdminSocket::CmdTGAdd(const nlohmann::json &cmd)
 
 		return {{"status", "ok"}, {"message", "SVX TG" + std::to_string(tg) + " -> Module " + module + " added"}};
 	}
+	else if (protocol == "svx")
+	{
+		auto &protocols = g_Reflector.GetProtocols();
+		protocols.Lock();
+		auto *proto = protocols.FindByType(EProtocol::svx);
+		if (!proto)
+		{
+			protocols.Unlock();
+			return {{"status", "error"}, {"message", "SVXServer protocol not active"}};
+		}
+		auto *svxs = static_cast<CSvxProtocol *>(proto);
+		bool ok = svxs->AddDynamicTG(tg, module, ttl);
+		protocols.Unlock();
+
+		if (!ok)
+			return {{"status", "error"}, {"message", "failed to add TG (module in use or conflict)"}};
+
+		return {{"status", "ok"}, {"message", "SVXServer TG" + std::to_string(tg) + " -> Module " + module + " added"}};
+	}
 
 	return {{"status", "error"}, {"message", "unknown protocol: " + protocol}};
 }
@@ -468,6 +494,25 @@ nlohmann::json CAdminSocket::CmdTGRemove(const nlohmann::json &cmd)
 
 		return {{"status", "ok"}, {"message", "SVX TG" + std::to_string(tg) + " removed"}};
 	}
+	else if (protocol == "svx")
+	{
+		auto &protocols = g_Reflector.GetProtocols();
+		protocols.Lock();
+		auto *proto = protocols.FindByType(EProtocol::svx);
+		if (!proto)
+		{
+			protocols.Unlock();
+			return {{"status", "error"}, {"message", "SVXServer protocol not active"}};
+		}
+		auto *svxs = static_cast<CSvxProtocol *>(proto);
+		bool ok = svxs->RemoveDynamicTG(tg);
+		protocols.Unlock();
+
+		if (!ok)
+			return {{"status", "error"}, {"message", "failed to remove TG (not found or static)"}};
+
+		return {{"status", "ok"}, {"message", "SVXServer TG" + std::to_string(tg) + " removed"}};
+	}
 
 	return {{"status", "error"}, {"message", "unknown protocol: " + protocol}};
 }
@@ -528,6 +573,96 @@ nlohmann::json CAdminSocket::CmdTGList(const nlohmann::json &cmd)
 		}
 	}
 
+	if (protocol == "all" || protocol == "svx")
+	{
+		auto *proto = protocols.FindByType(EProtocol::svx);
+		if (proto)
+		{
+			auto *svxs = static_cast<CSvxProtocol *>(proto);
+			auto mappings = svxs->GetTGMappings();
+			for (const auto &m : mappings)
+			{
+				result["mappings"].push_back({
+					{"protocol", "svx"},
+					{"tg", m.tg},
+					{"module", std::string(1, m.module)},
+					{"static", m.is_static},
+					{"primary", m.is_primary},
+					{"remaining", m.remainingSeconds}
+				});
+			}
+		}
+	}
+
+	protocols.Unlock();
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// SVX Server User Management
+
+nlohmann::json CAdminSocket::CmdSvxsUserAdd(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("callsign") || !cmd.contains("password"))
+		return {{"status", "error"}, {"message", "missing required fields: callsign, password"}};
+
+	std::string callsign = cmd["callsign"];
+	std::string password = cmd["password"];
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::svx);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "SVXServer protocol not active"}};
+	}
+	auto *svxs = static_cast<CSvxProtocol *>(proto);
+	svxs->AddUser(callsign, password);
+	protocols.Unlock();
+
+	return {{"status", "ok"}, {"message", "user " + callsign + " added"}};
+}
+
+nlohmann::json CAdminSocket::CmdSvxsUserRemove(const nlohmann::json &cmd)
+{
+	if (!cmd.contains("callsign"))
+		return {{"status", "error"}, {"message", "missing required field: callsign"}};
+
+	std::string callsign = cmd["callsign"];
+
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::svx);
+	if (!proto)
+	{
+		protocols.Unlock();
+		return {{"status", "error"}, {"message", "SVXServer protocol not active"}};
+	}
+	auto *svxs = static_cast<CSvxProtocol *>(proto);
+	bool ok = svxs->RemoveUser(callsign);
+	protocols.Unlock();
+
+	if (!ok)
+		return {{"status", "error"}, {"message", "user not found"}};
+	return {{"status", "ok"}, {"message", "user " + callsign + " removed"}};
+}
+
+nlohmann::json CAdminSocket::CmdSvxsUserList(void)
+{
+	auto &protocols = g_Reflector.GetProtocols();
+	protocols.Lock();
+	auto *proto = protocols.FindByType(EProtocol::svx);
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["users"] = nlohmann::json::array();
+	if (proto)
+	{
+		auto *svxs = static_cast<CSvxProtocol *>(proto);
+		auto users = svxs->GetUsers();
+		for (const auto &u : users)
+			result["users"].push_back(u);
+	}
 	protocols.Unlock();
 	return result;
 }
@@ -550,6 +685,7 @@ nlohmann::json CAdminSocket::CmdStatus(void)
 
 	status["mmdvm_active"] = (protocols.FindByType(EProtocol::mmdvmclient) != nullptr);
 	status["svx_active"] = (protocols.FindByType(EProtocol::svxreflector) != nullptr);
+	status["svxs_active"] = (protocols.FindByType(EProtocol::svx) != nullptr);
 	status["dcsclient_active"] = (protocols.FindByType(EProtocol::dcsclient) != nullptr);
 	status["dextraclient_active"] = (protocols.FindByType(EProtocol::dextraclient) != nullptr);
 	status["dplusclient_active"] = (protocols.FindByType(EProtocol::dplusclient) != nullptr);

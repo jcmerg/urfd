@@ -82,6 +82,8 @@ struct SJsonKeys {
 	mmdvmclient { "mmdvmcliEnable", "mmdvmcliAddress", "mmdvmcliPort", "mmdvmcliLocalPort", "mmdvmcliDmrId", "mmdvmcliPassword", "mmdvmcliCallsign", "mmdvmcliLatitude", "mmdvmcliLongitude", "mmdvmcliLocation", "mmdvmcliDescription", "mmdvmcliUrl", "mmdvmcliRxFreq", "mmdvmcliTxFreq", "mmdvmcliSoftware", "mmdvmcliFirmware", "mmdvmcliFallbackDmrId", "mmdvmcliBlockProtocols", "mmdvmcliBmApiKey" };
 	struct SVX { const std::string enable, host, port, callsign, password, blockprotocols, rxgain, txgain; }
 	svx { "svxEnable", "svxHost", "svxPort", "svxCallsign", "svxPassword", "svxBlockProtocols", "svxRxGain", "svxTxGain" };
+	struct SVXS { const std::string enable, port, blockprotocols, rxgain, txgain; }
+	svxs { "svxsEnable", "svxsPort", "svxsBlockProtocols", "svxsRxGain", "svxsTxGain" };
 	struct DCSCLIENT { const std::string enable, callsign, blockprotocols; }
 	dcsclient { "dcsClientEnable", "dcsClientCallsign", "dcsClientBlockProtocols" };
 	struct YSFCLIENT { const std::string enable, callsign, blockprotocols; }

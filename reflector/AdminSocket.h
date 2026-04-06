@@ -70,6 +70,11 @@ private:
 	nlohmann::json CmdYsfMapRemove(const nlohmann::json &cmd);
 	nlohmann::json CmdYsfMapList(void);
 
+	// SVX Server user management
+	nlohmann::json CmdSvxsUserAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdSvxsUserRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdSvxsUserList(void);
+
 	// Config
 	int m_ListenFd;
 	uint16_t m_Port;

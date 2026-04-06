@@ -31,6 +31,7 @@
 #include "NXDNProtocol.h"
 #include "USRPProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "SvxProtocol.h"
 #include "DCSClientProtocol.h"
 #include "DExtraClientProtocol.h"
 #include "DPlusClientProtocol.h"
@@ -138,6 +139,13 @@ bool CProtocols::Init(void)
 		{
 			m_Protocols.emplace_back(std::unique_ptr<CSvxReflectorProtocol>(new CSvxReflectorProtocol));
 			if (! m_Protocols.back()->Initialize(nullptr, EProtocol::svxreflector, uint16_t(0), SVX_IPV4, SVX_IPV6))
+				return false;
+		}
+
+		if (g_Configure.Contains(g_Keys.svxs.enable) && g_Configure.GetBoolean(g_Keys.svxs.enable))
+		{
+			m_Protocols.emplace_back(std::unique_ptr<CSvxProtocol>(new CSvxProtocol));
+			if (! m_Protocols.back()->Initialize("SVX", EProtocol::svx, uint16_t(g_Configure.GetUnsigned(g_Keys.svxs.port)), SVX_IPV4, SVX_IPV6))
 				return false;
 		}
 

@@ -68,7 +68,7 @@
 
 // protocols ---------------------------------------------------
 
-enum class EProtocol { any, none, dextra, dplus, dcs, g3, xlxpeer, urf, dmrplus, dmrmmdvm, nxdn, p25, usrp, ysf, m17, mmdvmclient, svxreflector, dcsclient, ysfclient, dextraclient, dplusclient };
+enum class EProtocol { any, none, dextra, dplus, dcs, g3, xlxpeer, urf, dmrplus, dmrmmdvm, nxdn, p25, usrp, ysf, m17, mmdvmclient, svxreflector, svx, dcsclient, ysfclient, dextraclient, dplusclient };
 
 // DExtra
 #define DEXTRA_KEEPALIVE_PERIOD         3                                   // in seconds
@@ -132,6 +132,12 @@ enum class EProtocol { any, none, dextra, dplus, dcs, g3, xlxpeer, urf, dmrplus,
 #define SVX_UDP_KEEPALIVE_PERIOD       15                                  // in seconds
 #define SVX_UDP_KEEPALIVE_TIMEOUT      60                                  // in seconds
 #define SVX_RECONNECT_PERIOD           5                                   // in seconds
+
+// SVX Server
+#define SVXS_TCP_KEEPALIVE_PERIOD      10                                  // in seconds
+#define SVXS_TCP_KEEPALIVE_TIMEOUT     30                                  // in seconds
+#define SVXS_UDP_KEEPALIVE_PERIOD      15                                  // in seconds
+#define SVXS_UDP_KEEPALIVE_TIMEOUT     60                                  // in seconds
 
 // G3 Terminal
 #define G3_PRESENCE_PORT                12346                               // UDP port

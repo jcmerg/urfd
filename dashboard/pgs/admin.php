@@ -39,6 +39,7 @@ function showAdmin() {
     refreshTGList();
     refreshDcsMapList();
     refreshYsfMapList();
+    refreshSvxsUserList();
     refreshTCStats();
     refreshLog();
     // Auto-refresh every 10s
@@ -47,6 +48,7 @@ function showAdmin() {
         refreshTGList();
         refreshDcsMapList();
         refreshYsfMapList();
+        refreshSvxsUserList();
         refreshTCStats();
         refreshLog();
     }, 10000);
@@ -96,7 +98,7 @@ function refreshTGList() {
                 var dirStr = m['primary'] ? 'TX/RX' : 'RX';
                 tbody.append(
                     '<tr>' +
-                    '<td>' + ({mmdvmclient:'MMDVMClient',svxreflector:'SvxReflector'}[m.protocol] || m.protocol) + '</td>' +
+                    '<td>' + ({mmdvmclient:'MMDVMClient',svxreflector:'SvxReflector',svx:'SVX'}[m.protocol] || m.protocol) + '</td>' +
                     '<td>' + m.tg + '</td>' +
                     '<td>' + m.module + '</td>' +
                     '<td>' + (m.ts || '-') + '</td>' +
@@ -266,6 +268,49 @@ function removeYsfMap(localMod) {
     });
 }
 
+function refreshSvxsUserList() {
+    adminPost({action: 'svxs_user_list'}, function(resp) {
+        var tbody = $('#svxs-user-table-body');
+        tbody.empty();
+        if (resp.status === 'ok' && resp.users) {
+            resp.users.forEach(function(u) {
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + u + '</td>' +
+                    '<td><button class="btn btn-xs btn-danger" onclick="removeSvxsUser(\'' + u + '\')">Remove</button></td>' +
+                    '</tr>'
+                );
+            });
+        }
+        if (!resp.users || resp.users.length === 0) {
+            tbody.append('<tr><td colspan="2" class="text-center">No SVX users configured</td></tr>');
+        }
+    });
+}
+
+function addSvxsUser() {
+    var data = {
+        action: 'svxs_user_add',
+        callsign: $('#svxs-callsign').val(),
+        password: $('#svxs-password').val()
+    };
+    adminPost(data, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') {
+            $('#svxs-callsign').val('');
+            $('#svxs-password').val('');
+            refreshSvxsUserList();
+        }
+    });
+}
+
+function removeSvxsUser(callsign) {
+    adminPost({action: 'svxs_user_remove', callsign: callsign}, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshSvxsUserList();
+    });
+}
+
 function doToggleBlock(action, a, b) {
     if (!a) a = $('#block-proto-a').val();
     if (!b) b = $('#block-proto-b').val();
@@ -329,7 +374,8 @@ function refreshStatus() {
             protoSel.empty();
             if (resp.mmdvm_active) protoSel.append('<option value="mmdvmclient">MMDVMClient</option>');
             if (resp.svx_active) protoSel.append('<option value="svxreflector">SvxReflector</option>');
-            if (!resp.mmdvm_active && !resp.svx_active) {
+            if (resp.svxs_active) protoSel.append('<option value="svx">SVX</option>');
+            if (!resp.mmdvm_active && !resp.svx_active && !resp.svxs_active) {
                 protoSel.append('<option value="">No TG protocol active</option>');
             }
             protoSel.trigger('change');
@@ -341,6 +387,7 @@ function refreshStatus() {
             if (resp.dplusclient_active) $('#btn-reconnect-dplusclient').show(); else $('#btn-reconnect-dplusclient').hide();
             if (resp.dcsclient_active || resp.dextraclient_active || resp.dplusclient_active) $('#dcs-mapping-section').show(); else $('#dcs-mapping-section').hide();
             if (resp.ysfclient_active) { $('#btn-reconnect-ysfclient').show(); $('#ysf-mapping-section').show(); } else { $('#btn-reconnect-ysfclient').hide(); $('#ysf-mapping-section').hide(); }
+            if (resp.svxs_active) { $('#svxs-user-section').show(); } else { $('#svxs-user-section').hide(); }
 
             // Block rules — collect bidirectional pairs
             var blockedPairs = {};  // "A|B" (sorted) -> true
@@ -659,6 +706,39 @@ $(document).ready(function() {
             </tbody>
         </table>
         <button class="btn btn-default btn-sm" onclick="refreshYsfMapList()">Refresh</button>
+    </div>
+
+    <!-- SVX Server User Management -->
+    <div class="admin-section" id="svxs-user-section" style="display:none;">
+        <h4>SVX Server Users</h4>
+        <div class="well">
+            <form class="form-inline add-tg-form" onsubmit="addSvxsUser(); return false;">
+                <div class="form-group">
+                    <label>Callsign</label>
+                    <input type="text" class="form-control" id="svxs-callsign" placeholder="e.g. DL4JC" style="width:130px;" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="text" class="form-control" id="svxs-password" placeholder="Password" style="width:160px;" required>
+                </div>
+                <div class="form-group" style="vertical-align:bottom;">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-success" style="display:block;">Add</button>
+                </div>
+            </form>
+        </div>
+        <table class="table table-striped table-condensed">
+            <thead>
+                <tr>
+                    <th>Callsign</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="svxs-user-table-body">
+                <tr><td colspan="2" class="text-center">Loading...</td></tr>
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-sm" onclick="refreshSvxsUserList()">Refresh</button>
     </div>
 
     <!-- Transcoder Statistics -->

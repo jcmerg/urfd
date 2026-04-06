@@ -150,6 +150,27 @@ switch ($action) {
         ];
         break;
 
+    case 'svxs_user_add':
+        $cmd = [
+            'cmd'      => 'svxs_user_add',
+            'token'    => $token,
+            'callsign' => $input['callsign'] ?? '',
+            'password' => $input['password'] ?? '',
+        ];
+        break;
+
+    case 'svxs_user_remove':
+        $cmd = [
+            'cmd'      => 'svxs_user_remove',
+            'token'    => $token,
+            'callsign' => $input['callsign'] ?? '',
+        ];
+        break;
+
+    case 'svxs_user_list':
+        $cmd = ['cmd' => 'svxs_user_list', 'token' => $token];
+        break;
+
     case 'block':
         $cmd = [
             'cmd'   => 'block',

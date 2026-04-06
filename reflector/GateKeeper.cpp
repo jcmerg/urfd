@@ -102,6 +102,7 @@ bool CGateKeeper::MayLink(const CCallsign &callsign, const CIp &ip, EProtocol pr
 	case EProtocol::usrp:
 	case EProtocol::nxdn:
 	case EProtocol::g3:
+	case EProtocol::svx:
 		// DCS reflectors (prefix "DCS") must be in interlink map
 		if ( protocol == EProtocol::dcs && base.substr(0, 3) == "DCS" )
 			ok = IsPeerListedOk(base, ip, modules);
@@ -157,6 +158,7 @@ bool CGateKeeper::MayTransmit(const CCallsign &callsign, const CIp &ip, const EP
 	case EProtocol::nxdn:
 	case EProtocol::usrp:
 	case EProtocol::g3:
+	case EProtocol::svx:
 		// first check is IP & callsigned listed OK
 		ok = IsNodeListedOk(base);
 		// if not a node, check if it's a DCS peer
@@ -322,6 +324,8 @@ const std::string CGateKeeper::ProtocolName(const EProtocol p) const
 			return "Icom G3";
 		case EProtocol::svxreflector:
 			return "SvxReflector";
+		case EProtocol::svx:
+			return "SVX";
 		case EProtocol::m17:
 			return "M17";
 		case EProtocol::dplus:

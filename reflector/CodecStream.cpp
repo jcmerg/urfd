@@ -122,6 +122,7 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 			const char *shortName;
 			switch (proto) {
 				case EProtocol::svxreflector: shortName = "SVX"; break;
+					case EProtocol::svx:             shortName = "SVX"; break;
 				case EProtocol::mmdvmclient: shortName = "DMR"; break;
 				case EProtocol::ysf:         shortName = "YSF"; break;
 				case EProtocol::dmrmmdvm:    shortName = "DMR"; break;
@@ -140,7 +141,7 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 
 			// For TG-based protocols, TG is appended later via UpdateSlowDataTG()
 			// because the source TG is not yet known at stream-open time
-			if (proto == EProtocol::svxreflector || proto == EProtocol::mmdvmclient)
+			if (proto == EProtocol::svxreflector || proto == EProtocol::svx || proto == EProtocol::mmdvmclient)
 			{
 				// msg stays as "via DMR" or "via SVX" — TG appended by UpdateSlowDataTG
 			}

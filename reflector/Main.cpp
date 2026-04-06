@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
 	if (g_Configure.ReadData(argv[1]))
 		return EXIT_FAILURE;
 
+	g_Reflector.SetConfigPath(argv[1]);
+
 	// Install log buffer to capture console output for admin interface
 	g_LogBuffer.Install();
 

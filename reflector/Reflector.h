@@ -81,6 +81,8 @@ public:
 	CProtocols &GetProtocols(void)                  { return m_Protocols; }
 	const std::string &GetModules(void) const       { return m_Modules; }
 	const std::string &GetTCModules(void) const     { return m_TCmodules; }
+	const std::string &GetConfigPath(void) const    { return m_ConfigPath; }
+	void SetConfigPath(const std::string &p)        { m_ConfigPath = p; }
 
 	// notifications
 
@@ -120,6 +122,7 @@ protected:
 	// identity
 	CCallsign   m_Callsign;
 	std::string m_Modules, m_TCmodules;
+	std::string m_ConfigPath;
 
 	// objects
 	CUsers     m_Users;            // sorted list of lastheard stations

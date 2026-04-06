@@ -22,6 +22,7 @@
 #include "Global.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
+#include "SvxProtocol.h"
 #include "DCSClientProtocol.h"
 #include "DExtraClientProtocol.h"
 #include "DPlusClientProtocol.h"
@@ -214,6 +215,13 @@ void CReflector::ReloadConfig(const std::string &configPath)
 		{
 			auto *svx = static_cast<CSvxReflectorProtocol *>(svxProto);
 			svx->ReloadStaticTGMap();
+		}
+
+		auto *svxsProto = m_Protocols.FindByType(EProtocol::svx);
+		if (svxsProto)
+		{
+			auto *svxs = static_cast<CSvxProtocol *>(svxsProto);
+			svxs->ReloadStaticTGMap();
 		}
 
 		// Reload whitelist, blacklist, and interlink files
@@ -435,6 +443,9 @@ void CReflector::RouterThread(const char ThisModule)
 			auto *svxProto = m_Protocols.FindByType(EProtocol::svxreflector);
 			if (svxProto)
 				static_cast<CSvxReflectorProtocol *>(svxProto)->RefreshActivityByModule(ThisModule);
+			auto *svxsProto = m_Protocols.FindByType(EProtocol::svx);
+			if (svxsProto)
+				static_cast<CSvxProtocol *>(svxsProto)->RefreshActivityByModule(ThisModule);
 		}
 
 		// get source protocol type from stream owner
@@ -654,6 +665,19 @@ void CReflector::JsonReport(nlohmann::json &report)
 		{
 			if (mi.is_static) continue;
 			report["DynamicTGs"].push_back({
+				{"protocol", "svxreflector"}, {"tg", mi.tg}, {"module", std::string(1, mi.module)},
+				{"remaining", mi.remainingSeconds}
+			});
+		}
+	}
+	auto *svxsProto = m_Protocols.FindByType(EProtocol::svx);
+	if (svxsProto)
+	{
+		auto *svxs = static_cast<CSvxProtocol *>(svxsProto);
+		for (const auto &mi : svxs->GetTGMappings())
+		{
+			if (mi.is_static) continue;
+			report["DynamicTGs"].push_back({
 				{"protocol", "svx"}, {"tg", mi.tg}, {"module", std::string(1, mi.module)},
 				{"remaining", mi.remainingSeconds}
 			});
@@ -807,6 +831,28 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 				}
 			}
 		}
+		// SVX server TG mappings for this module (static + dynamic)
+		if (g_Configure.Contains(g_Keys.svxs.enable) && g_Configure.GetBoolean(g_Keys.svxs.enable))
+		{
+			auto *proto = m_Protocols.FindByType(EProtocol::svx);
+			if (proto)
+			{
+				auto *svxs = static_cast<CSvxProtocol *>(proto);
+				auto mappings = svxs->GetTGMappings();
+				for (const auto &mi : mappings)
+				{
+					if (mi.module != m) continue;
+					xmlFile << "\t<Mapping><Protocol>SVX</Protocol><Type>TG</Type>";
+					xmlFile << "<ID>" << mi.tg << "</ID>";
+					if (!mi.is_static)
+					{
+						xmlFile << "<Dynamic>true</Dynamic>";
+						xmlFile << "<Remaining>" << mi.remainingSeconds << "</Remaining>";
+					}
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
+		}
 		// DCSClient mappings for this module
 		if (g_Configure.Contains(g_Keys.dcsclient.enable) && g_Configure.GetBoolean(g_Keys.dcsclient.enable))
 		{
@@ -920,6 +966,8 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		xmlFile << "<Protocol><Name>USRP</Name><Port>" << g_Configure.GetUnsigned(g_Keys.usrp.rxport) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.svx.enable) && g_Configure.GetBoolean(g_Keys.svx.enable))
 		xmlFile << "<Protocol><Name>SvxReflector</Name><Port>" << g_Configure.GetUnsigned(g_Keys.svx.port) << "</Port></Protocol>" << std::endl;
+	if (g_Configure.Contains(g_Keys.svxs.enable) && g_Configure.GetBoolean(g_Keys.svxs.enable))
+		xmlFile << "<Protocol><Name>SVX</Name><Port>" << g_Configure.GetUnsigned(g_Keys.svxs.port) << "</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.g3.enable) && g_Configure.GetBoolean(g_Keys.g3.enable))
 		xmlFile << "<Protocol><Name>G3</Name><Port>40000</Port></Protocol>" << std::endl;
 	if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))

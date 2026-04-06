@@ -93,6 +93,7 @@
 #define JYSFTXRXDB               "YSF TX/RX DB"
 #define JMMDVMCLIENT             "MMDVMClient"
 #define JSVXREFLECTOR            "SvxReflector"
+#define JSVXSERVER               "SVXServer"
 #define JDCSCLIENT               "DCSClient"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
@@ -227,6 +228,8 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::echo;
 			else if (0 == hname.compare(JSVXREFLECTOR))
 				section = ESection::svx;
+			else if (0 == hname.compare(JSVXSERVER))
+				section = ESection::svxserver;
 			else if (0 == hname.compare(JFILES))
 				section = ESection::files;
 			else if (0 == hname.compare(JDCSCLIENT))
@@ -598,6 +601,29 @@ bool CConfigure::ReadData(const std::string &path)
 				}
 				else
 					badParam(key);
+				break;
+			case ESection::svxserver:
+				if (0 == key.compare(JENABLE))
+					data[g_Keys.svxs.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JPORT))
+					data[g_Keys.svxs.port] = getUnsigned(value, "SVXServer Port", 1024, 65535, 5300);
+				else if (0 == key.compare("BlockProtocols"))
+					data[g_Keys.svxs.blockprotocols] = value;
+				else if (0 == key.compare("RxGain"))
+					data[g_Keys.svxs.rxgain] = value;
+				else if (0 == key.compare("TxGain"))
+					data[g_Keys.svxs.txgain] = value;
+				else if (0 == key.compare(0, 2, "TG"))
+				{
+					std::string tgkey = "svxsTG" + key.substr(2);
+					data[tgkey] = value;
+				}
+				else
+				{
+					// Everything else is a user/password pair: Callsign = Password
+					std::string userkey = "svxsUser_" + key;
+					data[userkey] = value;
+				}
 				break;
 			case ESection::ysfclient:
 				if (0 == key.compare(JENABLE))
@@ -982,6 +1008,46 @@ bool CConfigure::ReadData(const std::string &path)
 			else
 			{
 				std::cerr << "ERROR: " << JSVXREFLECTOR << " requires a transcoder" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// SVXServer
+	if (isDefined(ErrorLevel::mild, JSVXSERVER, JENABLE, g_Keys.svxs.enable, rval))
+	{
+		if (GetBoolean(g_Keys.svxs.enable))
+		{
+			if (tcport)
+			{
+				isDefined(ErrorLevel::fatal, JSVXSERVER, JPORT, g_Keys.svxs.port, rval);
+				// Validate TG mappings: each module must be transcoded
+				const auto &jdata = GetData();
+				bool hasUsers = false;
+				for (auto it = jdata.begin(); it != jdata.end(); ++it)
+				{
+					const std::string &k = it.key();
+					if (k.substr(0, 6) == "svxsTG")
+					{
+						std::string val = it.value().get<std::string>();
+						if (val.size() >= 1 && std::string::npos == GetString(g_Keys.tc.modules).find(val[0]))
+						{
+							std::cerr << "ERROR: [" << JSVXSERVER << "] TG" << k.substr(6) << " module " << val[0] << " is not a transcoded module" << std::endl;
+							rval = true;
+						}
+					}
+					if (k.substr(0, 9) == "svxsUser_")
+						hasUsers = true;
+				}
+				if (!hasUsers)
+				{
+					std::cerr << "ERROR: [" << JSVXSERVER << "] no users configured" << std::endl;
+					rval = true;
+				}
+			}
+			else
+			{
+				std::cerr << "ERROR: " << JSVXSERVER << " requires a transcoder" << std::endl;
 				rval = true;
 			}
 		}
