@@ -2,7 +2,7 @@
 
 Fork of [urfd](https://github.com/nostar/urfd) with extended features for the URF363 reflector project.
 
-**Version 3.2.1-dht** | Dashboard v2.6.0
+**Version 3.2.2-dht** | Dashboard v2.6.0
 
 ## What's New in This Fork
 
@@ -82,6 +82,47 @@ N0CALL-HS = changeme
 {"cmd": "svxserver_user_add", "token": "...", "callsign": "N0CALL-HS", "password": "secret"}
 {"cmd": "svxserver_user_remove", "token": "...", "callsign": "N0CALL-HS"}
 {"cmd": "svxserver_user_list", "token": "..."}
+```
+
+### MMDVM Server
+Accept incoming connections from MMDVM hotspots and repeaters directly (no BrandMeister needed). Implements the HomeBrew DMR protocol (RPTL→RPTK→RPTC→RPTO handshake). Requires transcoded modules. TG mapping works like MMDVMClient — TGs map to modules with timeslot support.
+
+```ini
+[MMDVM]
+Enable = true
+Port = 62030                       # Standard MMDVM port
+# FallbackDmrId = 0                # DMR ID for unknown callers (0 or omit = drop)
+# BlockProtocols = SVXServer,USRP  # Block audio from these protocols
+#
+# TG mapping: TG<number> = <Module>[,TS<1|2>]
+TG9 = A,TS2                        # TG9 -> Module A on TS2 (common hotspot default)
+# TG26363 = F,TS2                  # Local TG -> Module F
+#
+# User authentication: <BASE-DMRID> or <CALLSIGN> = <password>
+# If no users are configured, authentication is disabled (open access).
+# One entry per callsign/base-ID covers all 9-digit extensions (xx00-xx99).
+# 2631353 = changeme               # Base 7-digit DMR ID -> covers 263135300..263135399
+# DL4JC = changeme                 # Callsign resolved to DMR ID at startup
+```
+
+**Extended DMR IDs**: BrandMeister-style hotspots append a 2-digit suffix to the 7-digit base DMR ID (e.g. `263135301` = base `2631353` + suffix `01`). urfd strips the suffix automatically — one user entry covers all extensions.
+
+**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, access is open (no password required). Users can be managed at runtime via the Admin interface.
+
+**TG mapping**: Same semantics as MMDVMClient — first TG per module is primary (TX+RX), additional TGs are secondary (RX only). Dynamic TGs can be added via the Admin interface with configurable TTL.
+
+**Hotspot config**: Point the hotspot directly at the reflector IP on port 62030. In WPSD/Pi-Star, use "MMDVM_BRIDGE" or single-network mode. DMRGateway multi-network mode routes traffic to BrandMeister by default and must be disabled.
+
+**Admin commands**:
+```json
+{"cmd": "mmdvm_user_add", "token": "...", "dmrid": 2631353, "password": "secret"}
+{"cmd": "mmdvm_user_add", "token": "...", "callsign": "DL4JC", "password": "secret"}
+{"cmd": "mmdvm_user_remove", "token": "...", "dmrid": 2631353}
+{"cmd": "mmdvm_user_list", "token": "..."}
+{"cmd": "mmdvm_tg_add", "token": "...", "tg": 26363, "module": "F", "ts": 2, "ttl": 900}
+{"cmd": "mmdvm_tg_remove", "token": "...", "tg": 26363}
+{"cmd": "mmdvm_tg_list", "token": "..."}
+{"cmd": "mmdvm_peer_list", "token": "..."}
 ```
 
 ### D-Star Client Connectors (DCS, DExtra, DPlus)
@@ -202,6 +243,7 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 - **Kerchunk on Demand**: Send a kerchunk to BrandMeister for a specific TG without a radio. MMDVM only. Not needed when BM API key is configured.
 - **D-Star Client Mappings**: Add/remove DCS, DExtra, DPlus reflector connections dynamically with module-to-module mapping. Protocol selector for DCS/DExtra/DPlus with auto-port defaults.
 - **YSF Client Mappings**: Add/remove YSF reflector connections with optional DG-ID.
+- **MMDVM Server Management**: Add/remove/list users (by DMR-ID or callsign) and TG mappings. View connected hotspot nodes with DMR-ID, frequencies, location, and software info.
 - **Protocol Reconnect**: Force reconnect of MMDVM, SVX, DCSClient, DExtraClient, DPlusClient, or YSFClient connections.
 - **Transcoder Statistics**: Connection status, active codec, packet counts, round-trip time per transcoded module.
 - **Live Log Viewer**: Last 200 log lines with timestamps, auto-refreshing every 10 seconds.
@@ -230,6 +272,14 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "svxserver_user_add", "token": "...", "callsign": "N0CALL-HS", "password": "secret"}
 {"cmd": "svxserver_user_remove", "token": "...", "callsign": "N0CALL-HS"}
 {"cmd": "svxserver_user_list", "token": "..."}
+{"cmd": "mmdvm_user_add", "token": "...", "dmrid": 2631353, "password": "secret"}
+{"cmd": "mmdvm_user_add", "token": "...", "callsign": "DL4JC", "password": "secret"}
+{"cmd": "mmdvm_user_remove", "token": "...", "dmrid": 2631353}
+{"cmd": "mmdvm_user_list", "token": "..."}
+{"cmd": "mmdvm_tg_add", "token": "...", "tg": 26363, "module": "F", "ts": 2, "ttl": 900}
+{"cmd": "mmdvm_tg_remove", "token": "...", "tg": 26363}
+{"cmd": "mmdvm_tg_list", "token": "..."}
+{"cmd": "mmdvm_peer_list", "token": "..."}
 {"cmd": "clear_users", "token": "..."}
 ```
 
