@@ -244,14 +244,12 @@ void CDmrmmdvmProtocol::Task(void)
 		}
 		else if ( IsValidConfigPacket(Buffer, &Callsign, Ip) )
 		{
-			std::cout << "MMDVM: config from " << Callsign << " at " << Ip << std::endl;
+			// parse config before ACK (EncodeAckPacket overwrites the buffer)
+			ParseConfigPacket(Buffer, Ip);
 
 			// acknowledge the request
 			EncodeAckPacket(&Buffer, Callsign);
 			Send(Buffer, Ip);
-
-			// parse and store peer config info
-			ParseConfigPacket(Buffer, Ip);
 		}
 		else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
 		{
