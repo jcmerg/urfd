@@ -83,6 +83,7 @@ void CSvxProtocol::PackString(std::vector<uint8_t> &buf, const std::string &str)
 
 uint16_t CSvxProtocol::UnpackUint16(const std::vector<uint8_t> &buf, size_t &pos)
 {
+	if (pos + 2 > buf.size()) { pos = buf.size(); return 0; }
 	uint16_t val = ((uint16_t)buf[pos] << 8) | buf[pos + 1];
 	pos += 2;
 	return val;
@@ -90,6 +91,7 @@ uint16_t CSvxProtocol::UnpackUint16(const std::vector<uint8_t> &buf, size_t &pos
 
 uint32_t CSvxProtocol::UnpackUint32(const std::vector<uint8_t> &buf, size_t &pos)
 {
+	if (pos + 4 > buf.size()) { pos = buf.size(); return 0; }
 	uint32_t val = ((uint32_t)buf[pos] << 24) | ((uint32_t)buf[pos+1] << 16)
 	             | ((uint32_t)buf[pos+2] << 8) | buf[pos+3];
 	pos += 4;
@@ -148,7 +150,9 @@ void CSvxProtocol::LoadTGMap(void)
 		{
 			try {
 				uint32_t tg = std::stoul(key.substr(6));
-				char mod = it.value().get<std::string>()[0];
+				auto modStr = it.value().get<std::string>();
+				if (modStr.empty()) continue;
+				char mod = modStr[0];
 				m_TGToModule[tg] = mod;
 				m_ModuleToTG[mod] = tg;
 				std::cout << "SVXServer: TG mapping: TG" << tg << " <-> Module " << mod << std::endl;
@@ -577,9 +581,23 @@ void CSvxProtocol::OnPeerAuthResponse(uint32_t clientId, const std::vector<uint8
 	peer.authState = SSvxPeer::EAuthState::connected;
 
 	// Create OPUS encoder/decoder for this peer
-	int err;
-	peer.opusEncoder = opus_encoder_create(16000, 1, OPUS_APPLICATION_AUDIO, &err);
-	peer.opusDecoder = opus_decoder_create(8000, 1, &err);
+	int opusErr;
+	peer.opusEncoder = opus_encoder_create(16000, 1, OPUS_APPLICATION_AUDIO, &opusErr);
+	if (opusErr != OPUS_OK || !peer.opusEncoder)
+	{
+		std::cerr << "SVXServer: opus_encoder_create failed for " << callsign << ": " << opus_strerror(opusErr) << std::endl;
+		DisconnectPeer(clientId);
+		return;
+	}
+	peer.opusDecoder = opus_decoder_create(8000, 1, &opusErr);
+	if (opusErr != OPUS_OK || !peer.opusDecoder)
+	{
+		std::cerr << "SVXServer: opus_decoder_create failed for " << callsign << ": " << opus_strerror(opusErr) << std::endl;
+		opus_encoder_destroy(peer.opusEncoder);
+		peer.opusEncoder = nullptr;
+		DisconnectPeer(clientId);
+		return;
+	}
 
 	// Send MsgAuthOk
 	{
@@ -922,7 +940,7 @@ void CSvxProtocol::ClosePeerInStream(uint32_t clientId)
 		if (peer.opusDecoder)
 		{
 			int16_t dummy[160];
-			[[maybe_unused]] int ret = opus_decode(peer.opusDecoder, NULL, 0, dummy, 160, 0);
+			[[maybe_unused]] int ret = opus_decode(peer.opusDecoder, nullptr, 0, dummy, 160, 0);
 		}
 
 		// Close with silence
@@ -1207,17 +1225,25 @@ bool CSvxProtocol::Initialize(const char *type, const EProtocol ptype,
 	// Parse gain settings
 	if (g_Configure.Contains(g_Keys.svxs.rxgain))
 	{
-		int db = std::stoi(g_Configure.GetString(g_Keys.svxs.rxgain));
-		if (db < -40) db = -40; else if (db > 40) db = 40;
-		m_RxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
-		std::cout << "SVXServer: RxGain = " << db << " dB" << std::endl;
+		try {
+			int db = std::stoi(g_Configure.GetString(g_Keys.svxs.rxgain));
+			if (db < -40) db = -40; else if (db > 40) db = 40;
+			m_RxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
+			std::cout << "SVXServer: RxGain = " << db << " dB" << std::endl;
+		} catch (const std::exception &e) {
+			std::cerr << "SVXServer: invalid RxGain value: " << e.what() << std::endl;
+		}
 	}
 	if (g_Configure.Contains(g_Keys.svxs.txgain))
 	{
-		int db = std::stoi(g_Configure.GetString(g_Keys.svxs.txgain));
-		if (db < -40) db = -40; else if (db > 40) db = 40;
-		m_TxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
-		std::cout << "SVXServer: TxGain = " << db << " dB" << std::endl;
+		try {
+			int db = std::stoi(g_Configure.GetString(g_Keys.svxs.txgain));
+			if (db < -40) db = -40; else if (db > 40) db = 40;
+			m_TxGainNum = (int32_t)roundf(256.0f * powf(10.0f, (float)db / 20.0f));
+			std::cout << "SVXServer: TxGain = " << db << " dB" << std::endl;
+		} catch (const std::exception &e) {
+			std::cerr << "SVXServer: invalid TxGain value: " << e.what() << std::endl;
+		}
 	}
 
 	LoadTGMap();
@@ -1378,7 +1404,6 @@ void CSvxProtocol::Task(void)
 
 void CSvxProtocol::HandleKeepalives(void)
 {
-	// handled in Task() directly
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

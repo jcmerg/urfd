@@ -1027,14 +1027,11 @@ void CDmrmmdvmProtocol::EncodeMMDVMPacket(const CDvHeaderPacket &Header, const C
 {
 	uint8_t tag[] = { 'D','M','R','D' };
 	Buffer->Set(tag, sizeof(tag));
-	uint8_t cs[12];
-
 	// DMR header
 	// uiSeqId
 	Buffer->Append((uint8_t)seqid);
 	// uiSrcId
 	uint32_t uiSrcId = Header.GetMyCallsign().GetDmrid();
-	DvFrame0.GetMyCallsign().GetCallsign(cs);
 
     if(uiSrcId == 0){
 		uiSrcId = DvFrame0.GetMyCallsign().GetDmrid();
@@ -1296,19 +1293,16 @@ void CDmrmmdvmProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketI
 		CQR1676::encode(emb);
 		// and append
 		buffer->ReplaceAt(33, (uint8_t)((buffer->at(33) & 0xF0) | ((emb[0U] >> 4) & 0x0F)));
-		buffer->ReplaceAt(34, (uint8_t)((buffer->at(34) & 0x0F) | ((emb[0U] << 4) & 0xF0)));
-		buffer->ReplaceAt(34, (uint8_t)(buffer->at(34) & 0xF0));
+		buffer->ReplaceAt(34, (uint8_t)((emb[0U] << 4) & 0xF0));
 		buffer->ReplaceAt(35, (uint8_t)0);
 		buffer->ReplaceAt(36, (uint8_t)0);
 		buffer->ReplaceAt(37, (uint8_t)0);
-		buffer->ReplaceAt(38, (uint8_t)(buffer->at(38) & 0x0F));
-		buffer->ReplaceAt(38, (uint8_t)((buffer->at(38) & 0xF0) | ((emb[1U] >> 4) & 0x0F)));
+		buffer->ReplaceAt(38, (uint8_t)((emb[1U] >> 4) & 0x0F));
 		buffer->ReplaceAt(39, (uint8_t)((buffer->at(39) & 0x0F) | ((emb[1U] << 4) & 0xF0)));
 	}
 	// voice packet F
 	else
 	{
-		// nullptr
 		uint8_t emb[2];
 		emb[0]  = (DMRMMDVM_REFLECTOR_COLOUR << 4) & 0xF0;
 		//emb[0] |= PI ? 0x08U : 0x00;
@@ -1318,13 +1312,11 @@ void CDmrmmdvmProtocol::ReplaceEMBInBuffer(CBuffer *buffer, uint8_t uiDmrPacketI
 		CQR1676::encode(emb);
 		// and append
 		buffer->ReplaceAt(33, (uint8_t)((buffer->at(33) & 0xF0) | ((emb[0U] >> 4) & 0x0F)));
-		buffer->ReplaceAt(34, (uint8_t)((buffer->at(34) & 0x0F) | ((emb[0U] << 4) & 0xF0)));
-		buffer->ReplaceAt(34, (uint8_t)(buffer->at(34) & 0xF0));
+		buffer->ReplaceAt(34, (uint8_t)((emb[0U] << 4) & 0xF0));
 		buffer->ReplaceAt(35, (uint8_t)0);
 		buffer->ReplaceAt(36, (uint8_t)0);
 		buffer->ReplaceAt(37, (uint8_t)0);
-		buffer->ReplaceAt(38, (uint8_t)(buffer->at(38) & 0x0F));
-		buffer->ReplaceAt(38, (uint8_t)((buffer->at(38) & 0xF0) | ((emb[1U] >> 4) & 0x0F)));
+		buffer->ReplaceAt(38, (uint8_t)((emb[1U] >> 4) & 0x0F));
 		buffer->ReplaceAt(39, (uint8_t)((buffer->at(39) & 0x0F) | ((emb[1U] << 4) & 0xF0)));
 	}
 }

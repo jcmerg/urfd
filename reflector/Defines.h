@@ -150,7 +150,7 @@ enum class EProtocol { any, none, dextra, dplus, dcs, g3, xlxpeer, urf, dmrplus,
 ////////////////////////////////////////////////////////////////////////////////////////
 // macros
 
-#define MIN(a,b) 				((a)<(b))?(a):(b)
+#define MIN(a,b) 				(((a)<(b))?(a):(b))
 #define MAKEWORD(low, high)		((uint16_t)(((uint8_t)(low)) | (((uint16_t)((uint8_t)(high))) << 8)))
 #define MAKEDWORD(low, high)	((uint32_t)(((uint16_t)(low)) | (((uint32_t)((uint16_t)(high))) << 16)))
 #define LOBYTE(w)				((uint8_t)(uint16_t)(w & 0x00FF))
