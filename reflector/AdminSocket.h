@@ -74,6 +74,20 @@ private:
 	nlohmann::json CmdSvxsUserAdd(const nlohmann::json &cmd);
 	nlohmann::json CmdSvxsUserRemove(const nlohmann::json &cmd);
 	nlohmann::json CmdSvxsUserList(void);
+	nlohmann::json CmdSvxsPeerList(void);
+
+	// MMDVM Server user management
+	nlohmann::json CmdMmdvmUserAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdMmdvmUserRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdMmdvmUserList(void);
+
+	// MMDVM Server TG management
+	nlohmann::json CmdMmdvmTGAdd(const nlohmann::json &cmd);
+	nlohmann::json CmdMmdvmTGRemove(const nlohmann::json &cmd);
+	nlohmann::json CmdMmdvmTGList(void);
+
+	// MMDVM Server peer list
+	nlohmann::json CmdMmdvmPeerList(void);
 
 	// Config
 	int m_ListenFd;

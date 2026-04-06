@@ -23,6 +23,17 @@
 // Reuse message type defines from SvxReflectorProtocol.h
 #include "SvxReflectorProtocol.h"
 
+// Node info reported by SvxLink nodes
+struct SSvxNodeInfo {
+	std::string software;
+	std::string location;
+	std::string qth;
+	std::string rxSiteName;
+	std::string txSiteName;
+	std::vector<std::string> logics;
+	bool populated = false;
+};
+
 class CSvxProtocol : public CProtocol
 {
 public:
@@ -48,6 +59,16 @@ public:
 	bool AddUser(const std::string &callsign, const std::string &password);
 	bool RemoveUser(const std::string &callsign);
 	std::vector<std::string> GetUsers(void) const;
+
+	// connected peer info (called from admin socket thread)
+	struct SConnectedPeer {
+		std::string callsign;
+		std::string ip;
+		std::set<uint32_t> subscribedTGs;
+		bool udpDiscovered;
+		SSvxNodeInfo nodeInfo;
+	};
+	std::vector<SConnectedPeer> GetConnectedPeers() const;
 
 protected:
 	// queue helper
@@ -85,6 +106,9 @@ protected:
 
 		// TCP receive buffer (partial frame accumulation)
 		std::vector<uint8_t> tcpRecvBuf;
+
+		// node info from SvxLink JSON
+		SSvxNodeInfo nodeInfo;
 
 		// incoming stream state (audio from this peer)
 		struct SInStream {

@@ -10,8 +10,9 @@ CTGModuleMap::CTGModuleMap()
 {
 }
 
-bool CTGModuleMap::LoadFromConfig(void)
+bool CTGModuleMap::LoadFromConfig(const std::string &prefix)
 {
+	const std::string keyPrefix = prefix + "TG";
 	std::lock_guard<std::mutex> lock(m_Mutex);
 	m_TGtoEntry.clear();
 	m_ModuleToTG.clear();
@@ -21,11 +22,11 @@ bool CTGModuleMap::LoadFromConfig(void)
 	for (auto it = jdata.begin(); it != jdata.end(); ++it)
 	{
 		const std::string &key = it.key();
-		if (key.substr(0, 10) == "mmdvmcliTG")
+		if (key.substr(0, keyPrefix.size()) == keyPrefix)
 		{
 			try
 			{
-				uint32_t tg = std::stoul(key.substr(10));
+				uint32_t tg = std::stoul(key.substr(keyPrefix.size()));
 				std::string val = it.value().get<std::string>();
 
 				char mod = ' ';
@@ -80,8 +81,9 @@ bool CTGModuleMap::LoadFromConfig(void)
 	return true;
 }
 
-void CTGModuleMap::ReloadStaticFromConfig(void)
+void CTGModuleMap::ReloadStaticFromConfig(const std::string &prefix)
 {
+	const std::string keyPrefix = prefix + "TG";
 	std::lock_guard<std::mutex> lock(m_Mutex);
 
 	// Collect dynamic entries to preserve
@@ -101,10 +103,10 @@ void CTGModuleMap::ReloadStaticFromConfig(void)
 	for (auto it = jdata.begin(); it != jdata.end(); ++it)
 	{
 		const std::string &key = it.key();
-		if (key.substr(0, 10) != "mmdvmcliTG") continue;
+		if (key.substr(0, keyPrefix.size()) != keyPrefix) continue;
 		try
 		{
-			uint32_t tg = std::stoul(key.substr(10));
+			uint32_t tg = std::stoul(key.substr(keyPrefix.size()));
 			std::string val = it.value().get<std::string>();
 			char mod = (val.size() >= 1 && val[0] >= 'A' && val[0] <= 'Z') ? val[0] : ' ';
 			uint8_t ts = 2;

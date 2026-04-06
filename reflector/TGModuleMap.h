@@ -30,8 +30,9 @@ public:
 	CTGModuleMap();
 
 	// Load TG=Module[,TS<1|2>] mappings from config (static entries)
-	bool LoadFromConfig(void);
-	void ReloadStaticFromConfig(void);  // re-read static mappings, preserve dynamic
+	// prefix: config key prefix, e.g. "mmdvmcli" for MMDVMClient or "mmdvm" for MMDVM server
+	bool LoadFromConfig(const std::string &prefix = "mmdvmcli");
+	void ReloadStaticFromConfig(const std::string &prefix = "mmdvmcli");
 
 	// Lookups (thread-safe)
 	char TGToModule(uint32_t tg) const;

@@ -415,8 +415,28 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.mmdvm.defaultid] = getUnsigned(value, "MMDVM DefaultID", 0, 9999999, 0);
 				else if (0 == key.compare(JENABLE))
 					data[g_Keys.mmdvm.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(0, 2, "TG"))
+					data["mmdvmTG" + key.substr(2)] = value;  // TG mapping: TG<N> = <Module>[,TS<1|2>]
+				else if (0 == key.compare("BlockProtocols"))
+					data["mmdvmBlockProtocols"] = value;
 				else
-					badParam(key);
+				{
+					// check if it's a user entry (DMR ID or callsign = password)
+					bool isUser = false;
+					if (!key.empty())
+					{
+						// numeric keys are DMR IDs, alpha keys are callsigns
+						bool isNumeric = std::all_of(key.begin(), key.end(), ::isdigit);
+						bool isCallsign = !isNumeric && key.size() >= 3 && std::isalpha(key[0]);
+						if (isNumeric || isCallsign)
+						{
+							data["mmdvmUsr_" + key] = value;
+							isUser = true;
+						}
+					}
+					if (!isUser)
+						badParam(key);
+				}
 				break;
 			case ESection::nxdn:
 				if (0 == key.compare(JPORT))

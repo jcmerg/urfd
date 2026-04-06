@@ -19,6 +19,7 @@
 
 #include <cmath>
 #include <openssl/hmac.h>
+#include <nlohmann/json.hpp>
 
 #include "SvxProtocol.h"
 #include "SvxClient.h"
@@ -624,12 +625,39 @@ void CSvxProtocol::OnPeerNodeInfo(uint32_t clientId, const std::vector<uint8_t> 
 {
 	auto it = m_Peers.find(clientId);
 	if (it == m_Peers.end()) return;
+	SSvxPeer &peer = it->second;
 
 	// payload: type(2) + json(string)
 	if (payload.size() < 4) return;
 	size_t pos = 2;
 	std::string json = UnpackString(payload, pos);
-	std::cout << "SVXServer: node info from " << it->second.callsign << ": " << json << std::endl;
+	std::cout << "SVXServer: node info from " << peer.callsign << ": " << json << std::endl;
+
+	// Parse JSON and store node info
+	try
+	{
+		auto j = nlohmann::json::parse(json);
+		if (j.contains("sw_ver") && j["sw_ver"].is_string())
+			peer.nodeInfo.software = j["sw_ver"].get<std::string>();
+		if (j.contains("rx_name") && j["rx_name"].is_string())
+			peer.nodeInfo.rxSiteName = j["rx_name"].get<std::string>();
+		if (j.contains("tx_name") && j["tx_name"].is_string())
+			peer.nodeInfo.txSiteName = j["tx_name"].get<std::string>();
+		if (j.contains("qth") && j["qth"].is_string())
+			peer.nodeInfo.qth = j["qth"].get<std::string>();
+		if (j.contains("location") && j["location"].is_string())
+			peer.nodeInfo.location = j["location"].get<std::string>();
+		if (j.contains("logics") && j["logics"].is_array())
+		{
+			for (const auto &l : j["logics"])
+				if (l.is_string()) peer.nodeInfo.logics.push_back(l.get<std::string>());
+		}
+		peer.nodeInfo.populated = true;
+	}
+	catch (const std::exception &e)
+	{
+		std::cerr << "SVXServer: failed to parse node info JSON from " << peer.callsign << ": " << e.what() << std::endl;
+	}
 }
 
 void CSvxProtocol::OnPeerSelectTG(uint32_t clientId, const std::vector<uint8_t> &payload)
@@ -1629,4 +1657,21 @@ std::vector<std::string> CSvxProtocol::GetUsers(void) const
 	for (const auto &[cs, pw] : m_Passwords)
 		users.push_back(cs);
 	return users;
+}
+
+std::vector<CSvxProtocol::SConnectedPeer> CSvxProtocol::GetConnectedPeers() const
+{
+	std::vector<SConnectedPeer> result;
+	for (const auto &[id, peer] : m_Peers)
+	{
+		if (peer.authState != SSvxPeer::EAuthState::connected) continue;
+		SConnectedPeer cp;
+		cp.callsign = peer.callsign;
+		cp.ip = peer.udpDiscovered ? peer.udpEndpoint.GetAddress() : "";
+		cp.subscribedTGs = peer.subscribedTGs;
+		cp.udpDiscovered = peer.udpDiscovered;
+		cp.nodeInfo = peer.nodeInfo;
+		result.push_back(std::move(cp));
+	}
+	return result;
 }
