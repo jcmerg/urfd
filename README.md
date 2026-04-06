@@ -12,17 +12,32 @@ Connect to any DMR master server (e.g. BrandMeister) via the MMDVM protocol. Map
 ```ini
 [MMDVMClient]
 Enable = true
-MasterAddress = master.example.com    # DMR master server
+MasterAddress = master.example.com  # MMDVM master server IP or DNS hostname
 MasterPort = 62031
-DmrId = 123456701
-Password = yourpassword
-Callsign = YOURCALL                   # Used for DMR-ID lookup on kerchunk
-TG26250 = S,TS1    # TG 26250 -> Module S on Timeslot 1 (primary, TX/RX)
-TG26207 = S,TS1    # TG 26207 -> Module S (secondary, RX only)
-TG26363 = F,TS2    # TG 26363 -> Module F (primary)
-# FallbackDmrId = 1234567  # For callers not in DMR database (omit = drop stream)
-# BlockProtocols = SvxReflector,YSF  # Block audio from these protocols (comma-separated)
-# BrandMeisterApiKey = eyJ0eXAiOiJKV1Qi...  # Optional: BM API for static TG management
+# LocalPort = 12345                 # Fixed local UDP source port (omit = OS-assigned)
+DmrId = 1234567                     # Your registered DMR/hotspot ID
+Password = changeme                 # MMDVM hotspot security password
+Callsign = YOURCALL                 # Callsign (used for DMR-ID lookup on kerchunk)
+Latitude = 0.0
+Longitude = 0.0
+Location = My City
+Description = My URF Reflector
+URL = https://example.com
+RxFreq = 430412500
+TxFreq = 439812500
+# FallbackDmrId = 1234567           # DMR ID for unknown callers (0 or omit = drop)
+# BlockProtocols = SvxReflector,YSF # Block protocols bidirectionally
+#
+# BrandMeister API (optional): sync static TGs, add/remove via API instead of kerchunk
+# Get your API key from BrandMeister SelfCare -> Profile -> Security -> API Keys
+# BrandMeisterApiKey = eyJ0eXAiOiJKV1Qi...
+#
+# TG mapping: TG<number> = <Module>[,TS<1|2>]
+# First TG per module = primary (TX/RX). Additional = secondary (RX only).
+# Default timeslot is TS2.
+TG91 = A,TS2                        # Worldwide -> Module A (primary)
+# TG262 = A,TS2                     # Germany -> Module A (secondary, RX only)
+# TG26363 = B,TS1                   # Local -> Module B (primary)
 ```
 
 **Multi-TG per Module**: The first TG listed for a module becomes the primary and is used for outbound traffic (TX). Additional TGs on the same module are secondary and only receive inbound traffic (RX). Dynamic TGs added via the Admin interface are always secondary unless the module has no primary yet.
@@ -41,14 +56,17 @@ Connect to SvxLink SvxReflector servers (e.g. FM-Funknetz) for bidirectional FM 
 ```ini
 [SvxReflector]
 Enable = true
-Host = svxreflector.example.com
-Port = 5300
-Callsign = YOURCALL-HS
-Password = yourpassword
-TG26363 = S              # SvxReflector TG -> Module S
-# BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols (comma-separated)
-RxGain = -12             # Incoming audio gain in dB (-40 to +40, default -12)
-TxGain = 12              # Outgoing audio gain in dB (-40 to +40, default +12)
+Host = svxreflector.example.com    # DNS hostname or IP
+Port = 5300                         # TCP and UDP port (same)
+Callsign = YOURCALL-HS             # Node callsign (as registered on server)
+Password = changeme                 # Authentication password
+# BlockProtocols = MMDVMClient,USRP # Block protocols bidirectionally
+# RxGain = -12                      # Incoming audio gain in dB (-40 to +40, default -12)
+# TxGain = 12                       # Outgoing audio gain in dB (-40 to +40, default +12)
+#
+# TG mapping: TG<number> = <Module>
+# Modules must be transcoded. Multiple TGs per module supported.
+# TG26363 = S
 ```
 
 **BlockProtocols** (all client protocols): Supported on MMDVMClient, SvxReflector, DCSClient, DExtraClient, DPlusClient, and YSFClient. Prevents audio from the listed source protocols from being routed through this connector. Each client protocol also always blocks self-routing (e.g. DCSClient never routes DCSClient-originated audio back out). Available protocol names: `MMDVM`, `MMDVMClient`, `SvxReflector`, `DExtra`, `DExtraClient`, `DPlus`, `DPlusClient`, `DCS`, `DCSClient`, `DMRPlus`, `YSF`, `YSFClient`, `M17`, `NXDN`, `P25`, `USRP`, `URF`, `XLXPeer`, `G3`. Comma-separated.
@@ -61,16 +79,18 @@ Accept incoming connections from SvxLink nodes. Acts as a SvxReflector server (p
 ```ini
 [SVXServer]
 Enable = true
-Port = 5300                        # TCP and UDP port (same)
-# BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols
+Port = 5300                         # TCP and UDP port (same)
+# BlockProtocols = MMDVMClient,USRP # Block protocols bidirectionally
 # RxGain = 0                        # Incoming audio gain in dB (-40 to +40)
 # TxGain = 0                        # Outgoing audio gain in dB (-40 to +40)
 #
 # TG mapping: TG<number> = <Module>
-TG26363 = A                        # SvxLink TG -> Module A
+# Modules must be transcoded. Multiple TGs per module supported.
+# TG26363 = A
 #
 # User authentication: <Callsign> = <Password>
-N0CALL-HS = changeme
+# Users can also be added/removed at runtime via the Admin interface.
+# N0CALL-HS = changeme
 ```
 
 **User management**: Users can be added/removed at runtime via the Admin interface or configured statically in `urfd.ini`. Each user authenticates with callsign + password using HMAC-SHA1.
@@ -90,19 +110,22 @@ Accept incoming connections from MMDVM hotspots and repeaters directly (no Brand
 ```ini
 [MMDVM]
 Enable = true
-Port = 62030                       # Standard MMDVM port
+Port = 62030
 # FallbackDmrId = 0                # DMR ID for unknown callers (0 or omit = drop)
-# BlockProtocols = SVXServer,USRP  # Block audio from these protocols
+# BlockProtocols = SVXServer,USRP  # Block protocols bidirectionally
 #
 # TG mapping: TG<number> = <Module>[,TS<1|2>]
-TG9 = A,TS2                        # TG9 -> Module A on TS2 (common hotspot default)
+# First TG per module = primary (TX/RX). Additional = secondary (RX only).
+# Default timeslot is TS2.
+TG9 = A,TS2                        # Common hotspot default
 # TG26363 = F,TS2                  # Local TG -> Module F
 #
 # User authentication: <BASE-DMRID> or <CALLSIGN> = <password>
 # If no users are configured, authentication is disabled (open access).
-# One entry per callsign/base-ID covers all 9-digit extensions (xx00-xx99).
-# 2631353 = changeme               # Base 7-digit DMR ID -> covers 263135300..263135399
-# DL4JC = changeme                 # Callsign resolved to DMR ID at startup
+# One entry covers all 9-digit extensions (e.g. 2631353 covers 263135300-99).
+# Users can also be added/removed at runtime via the Admin interface.
+# 2631353 = changeme               # 7-digit base DMR ID
+# DL4JC = changeme                 # Callsign (resolved to DMR ID at startup)
 ```
 
 **Extended DMR IDs**: BrandMeister-style hotspots append a 2-digit suffix to the 7-digit base DMR ID (e.g. `263135301` = base `2631353` + suffix `01`). urfd strips the suffix automatically — one user entry covers all extensions.
