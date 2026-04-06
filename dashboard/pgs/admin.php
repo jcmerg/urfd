@@ -40,6 +40,7 @@ function showAdmin() {
     refreshDcsMapList();
     refreshYsfMapList();
     refreshSvxsUserList();
+    refreshMmdvmUserList();
     refreshTCStats();
     refreshLog();
     // Auto-refresh every 10s
@@ -49,6 +50,9 @@ function showAdmin() {
         refreshDcsMapList();
         refreshYsfMapList();
         refreshSvxsUserList();
+        refreshMmdvmUserList();
+        refreshMmdvmPeerList();
+        refreshSvxsPeerList();
         refreshTCStats();
         refreshLog();
     }, 10000);
@@ -311,6 +315,105 @@ function removeSvxsUser(callsign) {
     });
 }
 
+function refreshMmdvmUserList() {
+    adminPost({action: 'mmdvm_user_list'}, function(resp) {
+        var tbody = $('#mmdvm-user-table-body');
+        tbody.empty();
+        if (resp.status === 'ok' && resp.users) {
+            resp.users.forEach(function(u) {
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + u.dmrid + '</td>' +
+                    '<td>' + (u.callsign || '') + '</td>' +
+                    '<td><button class="btn btn-xs btn-danger" onclick="removeMmdvmUser(' + u.dmrid + ')">Remove</button></td>' +
+                    '</tr>'
+                );
+            });
+        }
+        if (!resp.users || resp.users.length === 0) {
+            tbody.append('<tr><td colspan="3" class="text-center">No MMDVM users configured</td></tr>');
+        }
+    });
+}
+
+function addMmdvmUser() {
+    var id = $('#mmdvm-user-id').val().trim();
+    var pw = $('#mmdvm-user-pw').val().trim();
+    if (!id || !pw) return;
+    var data = {action: 'mmdvm_user_add', password: pw};
+    if (/^\d+$/.test(id))
+        data.dmrid = parseInt(id);
+    else
+        data.callsign = id;
+    adminPost(data, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') {
+            $('#mmdvm-user-id').val('');
+            $('#mmdvm-user-pw').val('');
+            refreshMmdvmUserList();
+        }
+    });
+}
+
+function removeMmdvmUser(dmrid) {
+    adminPost({action: 'mmdvm_user_remove', dmrid: dmrid}, function(resp) {
+        showAlert(resp);
+        if (resp.status === 'ok') refreshMmdvmUserList();
+    });
+}
+
+function refreshMmdvmPeerList() {
+    adminPost({action: 'mmdvm_peer_list'}, function(resp) {
+        var tbody = $('#mmdvm-peers-table-body');
+        tbody.empty();
+        if (resp.status === 'ok' && resp.peers) {
+            resp.peers.forEach(function(p) {
+                var loc = (p.peer_info && p.peer_info.location) ? p.peer_info.location : '';
+                var sw = (p.peer_info && p.peer_info.softwareId) ? p.peer_info.softwareId : '';
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + (p.callsign || '') + '</td>' +
+                    '<td>' + (p.dmrid || '') + '</td>' +
+                    '<td>' + loc + '</td>' +
+                    '<td>' + sw + '</td>' +
+                    '<td>' + (p.module || '') + '</td>' +
+                    '<td>' + (p.connected_since || '') + '</td>' +
+                    '</tr>'
+                );
+            });
+        }
+        if (!resp.peers || resp.peers.length === 0) {
+            tbody.append('<tr><td colspan="6" class="text-center">No MMDVM nodes connected</td></tr>');
+        }
+    });
+}
+
+function refreshSvxsPeerList() {
+    adminPost({action: 'svxs_peer_list'}, function(resp) {
+        var tbody = $('#svxs-peers-table-body');
+        tbody.empty();
+        if (resp.status === 'ok' && resp.peers) {
+            resp.peers.forEach(function(p) {
+                var tgs = p.subscribed_tgs ? p.subscribed_tgs.join(', ') : '';
+                var sw = (p.node_info && p.node_info.software) ? p.node_info.software : '';
+                var udp = p.udp_discovered ? 'Yes' : 'No';
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + (p.callsign || '') + '</td>' +
+                    '<td>' + tgs + '</td>' +
+                    '<td>' + sw + '</td>' +
+                    '<td>' + udp + '</td>' +
+                    '<td>' + (p.connected_since || '') + '</td>' +
+                    '</tr>'
+                );
+            });
+        }
+        if (!resp.peers || resp.peers.length === 0) {
+            tbody.append('<tr><td colspan="5" class="text-center">No SVX nodes connected</td></tr>');
+        }
+    });
+}
+
 function doToggleBlock(action, a, b) {
     if (!a) a = $('#block-proto-a').val();
     if (!b) b = $('#block-proto-b').val();
@@ -387,7 +490,8 @@ function refreshStatus() {
             if (resp.dplusclient_active) $('#btn-reconnect-dplusclient').show(); else $('#btn-reconnect-dplusclient').hide();
             if (resp.dcsclient_active || resp.dextraclient_active || resp.dplusclient_active) $('#dcs-mapping-section').show(); else $('#dcs-mapping-section').hide();
             if (resp.ysfclient_active) { $('#btn-reconnect-ysfclient').show(); $('#ysf-mapping-section').show(); } else { $('#btn-reconnect-ysfclient').hide(); $('#ysf-mapping-section').hide(); }
-            if (resp.svxs_active) { $('#svxs-user-section').show(); } else { $('#svxs-user-section').hide(); }
+            if (resp.svxs_active) { $('#svxs-user-section').show(); $('#svxs-peers-section').show(); refreshSvxsPeerList(); } else { $('#svxs-user-section').hide(); $('#svxs-peers-section').hide(); }
+            if (resp.mmdvm_server_active) { $('#mmdvm-user-section').show(); $('#mmdvm-peers-section').show(); refreshMmdvmUserList(); refreshMmdvmPeerList(); } else { $('#mmdvm-user-section').hide(); $('#mmdvm-peers-section').hide(); }
 
             // Block rules — collect bidirectional pairs
             var blockedPairs = {};  // "A|B" (sorted) -> true
@@ -739,6 +843,81 @@ $(document).ready(function() {
             </tbody>
         </table>
         <button class="btn btn-default btn-sm" onclick="refreshSvxsUserList()">Refresh</button>
+    </div>
+
+    <!-- Connected SVX Nodes -->
+    <div class="admin-section" id="svxs-peers-section" style="display:none;">
+        <h4>Connected SVX Nodes</h4>
+        <table class="table table-striped table-condensed">
+            <thead>
+                <tr>
+                    <th>Callsign</th>
+                    <th>TGs</th>
+                    <th>Software</th>
+                    <th>UDP</th>
+                    <th>Connected Since</th>
+                </tr>
+            </thead>
+            <tbody id="svxs-peers-table-body">
+                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-sm" onclick="refreshSvxsPeerList()">Refresh</button>
+    </div>
+
+    <!-- MMDVM Server User Management -->
+    <div class="admin-section" id="mmdvm-user-section" style="display:none;">
+        <h4>MMDVM Server Users</h4>
+        <div class="well">
+            <form class="form-inline add-tg-form" onsubmit="addMmdvmUser(); return false;">
+                <div class="form-group">
+                    <label>Callsign or DMR ID</label>
+                    <input type="text" class="form-control" id="mmdvm-user-id" placeholder="e.g. DL4JC or 2634000" style="width:180px;" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="text" class="form-control" id="mmdvm-user-pw" placeholder="Password" style="width:160px;" required>
+                </div>
+                <div class="form-group" style="vertical-align:bottom;">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-success" style="display:block;">Add</button>
+                </div>
+            </form>
+        </div>
+        <table class="table table-striped table-condensed">
+            <thead>
+                <tr>
+                    <th>DMR ID</th>
+                    <th>Callsign</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="mmdvm-user-table-body">
+                <tr><td colspan="3" class="text-center">Loading...</td></tr>
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-sm" onclick="refreshMmdvmUserList()">Refresh</button>
+    </div>
+
+    <!-- Connected MMDVM Nodes -->
+    <div class="admin-section" id="mmdvm-peers-section" style="display:none;">
+        <h4>Connected MMDVM Nodes</h4>
+        <table class="table table-striped table-condensed">
+            <thead>
+                <tr>
+                    <th>Callsign</th>
+                    <th>DMR ID</th>
+                    <th>Location</th>
+                    <th>Software</th>
+                    <th>Module</th>
+                    <th>Connected Since</th>
+                </tr>
+            </thead>
+            <tbody id="mmdvm-peers-table-body">
+                <tr><td colspan="6" class="text-center">Loading...</td></tr>
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-sm" onclick="refreshMmdvmPeerList()">Refresh</button>
     </div>
 
     <!-- Transcoder Statistics -->

@@ -38,8 +38,8 @@ struct SJsonKeys {
 	struct XLXPEER { const std::string enable, port, peercallsign; }
 	xlxpeer { "bmEnable", "bmPort", "bmPeerCallsign" };
 
-	struct MMDVM { const std::string port, defaultid, enable; }
-	mmdvm { "MMDVMPort", "mmdvmdefaultid", "MMDVMEnable" };
+	struct MMDVM { const std::string port, fallbackdmrid, enable; }
+	mmdvm { "MMDVMPort", "mmdvmFallbackDmrId", "MMDVMEnable" };
 
 	struct NAMES { const std::string callsign, bootstrap, url, email, country, sponsor; }
 	names { "Callsign", "bootstrap", "DashboardUrl", "SysopEmail", "Country", "Sponsor" };

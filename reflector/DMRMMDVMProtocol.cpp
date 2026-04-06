@@ -52,7 +52,7 @@ static uint8_t g_DmrSyncMSData[]     = { 0x0D,0x5D,0x7F,0x77,0xFD,0x75,0x70 };
 
 bool CDmrmmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
 {
-	m_DefaultId = g_Configure.GetUnsigned(g_Keys.mmdvm.defaultid);
+	m_DefaultId = g_Configure.GetUnsigned(g_Keys.mmdvm.fallbackdmrid);
 	// base class
 	if (! CProtocol::Initialize(type, ptype, port, has_ipv4, has_ipv6))
 		return false;
@@ -1359,12 +1359,10 @@ bool CDmrmmdvmProtocol::VerifyAuthHash(uint32_t rawDmrId, const uint8_t *clientH
 	}
 
 	// compute expected hash: SHA256(salt_bytes + password_bytes)
-	// salt is sent as 4 bytes in network order (big-endian) in the RPTACK packet
+	// salt was sent via Buffer::Append(uint32_t) which uses native byte order (memcpy)
+	// the client reads the 4 raw bytes and hashes them — so we must use the same byte order
 	uint8_t saltBytes[4];
-	saltBytes[0] = (salt >> 24) & 0xFF;
-	saltBytes[1] = (salt >> 16) & 0xFF;
-	saltBytes[2] = (salt >> 8) & 0xFF;
-	saltBytes[3] = salt & 0xFF;
+	memcpy(saltBytes, &salt, 4);  // native byte order, matches what was sent in RPTACK
 
 	std::vector<uint8_t> input;
 	input.insert(input.end(), saltBytes, saltBytes + 4);

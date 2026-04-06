@@ -411,8 +411,8 @@ bool CConfigure::ReadData(const std::string &path)
 			case ESection::mmdvm:
 				if (0 == key.compare(JPORT))
 					data[g_Keys.mmdvm.port] = getUnsigned(value, "MMDVM Port", 1024, 65535, 62030);
-				else if (0 == key.compare(JDEFAULTID))
-					data[g_Keys.mmdvm.defaultid] = getUnsigned(value, "MMDVM DefaultID", 0, 9999999, 0);
+				else if (0 == key.compare(JDEFAULTID) || 0 == key.compare("FallbackDmrId"))
+					data[g_Keys.mmdvm.fallbackdmrid] = getUnsigned(value, "MMDVM FallbackDmrId", 0, 999999999, 0);
 				else if (0 == key.compare(JENABLE))
 					data[g_Keys.mmdvm.enable] = IS_TRUE(value[0]);
 				else if (0 == key.compare(0, 2, "TG"))
@@ -947,7 +947,7 @@ bool CConfigure::ReadData(const std::string &path)
 
 	// MMDVM
 	isDefined(ErrorLevel::fatal, JMMDVM, JPORT, g_Keys.mmdvm.port, rval);
-	isDefined(ErrorLevel::fatal, JMMDVM, JDEFAULTID, g_Keys.mmdvm.defaultid, rval);
+	isDefined(ErrorLevel::fatal, JMMDVM, JDEFAULTID, g_Keys.mmdvm.fallbackdmrid, rval);
 
 	// NXDN
 	isDefined(ErrorLevel::fatal, JNXDN, JPORT, g_Keys.nxdn.port, rval);

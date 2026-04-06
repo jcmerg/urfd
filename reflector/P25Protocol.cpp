@@ -51,7 +51,7 @@ bool CP25Protocol::Initialize(const char *type, const EProtocol ptype, const uin
 {
 	// config data
 	m_ReflectorId = g_Configure.GetUnsigned(g_Keys.p25.reflectorid);
-	m_DefaultId   = g_Configure.GetUnsigned(g_Keys.mmdvm.defaultid);
+	m_DefaultId   = g_Configure.GetUnsigned(g_Keys.mmdvm.fallbackdmrid);
 	m_AutolinkModule = g_Configure.GetAutolinkModule(g_Keys.p25.autolinkmod);
 
 	m_uiStreamId = 0;
