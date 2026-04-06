@@ -10,7 +10,7 @@ CTGModuleMap::CTGModuleMap()
 {
 }
 
-bool CTGModuleMap::LoadFromConfig(const std::string &prefix)
+bool CTGModuleMap::LoadFromConfig(const std::string &prefix, const std::string &label)
 {
 	const std::string keyPrefix = prefix + "TG";
 	std::lock_guard<std::mutex> lock(m_Mutex);
@@ -56,11 +56,11 @@ bool CTGModuleMap::LoadFromConfig(const std::string &prefix)
 					if (isPrimary)
 					{
 						m_ModuleToTG[mod] = tg;
-						std::cout << prefix << " TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << " (primary)" << std::endl;
+						std::cout << label << " TG mapping: TG" << tg << " <-> Module " << mod << " on TS" << (int)ts << " (primary)" << std::endl;
 					}
 					else
 					{
-						std::cout << prefix << " TG mapping: TG" << tg << " -> Module " << mod << " on TS" << (int)ts << " (secondary, inbound only)" << std::endl;
+						std::cout << label << " TG mapping: TG" << tg << " -> Module " << mod << " on TS" << (int)ts << " (secondary, inbound only)" << std::endl;
 					}
 				}
 				else
@@ -81,7 +81,7 @@ bool CTGModuleMap::LoadFromConfig(const std::string &prefix)
 	return true;
 }
 
-void CTGModuleMap::ReloadStaticFromConfig(const std::string &prefix)
+void CTGModuleMap::ReloadStaticFromConfig(const std::string &prefix, const std::string &label)
 {
 	const std::string keyPrefix = prefix + "TG";
 	std::lock_guard<std::mutex> lock(m_Mutex);

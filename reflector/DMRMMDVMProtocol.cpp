@@ -106,7 +106,7 @@ bool CDmrmmdvmProtocol::Initialize(const char *type, const EProtocol ptype, cons
 	}
 
 	// load TG mappings
-	m_TGMap.LoadFromConfig("mmdvm");
+	m_TGMap.LoadFromConfig("mmdvm", "MMDVM");
 
 	// done
 	return true;

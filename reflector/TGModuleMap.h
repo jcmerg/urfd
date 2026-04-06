@@ -31,8 +31,9 @@ public:
 
 	// Load TG=Module[,TS<1|2>] mappings from config (static entries)
 	// prefix: config key prefix, e.g. "mmdvmcli" for MMDVMClient or "mmdvm" for MMDVM server
-	bool LoadFromConfig(const std::string &prefix = "mmdvmcli");
-	void ReloadStaticFromConfig(const std::string &prefix = "mmdvmcli");
+	// label: human-readable name for log output (e.g. "MMDVMClient", "MMDVM")
+	bool LoadFromConfig(const std::string &prefix = "mmdvmcli", const std::string &label = "MMDVMClient");
+	void ReloadStaticFromConfig(const std::string &prefix = "mmdvmcli", const std::string &label = "MMDVMClient");
 
 	// Lookups (thread-safe)
 	char TGToModule(uint32_t tg) const;
