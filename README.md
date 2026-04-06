@@ -55,6 +55,35 @@ TxGain = 12              # Outgoing audio gain in dB (-40 to +40, default +12)
 
 **RxGain / TxGain**: Static gain applied to SVX audio independently from USRP gain (which is configured in tcd.ini). RxGain is applied after OPUS decode before the transcoder, TxGain after the transcoder before OPUS encode. AGC in tcd still runs on SVX audio after RxGain. Defaults are -12 dB (RX) and +12 dB (TX) to compensate for the ~12 dB level difference between FM audio and digital voice codecs (AMBE, Codec2, IMBE).
 
+### SVXServer (Beta)
+Accept incoming connections from SvxLink nodes. Acts as a SvxReflector server (protocol V2, HMAC-SHA1 auth, OPUS audio). Requires transcoded modules. Users authenticate with callsign + password. TG mapping works like SvxReflector client — clients select TGs via `MsgSelectTG`. Users and TGs can be managed at runtime via the Admin interface.
+
+```ini
+[SVXServer]
+Enable = true
+Port = 5300                        # TCP and UDP port (same)
+# BlockProtocols = MMDVMClient,USRP  # Block audio from these protocols
+# RxGain = 0                        # Incoming audio gain in dB (-40 to +40)
+# TxGain = 0                        # Outgoing audio gain in dB (-40 to +40)
+#
+# TG mapping: TG<number> = <Module>
+TG26363 = A                        # SvxLink TG -> Module A
+#
+# User authentication: <Callsign> = <Password>
+N0CALL-HS = changeme
+```
+
+**User management**: Users can be added/removed at runtime via the Admin interface or configured statically in `urfd.ini`. Each user authenticates with callsign + password using HMAC-SHA1.
+
+**TG mapping**: Same semantics as SvxReflector client — modules must be transcoded. Multiple TGs per module supported. Dynamic TGs can be added via the Admin interface with configurable TTL.
+
+**Admin commands**:
+```json
+{"cmd": "svxserver_user_add", "token": "...", "callsign": "N0CALL-HS", "password": "secret"}
+{"cmd": "svxserver_user_remove", "token": "...", "callsign": "N0CALL-HS"}
+{"cmd": "svxserver_user_list", "token": "..."}
+```
+
 ### D-Star Client Connectors (DCS, DExtra, DPlus)
 Connect to external D-Star reflectors as a client node. Maps remote reflector modules to local reflector modules. All three D-Star linking protocols are supported with their respective wire formats. Mappings can be configured statically in `urfd.ini` or added dynamically at runtime via the Admin interface.
 
@@ -198,6 +227,9 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "dcs_map_list", "token": "..."}
 {"cmd": "ysf_map_add", "token": "...", "host": "90.187.72.177", "port": 42099, "local_module": "A", "dgid": 15}
 {"cmd": "ysf_map_list", "token": "..."}
+{"cmd": "svxserver_user_add", "token": "...", "callsign": "N0CALL-HS", "password": "secret"}
+{"cmd": "svxserver_user_remove", "token": "...", "callsign": "N0CALL-HS"}
+{"cmd": "svxserver_user_list", "token": "..."}
 {"cmd": "clear_users", "token": "..."}
 ```
 
@@ -355,7 +387,7 @@ Name lookup works for all protocols — any callsign with a DMR ID database entr
 
 ## Introduction
 
-The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN, USRP (AllStar) and SvxReflector (SvxLink FM).
+The URF Multi-protocol Gateway Reflector Server, **urfd**, is part of the software system for a Digital Voice Network. It supports D-Star (DPlus, DCS, DExtra, G3), DMR (MMDVM, DMR+, MMDVMClient), M17, YSF, P25, NXDN, USRP (AllStar), SvxReflector (SvxLink FM client) and SVXServer (SvxLink FM server).
 
 A key part of this is the hybrid transcoder, [tcd](https://github.com/jcmerg/tcd), in a separate repository. The reflector can be built without a transcoder, but clients will only hear other clients using the same codec.
 
@@ -480,7 +512,8 @@ Required ports (only open ports for enabled protocols):
 | 41000/udp | P25 | P25 protocol |
 | 41400/udp | NXDN | NXDN protocol |
 | 42000/udp | YSF | YSF/C4FM protocol |
-| 5300/tcp+udp | SvxReflector | SvxLink (outgoing only) |
+| 5300/tcp+udp | SvxReflector | SvxLink (outgoing client) |
+| 5300/tcp+udp | SVXServer | SvxLink (incoming server) |
 | 62030/udp | MMDVM | DMR MMDVM |
 
 ## YSF
@@ -493,6 +526,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **MMDVMClient**: Full MMDVM protocol client for BrandMeister/DMR+ masters — multi-TG per module (primary TX/RX + secondary RX-only), per-timeslot support, fallback DMR ID, options string generation
 - **BrandMeister API**: Optional REST API v2 integration — startup sync preserves dynamic TGs (only removes TGs not in config or runtime map), API-based TG add/remove instead of kerchunk, configurable via `BrandMeisterApiKey`
 - **SvxReflector**: TCP/UDP client for SvxLink FM servers — OPUS codec, bidirectional audio bridging, configurable RX/TX gain, SELECT_TG protocol, auto-disconnect on TCP send failure with immediate reconnect
+- **SVXServer** (beta): SvxReflector V2 server — accept incoming SvxLink node connections with HMAC-SHA1 auth, OPUS audio, TG-based module routing, per-user authentication, runtime user/TG management via admin API
 - **DCS interlinking**: Native DCS reflector-to-reflector peering with PeerCallsign override and protocol field in interlink file
 - **D-Star client protocols**: DCSClient, DExtraClient, DPlusClient — connect to external D-Star reflectors as a client node with module-to-module mapping, dynamic add/remove via admin API, protocol blocking, dashboard integration
 - **YSF client protocol**: YSFClient — connect to external YSF reflectors with optional DG-ID, dynamic mapping via admin API, reflector callsign in YSF radio field
