@@ -197,6 +197,63 @@ switch ($action) {
         $cmd = ['cmd' => 'clear_users', 'token' => $token];
         break;
 
+    // --- MMDVM Server User Management ---
+    case 'mmdvm_user_add':
+        $cmd = [
+            'cmd'   => 'mmdvm_user_add',
+            'token' => $token,
+        ];
+        if (isset($input['dmrid']))    $cmd['dmrid'] = (int)$input['dmrid'];
+        if (isset($input['callsign'])) $cmd['callsign'] = $input['callsign'];
+        if (isset($input['password'])) $cmd['password'] = $input['password'];
+        break;
+
+    case 'mmdvm_user_remove':
+        $cmd = [
+            'cmd'   => 'mmdvm_user_remove',
+            'token' => $token,
+        ];
+        if (isset($input['dmrid']))    $cmd['dmrid'] = (int)$input['dmrid'];
+        if (isset($input['callsign'])) $cmd['callsign'] = $input['callsign'];
+        break;
+
+    case 'mmdvm_user_list':
+        $cmd = ['cmd' => 'mmdvm_user_list', 'token' => $token];
+        break;
+
+    // --- MMDVM Server TG Management ---
+    case 'mmdvm_tg_add':
+        $cmd = [
+            'cmd'    => 'mmdvm_tg_add',
+            'token'  => $token,
+            'tg'     => (int)($input['tg'] ?? 0),
+            'module' => $input['module'] ?? '',
+        ];
+        if (isset($input['ts']))  $cmd['ts']  = (int)$input['ts'];
+        if (isset($input['ttl'])) $cmd['ttl'] = (int)$input['ttl'];
+        break;
+
+    case 'mmdvm_tg_remove':
+        $cmd = [
+            'cmd'   => 'mmdvm_tg_remove',
+            'token' => $token,
+            'tg'    => (int)($input['tg'] ?? 0),
+        ];
+        break;
+
+    case 'mmdvm_tg_list':
+        $cmd = ['cmd' => 'mmdvm_tg_list', 'token' => $token];
+        break;
+
+    // --- MMDVM / SVX Peer Lists ---
+    case 'mmdvm_peer_list':
+        $cmd = ['cmd' => 'mmdvm_peer_list', 'token' => $token];
+        break;
+
+    case 'svxs_peer_list':
+        $cmd = ['cmd' => 'svxs_peer_list', 'token' => $token];
+        break;
+
     case 'dcs_map_add':
         $cmd = [
             'cmd'           => 'dcs_map_add',
