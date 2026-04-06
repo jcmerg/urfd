@@ -105,7 +105,7 @@ Port = 5300                         # TCP and UDP port (same)
 ```
 
 ### MMDVM Server
-Accept incoming connections from MMDVM hotspots and repeaters directly (no BrandMeister needed). Implements the HomeBrew DMR protocol (RPTL→RPTK→RPTC→RPTO handshake). Requires transcoded modules. TG mapping works like MMDVMClient — TGs map to modules with timeslot support.
+Accept incoming connections from MMDVM hotspots and repeaters directly (no BrandMeister needed). Implements the HomeBrew DMR protocol (RPTL→RPTK→RPTC→RPTO handshake). Works without transcoder for pure DMR-to-DMR operation; transcoded modules needed only for cross-mode bridging. TG mapping works like MMDVMClient — TGs map to modules with timeslot support.
 
 ```ini
 [MMDVM]

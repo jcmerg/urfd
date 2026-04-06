@@ -946,8 +946,14 @@ bool CConfigure::ReadData(const std::string &path)
 	isDefined(ErrorLevel::fatal, JG3, JENABLE, g_Keys.g3.enable, rval);
 
 	// MMDVM
-	isDefined(ErrorLevel::fatal, JMMDVM, JPORT, g_Keys.mmdvm.port, rval);
-	isDefined(ErrorLevel::fatal, JMMDVM, JDEFAULTID, g_Keys.mmdvm.fallbackdmrid, rval);
+	if (isDefined(ErrorLevel::mild, JMMDVM, JENABLE, g_Keys.mmdvm.enable, rval))
+	{
+		if (GetBoolean(g_Keys.mmdvm.enable))
+		{
+			isDefined(ErrorLevel::fatal, JMMDVM, JPORT, g_Keys.mmdvm.port, rval);
+			isDefined(ErrorLevel::fatal, JMMDVM, "FallbackDmrId", g_Keys.mmdvm.fallbackdmrid, rval);
+		}
+	}
 
 	// NXDN
 	isDefined(ErrorLevel::fatal, JNXDN, JPORT, g_Keys.nxdn.port, rval);
