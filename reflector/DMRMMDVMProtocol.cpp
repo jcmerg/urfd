@@ -357,10 +357,23 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 						std::cout << "DMRMMDVM node " << rpt1 << " link attempt on non-existing module" << std::endl;
 					}
 				}
+				else if ( cmd == CMD_NONE && rpt2.GetCSModule() != ' ' && g_Reflector.IsValidModule(rpt2.GetCSModule()) )
+				{
+					// TG mapping resolved to a valid module — auto-link
+					std::cout << "DMRmmdvm client " << client->GetCallsign() << " auto-linking on module " << rpt2.GetCSModule() << " (TG mapping)" << std::endl;
+					client->SetReflectorModule(rpt2.GetCSModule());
+				}
 			}
 			else
 			{
-				// already linked
+				// already linked — switch module if TG maps to a different one
+				char targetMod = rpt2.GetCSModule();
+				if ( targetMod != ' ' && targetMod != client->GetReflectorModule() && g_Reflector.IsValidModule(targetMod) )
+				{
+					std::cout << "DMRmmdvm client " << client->GetCallsign() << " switching to module " << targetMod << " (TG mapping)" << std::endl;
+					client->SetReflectorModule(targetMod);
+				}
+
 				if ( cmd == CMD_UNLINK )
 				{
 					std::cout << "DMRmmdvm client " << client->GetCallsign() << " unlinking" << std::endl;
