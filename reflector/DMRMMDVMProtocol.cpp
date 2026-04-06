@@ -761,14 +761,17 @@ bool CDmrmmdvmProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer, std::unique
 				}
 
 				// build DVHeader
-				CCallsign csMY = CCallsign("", uiSrcId);
-				CCallsign rpt1 = CCallsign("", uiRptrId);
+				// resolve extended DMR IDs to base for callsign lookup
+				uint32_t mySrcId = (uiSrcId > 9999999) ? uiSrcId / 100 : uiSrcId;
+				uint32_t myRptrId = (uiRptrId > 9999999) ? uiRptrId / 100 : uiRptrId;
+				CCallsign csMY = CCallsign("", mySrcId);
+				CCallsign rpt1 = CCallsign("", myRptrId);
 				rpt1.SetCSModule(MMDVM_MODULE_ID);
 				CCallsign rpt2 = m_ReflectorCallsign;
 				rpt2.SetCSModule(DmrDstIdToModule(uiDstId));
 
 				// and packet
-				header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(uiSrcId, CCallsign("CQCQCQ"), rpt1, rpt2, uiStreamId, 0, 0));
+				header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(mySrcId, CCallsign("CQCQCQ"), rpt1, rpt2, uiStreamId, 0, 0));
 				if ( header && header->IsValid() )
 					return true;
 			}
@@ -822,15 +825,17 @@ bool CDmrmmdvmProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffe
 					cmd = CMD_NONE;
 				}
 
-				// build DVHeader
-				CCallsign csMY = CCallsign("", uiSrcId);
-				CCallsign rpt1 = CCallsign("", uiRptrId);
+				// build DVHeader — resolve extended DMR IDs to base
+				uint32_t mySrcId = (uiSrcId > 9999999) ? uiSrcId / 100 : uiSrcId;
+				uint32_t myRptrId = (uiRptrId > 9999999) ? uiRptrId / 100 : uiRptrId;
+				CCallsign csMY = CCallsign("", mySrcId);
+				CCallsign rpt1 = CCallsign("", myRptrId);
 				rpt1.SetCSModule(MMDVM_MODULE_ID);
 				CCallsign rpt2 = m_ReflectorCallsign;
 				rpt2.SetCSModule(DmrDstIdToModule(uiDstId));
 
 				// and packet
-				header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(uiSrcId, CCallsign("CQCQCQ"), rpt1, rpt2, uiStreamId, 0, 0));
+				header = std::unique_ptr<CDvHeaderPacket>(new CDvHeaderPacket(mySrcId, CCallsign("CQCQCQ"), rpt1, rpt2, uiStreamId, 0, 0));
 
 				if ( g_GateKeeper.MayTransmit(header->GetMyCallsign(), Ip, EProtocol::dmrmmdvm) )
 				{
