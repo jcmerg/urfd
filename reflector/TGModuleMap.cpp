@@ -19,6 +19,16 @@ bool CTGModuleMap::LoadFromConfig(const std::string &prefix)
 	m_ModuleToAllTGs.clear();
 
 	const auto &jdata = g_Configure.GetData();
+	int matchCount = 0;
+	for (auto it = jdata.begin(); it != jdata.end(); ++it)
+	{
+		const std::string &key = it.key();
+		if (key.substr(0, keyPrefix.size()) == keyPrefix)
+		{
+			matchCount++;
+		}
+	}
+	std::cout << prefix << " TG: scanning " << jdata.size() << " config keys for prefix '" << keyPrefix << "', found " << matchCount << " match(es)" << std::endl;
 	for (auto it = jdata.begin(); it != jdata.end(); ++it)
 	{
 		const std::string &key = it.key();
