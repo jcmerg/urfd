@@ -2,7 +2,7 @@
 
 Fork of [urfd](https://github.com/nostar/urfd) with extended features for the URF363 reflector project.
 
-**Version 3.2.2-dht** | Dashboard v2.6.0
+**Version 3.2.1-dht** | Dashboard v2.6.0
 
 ## What's New in This Fork
 
