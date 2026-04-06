@@ -539,6 +539,12 @@ bool CDmrmmdvmProtocol::IsValidKeepAlivePacket(const CBuffer &Buffer, CCallsign 
 		callsign->SetDmrid(uiRptrId, true);
 		callsign->SetCSModule(MMDVM_MODULE_ID);
 		valid = callsign->IsValid();
+		if (!valid && uiRptrId > 9999999)
+		{
+			callsign->SetDmrid(uiRptrId / 100, true);
+			callsign->SetCSModule(MMDVM_MODULE_ID);
+			valid = callsign->IsValid();
+		}
 	}
 	return valid;
 }
@@ -555,6 +561,14 @@ bool CDmrmmdvmProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *c
 		callsign->SetDmrid(uiRptrId, true);
 		callsign->SetCSModule(MMDVM_MODULE_ID);
 		valid = callsign->IsValid();
+		// Extended DMR ID (9 digits) may not be in DB — try base ID
+		if (!valid && uiRptrId > 9999999)
+		{
+			uint32_t baseId = uiRptrId / 100;
+			callsign->SetDmrid(baseId, true);
+			callsign->SetCSModule(MMDVM_MODULE_ID);
+			valid = callsign->IsValid();
+		}
 		if ( !valid)
 		{
 			std::cout << "Invalid callsign in DMRmmdvm RPTL packet from IP: " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
@@ -575,6 +589,14 @@ bool CDmrmmdvmProtocol::IsValidAuthenticationPacket(const CBuffer &Buffer, CCall
 		callsign->SetDmrid(uiRptrId, true);
 		callsign->SetCSModule(MMDVM_MODULE_ID);
 		valid = callsign->IsValid();
+		// Extended DMR ID (9 digits) may not be in DB — try base ID
+		if (!valid && uiRptrId > 9999999)
+		{
+			uint32_t baseId = uiRptrId / 100;
+			callsign->SetDmrid(baseId, true);
+			callsign->SetCSModule(MMDVM_MODULE_ID);
+			valid = callsign->IsValid();
+		}
 		if ( !valid)
 		{
 			std::cout << "Invalid callsign in DMRmmdvm RPTK packet from IP: " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
@@ -595,6 +617,12 @@ bool CDmrmmdvmProtocol::IsValidDisconnectPacket(const CBuffer &Buffer, CCallsign
 		callsign->SetDmrid(uiRptrId, true);
 		callsign->SetCSModule(MMDVM_MODULE_ID);
 		valid = callsign->IsValid();
+		if (!valid && uiRptrId > 9999999)
+		{
+			callsign->SetDmrid(uiRptrId / 100, true);
+			callsign->SetCSModule(MMDVM_MODULE_ID);
+			valid = callsign->IsValid();
+		}
 	}
 	return valid;
 }
@@ -610,6 +638,12 @@ bool CDmrmmdvmProtocol::IsValidConfigPacket(const CBuffer &Buffer, CCallsign *ca
 		callsign->SetDmrid(uiRptrId, true);
 		callsign->SetCSModule(MMDVM_MODULE_ID);
 		valid = callsign->IsValid();
+		if (!valid && uiRptrId > 9999999)
+		{
+			callsign->SetDmrid(uiRptrId / 100, true);
+			callsign->SetCSModule(MMDVM_MODULE_ID);
+			valid = callsign->IsValid();
+		}
 		if ( !valid)
 		{
 			std::cout << "Invalid callsign in DMRmmdvm RPTC packet from IP: " << Ip << " CS:" << *callsign << " DMRID:" << callsign->GetDmrid() << std::endl;
@@ -630,6 +664,12 @@ bool CDmrmmdvmProtocol::IsValidOptionPacket(const CBuffer &Buffer, CCallsign *ca
 		callsign->SetDmrid(uiRptrId, true);
 		callsign->SetCSModule(MMDVM_MODULE_ID);
 		valid = callsign->IsValid();
+		if (!valid && uiRptrId > 9999999)
+		{
+			callsign->SetDmrid(uiRptrId / 100, true);
+			callsign->SetCSModule(MMDVM_MODULE_ID);
+			valid = callsign->IsValid();
+		}
 	}
 	return valid;
 }
