@@ -56,8 +56,8 @@ CSvxReflectorProtocol::CSvxReflectorProtocol()
 	, m_UdpSeq(0)
 	, m_OpusEncoder(nullptr)
 	, m_OpusDecoder(nullptr)
-	, m_RxGainNum(256)
-	, m_TxGainNum(256)
+	, m_RxGainNum(64)   // default -12 dB: FM audio is ~12 dB hotter than digital voice codecs
+	, m_TxGainNum(1019) // default +12 dB: boost digital voice audio to FM levels
 {
 	m_InStream.tg = 0;
 	m_InStream.module = ' ';
@@ -551,7 +551,8 @@ bool CSvxReflectorProtocol::Initialize(const char *type, const EProtocol ptype,
 	// Save config defaults for runtime reset
 	SaveBlockDefaults();
 
-	// Parse gain settings (dB, range -24 to +24, default 0)
+	// Parse gain settings (dB, range -40 to +40, default -12 RX / +12 TX)
+	// Defaults compensate for ~12 dB level difference between FM and digital voice codecs
 	if (g_Configure.Contains(g_Keys.svx.rxgain))
 	{
 		int db = std::stoi(g_Configure.GetString(g_Keys.svx.rxgain));
