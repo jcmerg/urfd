@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <set>
 #include <string>
+#include <atomic>
 #include <mutex>
 
 // Reuse message type defines from SvxReflectorProtocol.h
@@ -173,7 +174,7 @@ protected:
 	// peers indexed by clientId
 	std::unordered_map<uint32_t, SSvxPeer> m_Peers;
 	std::unordered_map<int, uint32_t> m_FdToClientId;  // tcpFd -> clientId
-	uint32_t m_NextClientId;
+	std::atomic<uint32_t> m_NextClientId;
 
 	// per-user passwords (callsign -> password), protected by m_PasswordMutex
 	mutable std::mutex m_PasswordMutex;
