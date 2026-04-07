@@ -1368,13 +1368,6 @@ bool CDmrmmdvmProtocol::VerifyAuthHash(uint32_t rawDmrId, const uint8_t *clientH
 		password = pit->second;
 	}
 
-	// empty password = open access for this user
-	if (password.empty())
-	{
-		std::cout << "MMDVM: auth OK for DMR ID " << rawDmrId << " (base " << baseId << ") - no password required" << std::endl;
-		return true;
-	}
-
 	// compute expected hash: SHA256(salt_bytes + password_bytes)
 	// salt was sent via Buffer::Append(uint32_t) which uses native byte order (memcpy)
 	// the client reads the 4 raw bytes and hashes them — so we must use the same byte order
