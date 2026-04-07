@@ -100,9 +100,9 @@ bool CDmrmmdvmProtocol::Initialize(const char *type, const EProtocol ptype, cons
 			}
 		}
 		if (m_Passwords.empty())
-			std::cout << "MMDVM: no users configured, authentication disabled (open access)" << std::endl;
+			std::cout << "MMDVM: no users configured, all logins rejected" << std::endl;
 		else
-			std::cout << "MMDVM: " << m_Passwords.size() << " user(s) configured, authentication enabled" << std::endl;
+			std::cout << "MMDVM: " << m_Passwords.size() << " user(s) configured" << std::endl;
 	}
 
 	// load TG mappings
@@ -188,12 +188,8 @@ void CDmrmmdvmProtocol::Task(void)
 		{
 			std::cout << "MMDVM: auth from " << Callsign << " at " << Ip << std::endl;
 
-			// verify password if authentication is enabled
-			bool authOk = true;
-			if (!m_Passwords.empty())
-			{
-				authOk = VerifyAuthHash(rawDmrId, Buffer.data() + 8);
-			}
+			// verify authentication — no configured users = no logins
+			bool authOk = VerifyAuthHash(rawDmrId, Buffer.data() + 8);
 
 			if (authOk && g_GateKeeper.MayLink(Callsign, Ip, EProtocol::dmrmmdvm))
 			{

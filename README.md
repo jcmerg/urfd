@@ -121,9 +121,9 @@ TG9 = A,TS2                        # Common hotspot default
 # TG26363 = F,TS2                  # Local TG -> Module F
 #
 # User authentication: <BASE-DMRID> or <CALLSIGN> = <password>
-# If no users are configured, authentication is disabled (open access).
+# No users configured = all logins rejected.
 # One entry covers all 9-digit extensions (e.g. 2631353 covers 263135300-99).
-# Password may be empty for open access per user (useful for compat hotspots).
+# Password may be empty to allow any password (useful for compat hotspots).
 # 2631353 = changeme               # 7-digit base DMR ID
 # DL4JC = changeme                 # Callsign (resolved to DMR ID at startup)
 # 2632545 =                        # Open access (no password required)
@@ -131,7 +131,7 @@ TG9 = A,TS2                        # Common hotspot default
 
 **Extended DMR IDs**: BrandMeister-style hotspots append a 2-digit suffix to the 7-digit base DMR ID (e.g. `263135301` = base `2631353` + suffix `01`). urfd strips the suffix automatically — one user entry covers all extensions.
 
-**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, access is open (no password required). Individual users can be configured with an empty password for open access (any hash is accepted). Users can be managed at runtime via the Admin interface.
+**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, all logins are rejected. Individual users can be configured with an empty password to allow any password (useful for compat hotspots). Users can be managed at runtime via the Admin interface.
 
 **TG mapping**: Same semantics as MMDVMClient — first TG per module is primary (TX+RX), additional TGs are secondary (RX only). Dynamic TGs can be added via the Admin interface with configurable TTL.
 
