@@ -42,7 +42,7 @@
 #define MMDVM_SLOTTYPE_TERMINATOR    2
 
 // DMRMMDVM Module ID (legacy, used as default CSModule for client callsigns)
-#define MMDVM_MODULE_ID             'B'
+
 
 // pending auth timeout
 #define MMDVM_AUTH_TIMEOUT          30

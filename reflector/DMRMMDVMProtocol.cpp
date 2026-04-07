@@ -548,12 +548,12 @@ bool CDmrmmdvmProtocol::IsValidKeepAlivePacket(const CBuffer &Buffer, CCallsign 
 	{
 		uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[10],Buffer.data()[9]),MAKEWORD(Buffer.data()[8],Buffer.data()[7]));
 		callsign->SetDmrid(uiRptrId, true);
-		callsign->SetCSModule(MMDVM_MODULE_ID);
+
 		valid = callsign->IsValid();
 		if (!valid && uiRptrId > 9999999)
 		{
 			callsign->SetDmrid(uiRptrId / 100, true);
-			callsign->SetCSModule(MMDVM_MODULE_ID);
+	
 			valid = callsign->IsValid();
 		}
 	}
@@ -570,14 +570,14 @@ bool CDmrmmdvmProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *c
 		uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[7],Buffer.data()[6]),MAKEWORD(Buffer.data()[5],Buffer.data()[4]));
 		*rawDmrId = uiRptrId;
 		callsign->SetDmrid(uiRptrId, true);
-		callsign->SetCSModule(MMDVM_MODULE_ID);
+
 		valid = callsign->IsValid();
 		// Extended DMR ID (9 digits) may not be in DB — try base ID
 		if (!valid && uiRptrId > 9999999)
 		{
 			uint32_t baseId = uiRptrId / 100;
 			callsign->SetDmrid(baseId, true);
-			callsign->SetCSModule(MMDVM_MODULE_ID);
+	
 			valid = callsign->IsValid();
 		}
 		if ( !valid)
@@ -598,14 +598,14 @@ bool CDmrmmdvmProtocol::IsValidAuthenticationPacket(const CBuffer &Buffer, CCall
 		uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[7],Buffer.data()[6]),MAKEWORD(Buffer.data()[5],Buffer.data()[4]));
 		*rawDmrId = uiRptrId;
 		callsign->SetDmrid(uiRptrId, true);
-		callsign->SetCSModule(MMDVM_MODULE_ID);
+
 		valid = callsign->IsValid();
 		// Extended DMR ID (9 digits) may not be in DB — try base ID
 		if (!valid && uiRptrId > 9999999)
 		{
 			uint32_t baseId = uiRptrId / 100;
 			callsign->SetDmrid(baseId, true);
-			callsign->SetCSModule(MMDVM_MODULE_ID);
+	
 			valid = callsign->IsValid();
 		}
 		if ( !valid)
@@ -626,12 +626,12 @@ bool CDmrmmdvmProtocol::IsValidDisconnectPacket(const CBuffer &Buffer, CCallsign
 	{
 		uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[7],Buffer.data()[6]),MAKEWORD(Buffer.data()[5],Buffer.data()[4]));
 		callsign->SetDmrid(uiRptrId, true);
-		callsign->SetCSModule(MMDVM_MODULE_ID);
+
 		valid = callsign->IsValid();
 		if (!valid && uiRptrId > 9999999)
 		{
 			callsign->SetDmrid(uiRptrId / 100, true);
-			callsign->SetCSModule(MMDVM_MODULE_ID);
+	
 			valid = callsign->IsValid();
 		}
 	}
@@ -647,12 +647,12 @@ bool CDmrmmdvmProtocol::IsValidConfigPacket(const CBuffer &Buffer, CCallsign *ca
 	{
 		uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[7],Buffer.data()[6]),MAKEWORD(Buffer.data()[5],Buffer.data()[4]));
 		callsign->SetDmrid(uiRptrId, true);
-		callsign->SetCSModule(MMDVM_MODULE_ID);
+
 		valid = callsign->IsValid();
 		if (!valid && uiRptrId > 9999999)
 		{
 			callsign->SetDmrid(uiRptrId / 100, true);
-			callsign->SetCSModule(MMDVM_MODULE_ID);
+	
 			valid = callsign->IsValid();
 		}
 		if ( !valid)
@@ -673,12 +673,12 @@ bool CDmrmmdvmProtocol::IsValidOptionPacket(const CBuffer &Buffer, CCallsign *ca
 	{
 		uint32_t uiRptrId = MAKEDWORD(MAKEWORD(Buffer.data()[7],Buffer.data()[6]),MAKEWORD(Buffer.data()[5],Buffer.data()[4]));
 		callsign->SetDmrid(uiRptrId, true);
-		callsign->SetCSModule(MMDVM_MODULE_ID);
+
 		valid = callsign->IsValid();
 		if (!valid && uiRptrId > 9999999)
 		{
 			callsign->SetDmrid(uiRptrId / 100, true);
-			callsign->SetCSModule(MMDVM_MODULE_ID);
+	
 			valid = callsign->IsValid();
 		}
 	}
@@ -766,7 +766,7 @@ bool CDmrmmdvmProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer, std::unique
 				char dstModule = DmrDstIdToModule(uiDstId);
 				CCallsign csMY = CCallsign("", mySrcId);
 				CCallsign rpt1 = CCallsign("", myRptrId);
-				rpt1.SetCSModule(MMDVM_MODULE_ID);
+	
 				CCallsign rpt2 = m_ReflectorCallsign;
 				rpt2.SetCSModule(dstModule);
 
@@ -829,7 +829,7 @@ bool CDmrmmdvmProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffe
 				uint32_t myRptrId = (uiRptrId > 9999999) ? uiRptrId / 100 : uiRptrId;
 				CCallsign csMY = CCallsign("", mySrcId);
 				CCallsign rpt1 = CCallsign("", myRptrId);
-				rpt1.SetCSModule(MMDVM_MODULE_ID);
+	
 				CCallsign rpt2 = m_ReflectorCallsign;
 				rpt2.SetCSModule(DmrDstIdToModule(uiDstId));
 
