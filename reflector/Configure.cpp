@@ -951,7 +951,25 @@ bool CConfigure::ReadData(const std::string &path)
 		if (GetBoolean(g_Keys.mmdvm.enable))
 		{
 			isDefined(ErrorLevel::fatal, JMMDVM, JPORT, g_Keys.mmdvm.port, rval);
-			isDefined(ErrorLevel::fatal, JMMDVM, "FallbackDmrId", g_Keys.mmdvm.fallbackdmrid, rval);
+			isDefined(ErrorLevel::mild, JMMDVM, "FallbackDmrId", g_Keys.mmdvm.fallbackdmrid, rval);
+			// Validate TG mappings: modules must be configured
+			if (data.contains(g_Keys.modules.modules))
+			{
+				const auto mods(GetString(g_Keys.modules.modules));
+				for (auto it = data.begin(); it != data.end(); ++it)
+				{
+					const std::string &k = it.key();
+					if (k.substr(0, 7) == "mmdvmTG")
+					{
+						std::string val = it.value().get<std::string>();
+						if (val.size() >= 1 && std::string::npos == mods.find(val[0]))
+						{
+							std::cerr << "ERROR: [" << JMMDVM << "] TG" << k.substr(7) << " module " << val[0] << " is not a configured module" << std::endl;
+							rval = true;
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1086,6 +1104,141 @@ bool CConfigure::ReadData(const std::string &path)
 			else
 			{
 				std::cerr << "ERROR: " << JSVXSERVER << " requires a transcoder" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// Echo
+	if (isDefined(ErrorLevel::mild, "Echo", JENABLE, g_Keys.echo.enable, rval))
+	{
+		if (GetBoolean(g_Keys.echo.enable))
+		{
+			if (isDefined(ErrorLevel::fatal, "Echo", JMODULE, g_Keys.echo.module, rval))
+			{
+				if (data.contains(g_Keys.modules.modules))
+				{
+					const auto mods(GetString(g_Keys.modules.modules));
+					const auto echomod = GetString(g_Keys.echo.module);
+					if (echomod.size() >= 1 && std::string::npos == mods.find(echomod[0]))
+					{
+						std::cerr << "ERROR: [Echo] Module '" << echomod[0] << "' is not a configured module" << std::endl;
+						rval = true;
+					}
+				}
+			}
+		}
+	}
+
+	// Admin
+	if (isDefined(ErrorLevel::mild, "Admin", JENABLE, g_Keys.admin.enable, rval))
+	{
+		if (GetBoolean(g_Keys.admin.enable))
+		{
+			isDefined(ErrorLevel::fatal, "Admin", JPORT, g_Keys.admin.port, rval);
+			isDefined(ErrorLevel::fatal, "Admin", "Password", g_Keys.admin.password, rval);
+		}
+	}
+
+	// MMDVMClient
+	if (isDefined(ErrorLevel::mild, JMMDVMCLIENT, JENABLE, g_Keys.mmdvmclient.enable, rval))
+	{
+		if (GetBoolean(g_Keys.mmdvmclient.enable))
+		{
+			if (tcport)
+			{
+				isDefined(ErrorLevel::fatal, JMMDVMCLIENT, "MasterAddress", g_Keys.mmdvmclient.address, rval);
+				isDefined(ErrorLevel::fatal, JMMDVMCLIENT, "MasterPort", g_Keys.mmdvmclient.port, rval);
+				isDefined(ErrorLevel::fatal, JMMDVMCLIENT, "DmrId", g_Keys.mmdvmclient.dmrid, rval);
+				isDefined(ErrorLevel::fatal, JMMDVMCLIENT, "Password", g_Keys.mmdvmclient.password, rval);
+				isDefined(ErrorLevel::fatal, JMMDVMCLIENT, "Callsign", g_Keys.mmdvmclient.callsign, rval);
+				// Validate TG mappings: modules must be transcoded
+				const auto tcmods(GetString(g_Keys.tc.modules));
+				for (auto it = data.begin(); it != data.end(); ++it)
+				{
+					const std::string &k = it.key();
+					if (k.substr(0, 10) == "mmdvmcliTG")
+					{
+						std::string val = it.value().get<std::string>();
+						if (val.size() >= 1 && std::string::npos == tcmods.find(val[0]))
+						{
+							std::cerr << "ERROR: [" << JMMDVMCLIENT << "] TG" << k.substr(10) << " module " << val[0] << " is not a transcoded module" << std::endl;
+							rval = true;
+						}
+					}
+				}
+			}
+			else
+			{
+				std::cerr << "ERROR: " << JMMDVMCLIENT << " requires a transcoder" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// DCSClient
+	if (isDefined(ErrorLevel::mild, JDCSCLIENT, JENABLE, g_Keys.dcsclient.enable, rval))
+	{
+		if (GetBoolean(g_Keys.dcsclient.enable))
+		{
+			isDefined(ErrorLevel::fatal, JDCSCLIENT, JCALLSIGN, g_Keys.dcsclient.callsign, rval);
+			bool hasMap = false;
+			for (auto it = data.begin(); it != data.end(); ++it)
+				if (it.key().substr(0, 12) == "dcsClientMap") { hasMap = true; break; }
+			if (!hasMap)
+			{
+				std::cerr << "ERROR: [" << JDCSCLIENT << "] no Map entries configured" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// DExtraClient
+	if (isDefined(ErrorLevel::mild, "DExtraClient", JENABLE, g_Keys.dextraclient.enable, rval))
+	{
+		if (GetBoolean(g_Keys.dextraclient.enable))
+		{
+			isDefined(ErrorLevel::fatal, "DExtraClient", JCALLSIGN, g_Keys.dextraclient.callsign, rval);
+			bool hasMap = false;
+			for (auto it = data.begin(); it != data.end(); ++it)
+				if (it.key().substr(0, 14) == "dextraClientMa") { hasMap = true; break; }
+			if (!hasMap)
+			{
+				std::cerr << "ERROR: [DExtraClient] no Map entries configured" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// DPlusClient
+	if (isDefined(ErrorLevel::mild, "DPlusClient", JENABLE, g_Keys.dplusclient.enable, rval))
+	{
+		if (GetBoolean(g_Keys.dplusclient.enable))
+		{
+			isDefined(ErrorLevel::fatal, "DPlusClient", JCALLSIGN, g_Keys.dplusclient.callsign, rval);
+			bool hasMap = false;
+			for (auto it = data.begin(); it != data.end(); ++it)
+				if (it.key().substr(0, 14) == "dplusClientMap") { hasMap = true; break; }
+			if (!hasMap)
+			{
+				std::cerr << "ERROR: [DPlusClient] no Map entries configured" << std::endl;
+				rval = true;
+			}
+		}
+	}
+
+	// YSFClient
+	if (isDefined(ErrorLevel::mild, "YSFClient", JENABLE, g_Keys.ysfclient.enable, rval))
+	{
+		if (GetBoolean(g_Keys.ysfclient.enable))
+		{
+			isDefined(ErrorLevel::fatal, "YSFClient", JCALLSIGN, g_Keys.ysfclient.callsign, rval);
+			bool hasMap = false;
+			for (auto it = data.begin(); it != data.end(); ++it)
+				if (it.key().substr(0, 12) == "ysfClientMap") { hasMap = true; break; }
+			if (!hasMap)
+			{
+				std::cerr << "ERROR: [YSFClient] no Map entries configured" << std::endl;
 				rval = true;
 			}
 		}

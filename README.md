@@ -549,6 +549,46 @@ sudo cp -r ~/urfd/dashboard /var/www/urf
 
 Edit `pgs/config.inc.php` for email, country, CallingHome, and Admin settings. Module names are read from the urfd XML output. For the Admin panel, set `$Admin['Enable'] = true` and match the password with `urfd.ini`.
 
+## Administration Tools
+
+### radmin
+
+Interactive and non-interactive administration tool. Auto-detects Docker vs systemd deployment.
+
+```bash
+# Interactive menu
+./radmin
+
+# Single commands
+./radmin status          # Show deployment status + git log
+./radmin restart         # Restart container or service
+./radmin stop            # Stop container or service
+./radmin start           # Start container or service
+./radmin logs            # Follow logs (Ctrl-C to exit)
+./radmin reload          # Send SIGHUP (hot-reload config)
+./radmin check           # Run inicheck (quiet mode)
+./radmin build           # Run build.sh (Docker) or make (bare metal)
+
+# With custom ini path
+./radmin /path/to/urfd.ini
+```
+
+Detection order: Docker container `urfd` running → Docker container stopped → systemd service → not installed.
+
+### inicheck
+
+Validates `urfd.ini` syntax and cross-references (e.g. TG modules must exist in `[Modules]`, transcoded protocols need a transcoder, Echo module must be a configured module).
+
+```bash
+cd reflector
+make inicheck
+./inicheck -q urfd.ini   # Errors and warnings only
+./inicheck -n urfd.ini   # Also print public config keys
+./inicheck -v urfd.ini   # Print all keys (including internal)
+```
+
+Exit code 0 = OK, 1 = errors found. Warnings (missing optional fields) don't cause a non-zero exit.
+
 ## Interlink / Peering
 
 Three types of peering are supported in `urfd.interlink`:
