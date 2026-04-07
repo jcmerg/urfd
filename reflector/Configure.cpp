@@ -1186,10 +1186,7 @@ bool CConfigure::ReadData(const std::string &path)
 			for (auto it = data.begin(); it != data.end(); ++it)
 				if (it.key().substr(0, 12) == "dcsClientMap") { hasMap = true; break; }
 			if (!hasMap)
-			{
-				std::cerr << "ERROR: [" << JDCSCLIENT << "] no Map entries configured" << std::endl;
-				rval = true;
-			}
+				std::cout << "WARNING: [" << JDCSCLIENT << "] no Map entries configured" << std::endl;
 		}
 	}
 
@@ -1203,10 +1200,7 @@ bool CConfigure::ReadData(const std::string &path)
 			for (auto it = data.begin(); it != data.end(); ++it)
 				if (it.key().substr(0, 14) == "dextraClientMa") { hasMap = true; break; }
 			if (!hasMap)
-			{
-				std::cerr << "ERROR: [DExtraClient] no Map entries configured" << std::endl;
-				rval = true;
-			}
+				std::cout << "WARNING: [DExtraClient] no Map entries configured" << std::endl;
 		}
 	}
 
@@ -1220,10 +1214,7 @@ bool CConfigure::ReadData(const std::string &path)
 			for (auto it = data.begin(); it != data.end(); ++it)
 				if (it.key().substr(0, 14) == "dplusClientMap") { hasMap = true; break; }
 			if (!hasMap)
-			{
-				std::cerr << "ERROR: [DPlusClient] no Map entries configured" << std::endl;
-				rval = true;
-			}
+				std::cout << "WARNING: [DPlusClient] no Map entries configured" << std::endl;
 		}
 	}
 
@@ -1237,10 +1228,7 @@ bool CConfigure::ReadData(const std::string &path)
 			for (auto it = data.begin(); it != data.end(); ++it)
 				if (it.key().substr(0, 12) == "ysfClientMap") { hasMap = true; break; }
 			if (!hasMap)
-			{
-				std::cerr << "ERROR: [YSFClient] no Map entries configured" << std::endl;
-				rval = true;
-			}
+				std::cout << "WARNING: [YSFClient] no Map entries configured" << std::endl;
 		}
 	}
 
