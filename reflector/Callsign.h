@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 #include <string>
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -107,6 +108,15 @@ public:
 	CCallsign &operator = (const CCallsign &cs);
 	bool operator ==(const CCallsign &) const;
 	operator const char *() const;
+
+	// trimmed string for logging (no trailing padding)
+	std::string GetLogString() const;
+
+	// stream output uses trimmed format for clean logging
+	friend std::ostream &operator<<(std::ostream &os, const CCallsign &cs)
+	{
+		return os << cs.GetLogString();
+	}
 
 	// M17
 	void CodeIn(const uint8_t *code);

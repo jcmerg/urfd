@@ -50,9 +50,9 @@ class xReflector {
 
          $this->ReflectorName = "XLX".$this->ServiceName;
 
-         $LinkedPeersName = "XLX".$this->ServiceName."linked peers";
-         $LinkedNodesName = "XLX".$this->ServiceName."linked nodes";
-         $LinkedUsersName = "XLX".$this->ServiceName."heard users";
+         $LinkedPeersName = "XLX".$this->ServiceName."  linked peers";
+         $LinkedNodesName = "XLX".$this->ServiceName."  linked nodes";
+         $LinkedUsersName = "XLX".$this->ServiceName."  heard users";
 
          $XML       = new ParseXML();
 

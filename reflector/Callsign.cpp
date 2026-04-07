@@ -464,17 +464,13 @@ CCallsign::operator const char *() const
 
 	// empty
 	memset(sz, 0, sizeof(sz));
-	// callsign — copy and trim trailing spaces
+	// callsign
 	memcpy(sz, m_Callsign.c, CALLSIGN_LEN);
-	int len = CALLSIGN_LEN;
-	while (len > 0 && sz[len-1] == ' ') len--;
 	// module
 	if ( HasModule() )
 	{
-		sz[len++] = ' ';
-		sz[len++] = m_Module;
+		sz[CALLSIGN_LEN] = m_Module;
 	}
-	sz[len] = '\0';
 	// suffix
 	if ( HasSuffix() )
 	{
@@ -484,6 +480,26 @@ CCallsign::operator const char *() const
 
 	// done
 	return sz;
+}
+
+std::string CCallsign::GetLogString() const
+{
+	std::string s(m_Callsign.c, CALLSIGN_LEN);
+	// trim trailing spaces
+	while (!s.empty() && s.back() == ' ') s.pop_back();
+	// append module
+	if (HasModule())
+	{
+		s += ' ';
+		s += m_Module;
+	}
+	// append suffix
+	if (HasSuffix())
+	{
+		s += " / ";
+		s.append(m_Suffix.c, strnlen(m_Suffix.c, CALLSUFFIX_LEN));
+	}
+	return s;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
