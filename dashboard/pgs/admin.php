@@ -346,7 +346,7 @@ function addMmdvmUser() {
     else
         data.callsign = id;
     adminPost(data, function(resp) {
-        showAlert(resp);
+        showAlert(resp, '#mmdvm-user-alerts');
         if (resp.status === 'ok') {
             $('#mmdvm-user-id').val('');
             $('#mmdvm-user-pw').val('');
@@ -357,7 +357,7 @@ function addMmdvmUser() {
 
 function removeMmdvmUser(dmrid) {
     adminPost({action: 'mmdvm_user_remove', dmrid: dmrid}, function(resp) {
-        showAlert(resp);
+        showAlert(resp, '#mmdvm-user-alerts');
         if (resp.status === 'ok') refreshMmdvmUserList();
     });
 }
@@ -583,12 +583,13 @@ function refreshTCStats() {
     });
 }
 
-function showAlert(resp) {
+function showAlert(resp, target) {
     var cls = resp.status === 'ok' ? 'alert-success' : 'alert-danger';
     var msg = resp.message || resp.status;
-    $('#admin-alerts').html('<div class="alert ' + cls + ' alert-dismissible">' +
+    var html = '<div class="alert ' + cls + ' alert-dismissible">' +
         '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
-        msg + '</div>');
+        msg + '</div>';
+    $(target || '#admin-alerts').html(html);
 }
 
 function formatSeconds(s) {
@@ -876,6 +877,7 @@ $(document).ready(function() {
     <!-- MMDVM Server User Management -->
     <div class="admin-section" id="mmdvm-user-section" style="display:none;">
         <h4>MMDVM Server Users</h4>
+        <div id="mmdvm-user-alerts"></div>
         <div class="well">
             <form class="form-inline add-tg-form" onsubmit="addMmdvmUser(); return false;">
                 <div class="form-group">
