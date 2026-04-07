@@ -206,7 +206,9 @@ void CDmrmmdvmProtocol::Task(void)
 				std::shared_ptr<CClient>client = clients->FindClient(Callsign, Ip, EProtocol::dmrmmdvm);
 				if ( client == nullptr )
 				{
-					// remove stale client with same raw DMR ID but different port (NAT rebind)
+					// find and remove stale client with same raw DMR ID but different port (NAT rebind)
+					// preserve slot module links across reconnect
+					char savedSlot1 = ' ', savedSlot2 = ' ';
 					for ( auto it = clients->begin(); it != clients->end(); it++ )
 					{
 						if ( (*it)->GetProtocol() == EProtocol::dmrmmdvm )
@@ -214,6 +216,8 @@ void CDmrmmdvmProtocol::Task(void)
 							auto *mmdvm = static_cast<CDmrmmdvmClient*>((*it).get());
 							if ( mmdvm->GetRawDmrId() == rawDmrId )
 							{
+								savedSlot1 = mmdvm->GetSlotModule(1);
+								savedSlot2 = mmdvm->GetSlotModule(2);
 								std::cout << "MMDVM: replacing stale " << (*it)->GetCallsign() << " at " << (*it)->GetIp() << " with " << Ip << std::endl;
 								clients->RemoveClient(*it);
 								break;
@@ -224,6 +228,8 @@ void CDmrmmdvmProtocol::Task(void)
 					std::cout << "MMDVM: login " << Callsign << " at " << Ip << std::endl;
 					auto newClient = std::make_shared<CDmrmmdvmClient>(Callsign, Ip);
 					newClient->SetRawDmrId(rawDmrId);
+					newClient->SetSlotModule(1, savedSlot1);
+					newClient->SetSlotModule(2, savedSlot2);
 					clients->AddClient(newClient);
 				}
 				else
@@ -823,7 +829,13 @@ bool CDmrmmdvmProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffe
 			auto stream = GetStream(uiStreamId, &Ip);
 			if ( !stream )
 			{
-				std::cout << "MMDVM: late entry voice frame, stream " << std::hex << ntohl(uiStreamId) << std::dec << " from " << Ip << std::endl;
+				// rate-limit: only log once per stream ID
+				static uint32_t lastLateEntryId = 0;
+				if (uiStreamId != lastLateEntryId)
+				{
+					lastLateEntryId = uiStreamId;
+					std::cout << "MMDVM: late entry voice frame, stream " << std::hex << ntohl(uiStreamId) << std::dec << " from " << Ip << std::endl;
+				}
 				uint8_t cmd;
 
 				// link/unlink command ?
