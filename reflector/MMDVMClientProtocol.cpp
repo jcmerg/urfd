@@ -691,7 +691,7 @@ void CMMDVMClientProtocol::OnDMRDVoiceFrameIn(const CBuffer &Buffer, uint32_t sr
 	{
 		auto frame = std::unique_ptr<CDvFramePacket>(new CDvFramePacket(
 			&dmr3ambe[i * 9], dmrsync,
-			urfStreamId, (uint8_t)(pid * 3 + i), (uint8_t)i, false));
+			urfStreamId, (uint8_t)(pid % 6), (uint8_t)(i + 1), false));
 		frame->SetPacketModule(stream->GetOwnerClient()->GetReflectorModule());
 		stream->Push(std::move(frame));
 	}
