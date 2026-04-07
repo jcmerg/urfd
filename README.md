@@ -112,6 +112,7 @@ Accept incoming connections from MMDVM hotspots and repeaters directly (no Brand
 Enable = true
 Port = 62030
 # FallbackDmrId = 0                # DMR ID for unknown callers (0 or omit = drop)
+# RequireAuth = false              # Set to false to accept all connections (legacy)
 # BlockProtocols = SVXServer,USRP  # Block protocols bidirectionally
 #
 # TG mapping: TG<number> = <Module>[,TS<1|2>]
@@ -131,7 +132,7 @@ TG9 = A,TS2                        # Common hotspot default
 
 **Extended DMR IDs**: BrandMeister-style hotspots append a 2-digit suffix to the 7-digit base DMR ID (e.g. `263135301` = base `2631353` + suffix `01`). urfd strips the suffix automatically — one user entry covers all extensions.
 
-**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, all logins are rejected. Individual users can be configured with an empty password to allow any password (useful for compat hotspots). Users can be managed at runtime via the Admin interface.
+**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, all logins are rejected. Individual users can be configured with an empty password to allow any password (useful for compat hotspots). Set `RequireAuth = false` to disable authentication entirely and accept all connections (legacy behavior). Users can be managed at runtime via the Admin interface.
 
 **TG mapping**: Same semantics as MMDVMClient — first TG per module is primary (TX+RX), additional TGs are secondary (RX only). Dynamic TGs can be added via the Admin interface with configurable TTL.
 
