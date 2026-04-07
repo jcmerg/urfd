@@ -105,7 +105,7 @@ Port = 5300                         # TCP and UDP port (same)
 ```
 
 ### MMDVM Server
-Accept incoming connections from MMDVM hotspots and repeaters directly (no BrandMeister needed). Implements the HomeBrew DMR protocol (RPTL→RPTK→RPTC→RPTO handshake). Works without transcoder for pure DMR-to-DMR operation; transcoded modules needed only for cross-mode bridging. TG mapping works like MMDVMClient — TGs map to modules with timeslot support.
+Accept incoming connections from MMDVM hotspots and repeaters directly (no BrandMeister needed). Implements the HomeBrew DMR protocol (RPTL→RPTK→RPTC→RPTO handshake). Works without transcoder for pure DMR-to-DMR operation; transcoded modules needed only for cross-mode bridging. TG mapping works like MMDVMClient — TGs map to modules with timeslot support. **Dual-slot**: Each timeslot (TS1/TS2) independently links to its own module, so a hotspot can be on two modules simultaneously.
 
 ```ini
 [MMDVM]
@@ -117,9 +117,9 @@ Port = 62030
 #
 # TG mapping: TG<number> = <Module>[,TS<1|2>]
 # First TG per module = primary (TX/RX). Additional = secondary (RX only).
-# Default timeslot is TS2.
+# Default timeslot is TS2. Dual-slot: map different modules to different TSes.
 TG9 = A,TS2                        # Common hotspot default
-# TG26363 = F,TS2                  # Local TG -> Module F
+# TG26363 = F,TS1                  # Local TG -> Module F on TS1
 #
 # User authentication: <BASE-DMRID> or <CALLSIGN> = <password>
 # No users configured = all logins rejected.
@@ -135,6 +135,8 @@ TG9 = A,TS2                        # Common hotspot default
 **User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, all logins are rejected. Individual users can be configured with an empty password to allow any password (useful for compat hotspots). Set `RequireAuth = false` to disable authentication entirely and accept all connections (legacy behavior). Users can be managed at runtime via the Admin interface.
 
 **TG mapping**: Same semantics as MMDVMClient — first TG per module is primary (TX+RX), additional TGs are secondary (RX only). Dynamic TGs can be added via the Admin interface with configurable TTL.
+
+**Dual-slot linking**: Each timeslot links independently. When a hotspot transmits on TS1 with TG 4019 (module S) and on TS2 with TG 4004 (module D), it receives traffic from both modules simultaneously — module S on the timeslot configured for that TG, module D on the other. For this to work, map TGs for different modules to different timeslots. The dashboard shows both linked modules (e.g. "S (TS1), D (TS2)").
 
 **Hotspot config**: Point the hotspot directly at the reflector IP on port 62030. In WPSD/Pi-Star, use "MMDVM_BRIDGE" or single-network mode. DMRGateway multi-network mode routes traffic to BrandMeister by default and must be disabled.
 
@@ -658,6 +660,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **NXDN RAN routing**: Module selection via RAN (Radio Access Number) — RAN 1-26 = Module A-Z, RAN 0 = AutoLinkModule. Client switches module per transmission (like YSF DG-ID). NXDN ID resolution via NXDN DB with DMR DB fallback. FallbackNxdnId for unknown callers (drop if unset). Fixed uninitialized `m_uiNXDNid` in CCallsign default constructor.
 - **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG/RAN/module info, operator name from DMR and NXDN ID databases — rotating every ~5 seconds. TG display uses actual source TG (not primary/static) for correct multi-TG display. Client protocols show remote reflector name + module (e.g. `via DCS002 A`), YSFClient shows DG-ID
 - **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
+- **MMDVM dual-slot**: Each timeslot (TS1/TS2) independently links to its own reflector module — a hotspot can receive traffic from two modules simultaneously on separate timeslots. Dashboard shows both linked modules per client.
 - **MMDVM late-entry**: Resolves DMR ID from active stream callsign (prefers cached ID from source protocol over DB lookup) — enables mid-stream block removal
 - **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister
 
