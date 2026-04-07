@@ -1531,8 +1531,10 @@ bool CDmrmmdvmProtocol::AddUser(uint32_t baseId, const std::string &password)
 
 bool CDmrmmdvmProtocol::AddUserByCallsign(const std::string &callsign, const std::string &password)
 {
+	// Build CCallsign outside lock — its constructor also acquires g_LDid
+	UCallsign key = CCallsign(callsign).GetKey();
 	g_LDid.Lock();
-	uint32_t dmrid = g_LDid.FindDmrid(CCallsign(callsign).GetKey());
+	uint32_t dmrid = g_LDid.FindDmrid(key);
 	g_LDid.Unlock();
 	if (dmrid == 0)
 		return false;
@@ -1555,8 +1557,9 @@ bool CDmrmmdvmProtocol::RemoveUser(uint32_t baseId)
 
 bool CDmrmmdvmProtocol::RemoveUserByCallsign(const std::string &callsign)
 {
+	UCallsign key = CCallsign(callsign).GetKey();
 	g_LDid.Lock();
-	uint32_t dmrid = g_LDid.FindDmrid(CCallsign(callsign).GetKey());
+	uint32_t dmrid = g_LDid.FindDmrid(key);
 	g_LDid.Unlock();
 	if (dmrid == 0)
 		return false;

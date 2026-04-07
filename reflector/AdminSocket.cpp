@@ -390,23 +390,21 @@ nlohmann::json CAdminSocket::CmdTGAdd(const nlohmann::json &cmd)
 		}
 		auto *mmdvm = static_cast<CMMDVMClientProtocol *>(proto);
 		bool ok = mmdvm->GetTGMap().AddDynamic(tg, module, timeslot, ttl);
-		if (ok)
-		{
-			if (mmdvm->GetBmApi().IsConfigured())
-			{
-				// Register as static on BM via API (no kerchunk needed)
-				mmdvm->GetBmApi().AddStaticTG(tg, timeslot);
-			}
-			else
-			{
-				mmdvm->RequestKerchunk(tg);  // kerchunk to activate on BM
-			}
-			mmdvm->RequestReconnect();   // reconnect to update options string
-		}
 		protocols.Unlock();
 
 		if (!ok)
 			return {{"status", "error"}, {"message", "failed to add TG (module in use or static conflict)"}};
+
+		// BM API / kerchunk / reconnect outside lock (HTTP I/O)
+		if (mmdvm->GetBmApi().IsConfigured())
+		{
+			mmdvm->GetBmApi().AddStaticTG(tg, timeslot);
+		}
+		else
+		{
+			mmdvm->RequestKerchunk(tg);
+		}
+		mmdvm->RequestReconnect();
 
 		std::string method = mmdvm->GetBmApi().IsConfigured() ? "API" : "kerchunk";
 		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " -> Module " + module + " added via " + method}};
@@ -479,16 +477,15 @@ nlohmann::json CAdminSocket::CmdTGRemove(const nlohmann::json &cmd)
 		if (tgit != tgmap.end())
 			ts = tgit->second.timeslot;
 		bool ok = mmdvm->GetTGMap().RemoveDynamic(tg);
-		if (ok)
-		{
-			if (mmdvm->GetBmApi().IsConfigured())
-				mmdvm->GetBmApi().RemoveStaticTG(tg, ts);
-			mmdvm->RequestReconnect();
-		}
 		protocols.Unlock();
 
 		if (!ok)
 			return {{"status", "error"}, {"message", "failed to remove TG (not found or static)"}};
+
+		// BM API / reconnect outside lock (HTTP I/O)
+		if (mmdvm->GetBmApi().IsConfigured())
+			mmdvm->GetBmApi().RemoveStaticTG(tg, ts);
+		mmdvm->RequestReconnect();
 
 		return {{"status", "ok"}, {"message", "MMDVM TG" + std::to_string(tg) + " removed"}};
 	}
@@ -635,8 +632,8 @@ nlohmann::json CAdminSocket::CmdSvxsUserAdd(const nlohmann::json &cmd)
 		return {{"status", "error"}, {"message", "SVXServer protocol not active"}};
 	}
 	auto *svxs = static_cast<CSvxProtocol *>(proto);
-	svxs->AddUser(callsign, password);
 	protocols.Unlock();
+	svxs->AddUser(callsign, password);
 
 	return {{"status", "ok"}, {"message", "user " + callsign + " added"}};
 }
@@ -657,8 +654,8 @@ nlohmann::json CAdminSocket::CmdSvxsUserRemove(const nlohmann::json &cmd)
 		return {{"status", "error"}, {"message", "SVXServer protocol not active"}};
 	}
 	auto *svxs = static_cast<CSvxProtocol *>(proto);
-	bool ok = svxs->RemoveUser(callsign);
 	protocols.Unlock();
+	bool ok = svxs->RemoveUser(callsign);
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "user not found"}};
@@ -739,7 +736,9 @@ nlohmann::json CAdminSocket::CmdStatus(void)
 	}
 	status["blocks"] = blocks;
 
-	// Peer counts
+	protocols.Unlock();
+
+	// Peer counts (no protocols lock needed, uses separate clients lock)
 	{
 		int mmdvmPeerCount = 0;
 		int svxsPeerCount = 0;
@@ -757,7 +756,6 @@ nlohmann::json CAdminSocket::CmdStatus(void)
 		status["svxs_peer_count"] = svxsPeerCount;
 	}
 
-	protocols.Unlock();
 	return status;
 }
 
@@ -1083,8 +1081,8 @@ nlohmann::json CAdminSocket::CmdDcsMapRemove(const nlohmann::json &cmd)
 	}
 
 	auto *dcs = static_cast<CDcsClientProtocol *>(proto);
-	bool ok = dcs->RemoveMapping(localMod[0]);
 	protocols.Unlock();
+	bool ok = dcs->RemoveMapping(localMod[0]);
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
@@ -1178,8 +1176,8 @@ nlohmann::json CAdminSocket::CmdDExtraMapRemove(const nlohmann::json &cmd)
 	}
 
 	auto *dextra = static_cast<CDExtraClientProtocol *>(proto);
-	bool ok = dextra->RemoveMapping(localMod[0]);
 	protocols.Unlock();
+	bool ok = dextra->RemoveMapping(localMod[0]);
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
@@ -1273,8 +1271,8 @@ nlohmann::json CAdminSocket::CmdDPlusMapRemove(const nlohmann::json &cmd)
 	}
 
 	auto *dplus = static_cast<CDPlusClientProtocol *>(proto);
-	bool ok = dplus->RemoveMapping(localMod[0]);
 	protocols.Unlock();
+	bool ok = dplus->RemoveMapping(localMod[0]);
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
@@ -1370,8 +1368,8 @@ nlohmann::json CAdminSocket::CmdYsfMapRemove(const nlohmann::json &cmd)
 	}
 
 	auto *ysf = static_cast<CYsfClientProtocol *>(proto);
-	bool ok = ysf->RemoveMapping(localMod[0]);
 	protocols.Unlock();
+	bool ok = ysf->RemoveMapping(localMod[0]);
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "mapping not found for module " + localMod}};
