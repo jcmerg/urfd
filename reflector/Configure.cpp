@@ -249,14 +249,16 @@ bool CConfigure::ReadData(const std::string &path)
 			continue;
 		}
 
-		std::vector<std::string> tokens;
-		split(line, '=', tokens);
-		// check value for end-of-line comment
-		if (2 > tokens.size())
+		// split on first '=' only
+		auto eqpos = line.find('=');
+		if (eqpos == std::string::npos)
 		{
 			std::cout << "WARNING: line #" << counter << ": '" << line << "' does not contain an equal sign, skipping" << std::endl;
 			continue;
 		}
+		std::vector<std::string> tokens;
+		tokens.push_back(line.substr(0, eqpos));
+		tokens.push_back(eqpos + 1 < line.size() ? line.substr(eqpos + 1) : "");
 		auto pos = tokens[1].find('#');
 		if (std::string::npos != pos)
 		{
