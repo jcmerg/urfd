@@ -159,8 +159,9 @@ void CDmrmmdvmProtocol::Task(void)
 			// callsign muted?
 			if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, EProtocol::dmrmmdvm) )
 			{
-				// handle it
-				OnDvHeaderPacketIn(Header, Ip, Cmd, CallType);
+				// extract source TG from DMRD packet
+				uint32_t srcTG = MAKEDWORD(MAKEWORD(Buffer.data()[10],Buffer.data()[9]),MAKEWORD(Buffer.data()[8],0));
+				OnDvHeaderPacketIn(Header, Ip, Cmd, CallType, srcTG);
 			}
 		}
 		else if ( IsValidDvLastFramePacket(Buffer, LastFrame) )
@@ -335,7 +336,7 @@ void CDmrmmdvmProtocol::Task(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // streams helpers
 
-void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip, uint8_t cmd, uint8_t CallType)
+void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, const CIp &Ip, uint8_t cmd, uint8_t CallType, uint32_t sourceTG)
 {
 	bool lastheard = false;
 
@@ -417,6 +418,8 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 				{
 					// keep the handle
 					m_Streams[stream->GetStreamId()] = stream;
+					if (sourceTG != 0)
+						stream->SetSourceTG(sourceTG);
 					lastheard = true;
 				}
 			}
@@ -872,7 +875,7 @@ bool CDmrmmdvmProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffe
 				if ( g_GateKeeper.MayTransmit(header->GetMyCallsign(), Ip, EProtocol::dmrmmdvm) )
 				{
 					// handle it
-					OnDvHeaderPacketIn(header, Ip, cmd, uiCallType);
+					OnDvHeaderPacketIn(header, Ip, cmd, uiCallType, uiDstId);
 				}
 			}
 

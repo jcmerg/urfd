@@ -103,7 +103,7 @@ protected:
 	void HandleKeepalives(void);
 
 	// stream helpers
-	void OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &, const CIp &, uint8_t, uint8_t);
+	void OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &, const CIp &, uint8_t, uint8_t, uint32_t sourceTG = 0);
 
 	// packet decoding helpers
 	bool IsValidConnectPacket(const CBuffer &, CCallsign *, const CIp &, uint32_t *rawDmrId);

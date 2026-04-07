@@ -141,7 +141,7 @@ void CCodecStream::ResetStats(uint16_t streamid, ECodecType type)
 
 			// For TG-based protocols, TG is appended later via UpdateSlowDataTG()
 			// because the source TG is not yet known at stream-open time
-			if (proto == EProtocol::svxreflector || proto == EProtocol::svx || proto == EProtocol::mmdvmclient)
+			if (proto == EProtocol::svxreflector || proto == EProtocol::svx || proto == EProtocol::mmdvmclient || proto == EProtocol::dmrmmdvm)
 			{
 				// msg stays as "via DMR" or "via SVX" — TG appended by UpdateSlowDataTG
 			}
