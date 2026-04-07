@@ -56,8 +56,8 @@ CSvxReflectorProtocol::CSvxReflectorProtocol()
 	, m_UdpSeq(0)
 	, m_OpusEncoder(nullptr)
 	, m_OpusDecoder(nullptr)
-	, m_RxGainNum(64)   // default -12 dB: FM audio is ~12 dB hotter than digital voice codecs
-	, m_TxGainNum(1019) // default +12 dB: boost digital voice audio to FM levels
+	, m_RxGainNum(256)   // 0 dB default
+	, m_TxGainNum(256)   // 0 dB default
 {
 	m_InStream.tg = 0;
 	m_InStream.module = ' ';
