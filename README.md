@@ -123,14 +123,15 @@ TG9 = A,TS2                        # Common hotspot default
 # User authentication: <BASE-DMRID> or <CALLSIGN> = <password>
 # If no users are configured, authentication is disabled (open access).
 # One entry covers all 9-digit extensions (e.g. 2631353 covers 263135300-99).
-# Users can also be added/removed at runtime via the Admin interface.
+# Password may be empty for open access per user (useful for compat hotspots).
 # 2631353 = changeme               # 7-digit base DMR ID
 # DL4JC = changeme                 # Callsign (resolved to DMR ID at startup)
+# 2632545 =                        # Open access (no password required)
 ```
 
 **Extended DMR IDs**: BrandMeister-style hotspots append a 2-digit suffix to the 7-digit base DMR ID (e.g. `263135301` = base `2631353` + suffix `01`). urfd strips the suffix automatically — one user entry covers all extensions.
 
-**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, access is open (no password required). Users can be managed at runtime via the Admin interface.
+**User authentication**: Users can authenticate with a Base DMR-ID (7 digits) or callsign. Callsigns are resolved to DMR IDs at startup via the DMR ID database. If no users are configured, access is open (no password required). Individual users can be configured with an empty password for open access (any hash is accepted). Users can be managed at runtime via the Admin interface.
 
 **TG mapping**: Same semantics as MMDVMClient — first TG per module is primary (TX+RX), additional TGs are secondary (RX only). Dynamic TGs can be added via the Admin interface with configurable TTL.
 
@@ -140,6 +141,7 @@ TG9 = A,TS2                        # Common hotspot default
 ```json
 {"cmd": "mmdvm_user_add", "token": "...", "dmrid": 2631353, "password": "secret"}
 {"cmd": "mmdvm_user_add", "token": "...", "callsign": "DL4JC", "password": "secret"}
+{"cmd": "mmdvm_user_add", "token": "...", "dmrid": 2632545}
 {"cmd": "mmdvm_user_remove", "token": "...", "dmrid": 2631353}
 {"cmd": "mmdvm_user_list", "token": "..."}
 {"cmd": "mmdvm_tg_add", "token": "...", "tg": 26363, "module": "F", "ts": 2, "ttl": 900}
@@ -297,6 +299,7 @@ $Admin['Password'] = 'yoursecretpassword';  # must match urfd.ini
 {"cmd": "svxserver_user_list", "token": "..."}
 {"cmd": "mmdvm_user_add", "token": "...", "dmrid": 2631353, "password": "secret"}
 {"cmd": "mmdvm_user_add", "token": "...", "callsign": "DL4JC", "password": "secret"}
+{"cmd": "mmdvm_user_add", "token": "...", "dmrid": 2632545}
 {"cmd": "mmdvm_user_remove", "token": "...", "dmrid": 2631353}
 {"cmd": "mmdvm_user_list", "token": "..."}
 {"cmd": "mmdvm_tg_add", "token": "...", "tg": 26363, "module": "F", "ts": 2, "ttl": 900}

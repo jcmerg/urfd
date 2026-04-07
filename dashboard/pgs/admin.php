@@ -339,7 +339,7 @@ function refreshMmdvmUserList() {
 function addMmdvmUser() {
     var id = $('#mmdvm-user-id').val().trim();
     var pw = $('#mmdvm-user-pw').val().trim();
-    if (!id || !pw) return;
+    if (!id) return;
     var data = {action: 'mmdvm_user_add', password: pw};
     if (/^\d+$/.test(id))
         data.dmrid = parseInt(id);
@@ -884,7 +884,7 @@ $(document).ready(function() {
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="text" class="form-control" id="mmdvm-user-pw" placeholder="Password" style="width:160px;" required>
+                    <input type="text" class="form-control" id="mmdvm-user-pw" placeholder="(optional)" style="width:160px;">
                 </div>
                 <div class="form-group" style="vertical-align:bottom;">
                     <label>&nbsp;</label>

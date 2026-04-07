@@ -1413,10 +1413,9 @@ nlohmann::json CAdminSocket::CmdYsfMapList(void)
 
 nlohmann::json CAdminSocket::CmdMmdvmUserAdd(const nlohmann::json &cmd)
 {
-	if (!cmd.contains("password"))
-		return {{"status", "error"}, {"message", "missing required field: password"}};
-
-	std::string password = cmd["password"];
+	std::string password;
+	if (cmd.contains("password"))
+		password = cmd["password"];
 
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();

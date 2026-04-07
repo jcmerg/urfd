@@ -1368,6 +1368,13 @@ bool CDmrmmdvmProtocol::VerifyAuthHash(uint32_t rawDmrId, const uint8_t *clientH
 		password = pit->second;
 	}
 
+	// empty password = open access for this user
+	if (password.empty())
+	{
+		std::cout << "MMDVM: auth OK for DMR ID " << rawDmrId << " (base " << baseId << ") - no password required" << std::endl;
+		return true;
+	}
+
 	// compute expected hash: SHA256(salt_bytes + password_bytes)
 	// salt was sent via Buffer::Append(uint32_t) which uses native byte order (memcpy)
 	// the client reads the 4 raw bytes and hashes them — so we must use the same byte order
@@ -1459,9 +1466,11 @@ std::vector<CDmrmmdvmProtocol::SUserEntry> CDmrmmdvmProtocol::GetUsers() const
 	{
 		SUserEntry e;
 		e.dmrid = id;
-		// resolve callsign
+		// resolve callsign (try extended ID first, fall back to base ID)
 		g_LDid.Lock();
 		const UCallsign *ucs = g_LDid.FindCallsign(id);
+		if (!ucs && id > 9999999)
+			ucs = g_LDid.FindCallsign(id / 100);
 		g_LDid.Unlock();
 		if (ucs)
 			e.callsign = std::string(ucs->c, strnlen(ucs->c, CALLSIGN_LEN));
@@ -1494,6 +1503,7 @@ bool CDmrmmdvmProtocol::IniAddUser(uint32_t baseId, const std::string &password)
 	// Find [MMDVM] section and insert/update user line
 	bool inSection = false;
 	int insertPos = -1;
+	int lastKvPos = -1;
 	for (size_t i = 0; i < lines.size(); i++)
 	{
 		std::string trimmed = lines[i];
@@ -1503,7 +1513,7 @@ bool CDmrmmdvmProtocol::IniAddUser(uint32_t baseId, const std::string &password)
 
 		if (!trimmed.empty() && trimmed[0] == '[')
 		{
-			if (inSection) { insertPos = (int)i; break; } // next section
+			if (inSection) break; // next section
 			if (trimmed.find("[MMDVM]") == 0) inSection = true;
 			continue;
 		}
@@ -1527,13 +1537,12 @@ bool CDmrmmdvmProtocol::IniAddUser(uint32_t baseId, const std::string &password)
 				for (const auto &l : lines) out << l << "\n";
 				return true;
 			}
+			lastKvPos = (int)i;
 		}
-		if (eq != std::string::npos)
-			insertPos = (int)i + 1; // track last key=value line in section
 	}
 
-	// Not found -- insert new line after last key=value in section
-	if (insertPos < 0) insertPos = (int)lines.size();
+	// Insert after last key=value line in section (not before next section header)
+	insertPos = (lastKvPos >= 0) ? lastKvPos + 1 : (int)lines.size();
 	lines.insert(lines.begin() + insertPos, key + " = " + password);
 
 	std::ofstream out(path);
