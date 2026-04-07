@@ -419,6 +419,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data["mmdvmTG" + key.substr(2)] = value;  // TG mapping: TG<N> = <Module>[,TS<1|2>]
 				else if (0 == key.compare("BlockProtocols"))
 					data["mmdvmBlockProtocols"] = value;
+				else if (0 == key.compare("RequireAuth"))
+					data[g_Keys.mmdvm.requireauth] = IS_TRUE(value[0]);
 				else
 				{
 					// check if it's a user entry (DMR ID or callsign = password)

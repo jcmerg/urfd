@@ -53,6 +53,8 @@ static uint8_t g_DmrSyncMSData[]     = { 0x0D,0x5D,0x7F,0x77,0xFD,0x75,0x70 };
 bool CDmrmmdvmProtocol::Initialize(const char *type, const EProtocol ptype, const uint16_t port, const bool has_ipv4, const bool has_ipv6)
 {
 	m_DefaultId = g_Configure.GetUnsigned(g_Keys.mmdvm.fallbackdmrid);
+	// RequireAuth defaults to true; only disabled when explicitly set to false
+	m_RequireAuth = !g_Configure.GetData().contains(g_Keys.mmdvm.requireauth) || g_Configure.GetBoolean(g_Keys.mmdvm.requireauth);
 	// base class
 	if (! CProtocol::Initialize(type, ptype, port, has_ipv4, has_ipv6))
 		return false;
@@ -99,7 +101,9 @@ bool CDmrmmdvmProtocol::Initialize(const char *type, const EProtocol ptype, cons
 				}
 			}
 		}
-		if (m_Passwords.empty())
+		if (!m_RequireAuth)
+			std::cout << "MMDVM: authentication disabled (RequireAuth = false)" << std::endl;
+		else if (m_Passwords.empty())
 			std::cout << "MMDVM: no users configured, all logins rejected" << std::endl;
 		else
 			std::cout << "MMDVM: " << m_Passwords.size() << " user(s) configured" << std::endl;
@@ -188,8 +192,8 @@ void CDmrmmdvmProtocol::Task(void)
 		{
 			std::cout << "MMDVM: auth from " << Callsign << " at " << Ip << std::endl;
 
-			// verify authentication — no configured users = no logins
-			bool authOk = VerifyAuthHash(rawDmrId, Buffer.data() + 8);
+			// verify authentication
+			bool authOk = m_RequireAuth ? VerifyAuthHash(rawDmrId, Buffer.data() + 8) : true;
 
 			if (authOk && g_GateKeeper.MayLink(Callsign, Ip, EProtocol::dmrmmdvm))
 			{

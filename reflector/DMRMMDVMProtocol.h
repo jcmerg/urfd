@@ -190,4 +190,5 @@ protected:
 
 	// config data
 	unsigned m_DefaultId;
+	bool m_RequireAuth = true;
 };
