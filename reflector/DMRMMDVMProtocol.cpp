@@ -86,8 +86,10 @@ bool CDmrmmdvmProtocol::Initialize(const char *type, const EProtocol ptype, cons
 				else
 				{
 					// resolve callsign to DMR ID
+					// Build CCallsign outside lock — its constructor acquires g_LDid internally
+					UCallsign csKey = CCallsign(idOrCs).GetKey();
 					g_LDid.Lock();
-					uint32_t dmrid = g_LDid.FindDmrid(CCallsign(idOrCs).GetKey());
+					uint32_t dmrid = g_LDid.FindDmrid(csKey);
 					g_LDid.Unlock();
 					if (dmrid != 0)
 					{
