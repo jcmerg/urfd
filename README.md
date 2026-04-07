@@ -661,6 +661,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG/RAN/module info, operator name from DMR and NXDN ID databases — rotating every ~5 seconds. TG display uses actual source TG (not primary/static) for correct multi-TG display. Client protocols show remote reflector name + module (e.g. `via DCS002 A`), YSFClient shows DG-ID
 - **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
 - **MMDVM dual-slot**: Each timeslot (TS1/TS2) independently links to its own reflector module — a hotspot can receive traffic from two modules simultaneously on separate timeslots. Dashboard shows both linked modules per client.
+- **MMDVM NAT rebind handling**: When a hotspot reconnects with a new UDP source port (NAT rebinding), the stale client entry is replaced by matching the exact raw DMR ID. Slot module links are preserved across reconnects. Multiple clients with different DMR IDs (including extensions) from the same IP are supported.
 - **MMDVM late-entry**: Resolves DMR ID from active stream callsign (prefers cached ID from source protocol over DB lookup) — enables mid-stream block removal
 - **Self-echo prevention**: MMDVMClient blocks self-routing back to BrandMeister
 
