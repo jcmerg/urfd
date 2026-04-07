@@ -1420,34 +1420,26 @@ nlohmann::json CAdminSocket::CmdMmdvmUserAdd(const nlohmann::json &cmd)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
 	if (!proto)
-	{
-		protocols.Unlock();
 		return {{"status", "error"}, {"message", "MMDVM server protocol not active"}};
-	}
 	auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
 
-	bool ok = false;
 	if (cmd.contains("callsign"))
 	{
 		std::string callsign = cmd["callsign"];
-		ok = mmdvm->AddUserByCallsign(callsign, password);
-		protocols.Unlock();
-		if (!ok)
+		if (!mmdvm->AddUserByCallsign(callsign, password))
 			return {{"status", "error"}, {"message", "failed to add user by callsign (not found in DMR ID database)"}};
 		return {{"status", "ok"}, {"message", "user " + callsign + " added"}};
 	}
 	else if (cmd.contains("dmrid"))
 	{
 		uint32_t dmrid = cmd["dmrid"];
-		ok = mmdvm->AddUser(dmrid, password);
-		protocols.Unlock();
-		if (!ok)
+		if (!mmdvm->AddUser(dmrid, password))
 			return {{"status", "error"}, {"message", "failed to add user"}};
 		return {{"status", "ok"}, {"message", "user " + std::to_string(dmrid) + " added"}};
 	}
 
-	protocols.Unlock();
 	return {{"status", "error"}, {"message", "missing required field: dmrid or callsign"}};
 }
 
@@ -1456,34 +1448,26 @@ nlohmann::json CAdminSocket::CmdMmdvmUserRemove(const nlohmann::json &cmd)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
 	if (!proto)
-	{
-		protocols.Unlock();
 		return {{"status", "error"}, {"message", "MMDVM server protocol not active"}};
-	}
 	auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
 
-	bool ok = false;
 	if (cmd.contains("callsign"))
 	{
 		std::string callsign = cmd["callsign"];
-		ok = mmdvm->RemoveUserByCallsign(callsign);
-		protocols.Unlock();
-		if (!ok)
+		if (!mmdvm->RemoveUserByCallsign(callsign))
 			return {{"status", "error"}, {"message", "user not found"}};
 		return {{"status", "ok"}, {"message", "user " + callsign + " removed"}};
 	}
 	else if (cmd.contains("dmrid"))
 	{
 		uint32_t dmrid = cmd["dmrid"];
-		ok = mmdvm->RemoveUser(dmrid);
-		protocols.Unlock();
-		if (!ok)
+		if (!mmdvm->RemoveUser(dmrid))
 			return {{"status", "error"}, {"message", "user not found"}};
 		return {{"status", "ok"}, {"message", "user " + std::to_string(dmrid) + " removed"}};
 	}
 
-	protocols.Unlock();
 	return {{"status", "error"}, {"message", "missing required field: dmrid or callsign"}};
 }
 
@@ -1492,6 +1476,8 @@ nlohmann::json CAdminSocket::CmdMmdvmUserList(void)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
+
 	nlohmann::json result;
 	result["status"] = "ok";
 	result["users"] = nlohmann::json::array();
@@ -1502,7 +1488,6 @@ nlohmann::json CAdminSocket::CmdMmdvmUserList(void)
 		for (const auto &u : users)
 			result["users"].push_back({{"dmrid", u.dmrid}, {"callsign", u.callsign}});
 	}
-	protocols.Unlock();
 	return result;
 }
 
@@ -1534,14 +1519,11 @@ nlohmann::json CAdminSocket::CmdMmdvmTGAdd(const nlohmann::json &cmd)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
 	if (!proto)
-	{
-		protocols.Unlock();
 		return {{"status", "error"}, {"message", "MMDVM server protocol not active"}};
-	}
 	auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
 	bool ok = mmdvm->GetTGMap().AddDynamic(tg, module, timeslot, ttl);
-	protocols.Unlock();
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "failed to add TG (module in use or static conflict)"}};
@@ -1559,14 +1541,11 @@ nlohmann::json CAdminSocket::CmdMmdvmTGRemove(const nlohmann::json &cmd)
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
 	if (!proto)
-	{
-		protocols.Unlock();
 		return {{"status", "error"}, {"message", "MMDVM server protocol not active"}};
-	}
 	auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
 	bool ok = mmdvm->GetTGMap().RemoveDynamic(tg);
-	protocols.Unlock();
 
 	if (!ok)
 		return {{"status", "error"}, {"message", "failed to remove TG (not found or static)"}};
@@ -1576,13 +1555,14 @@ nlohmann::json CAdminSocket::CmdMmdvmTGRemove(const nlohmann::json &cmd)
 
 nlohmann::json CAdminSocket::CmdMmdvmTGList(void)
 {
-	nlohmann::json result;
-	result["status"] = "ok";
-	result["mappings"] = nlohmann::json::array();
-
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
+
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["mappings"] = nlohmann::json::array();
 	if (proto)
 	{
 		auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
@@ -1599,7 +1579,6 @@ nlohmann::json CAdminSocket::CmdMmdvmTGList(void)
 			});
 		}
 	}
-	protocols.Unlock();
 	return result;
 }
 
@@ -1608,13 +1587,14 @@ nlohmann::json CAdminSocket::CmdMmdvmTGList(void)
 
 nlohmann::json CAdminSocket::CmdMmdvmPeerList(void)
 {
-	nlohmann::json result;
-	result["status"] = "ok";
-	result["peers"] = nlohmann::json::array();
-
 	auto &protocols = g_Reflector.GetProtocols();
 	protocols.Lock();
 	auto *proto = protocols.FindByType(EProtocol::dmrmmdvm);
+	protocols.Unlock();
+
+	nlohmann::json result;
+	result["status"] = "ok";
+	result["peers"] = nlohmann::json::array();
 	if (proto)
 	{
 		auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
@@ -1662,7 +1642,6 @@ nlohmann::json CAdminSocket::CmdMmdvmPeerList(void)
 		}
 		g_Reflector.ReleaseClients();
 	}
-	protocols.Unlock();
 	return result;
 }
 
