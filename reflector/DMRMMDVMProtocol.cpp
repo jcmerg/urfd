@@ -333,55 +333,58 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 		CCallsign my(Header->GetMyCallsign());
 		CCallsign rpt1(Header->GetRpt1Callsign());
 		CCallsign rpt2(Header->GetRpt2Callsign());
+		// extract timeslot from streamId high byte
+		uint8_t slot = (Header->GetStreamId() >> 24) & 0xFF;
+		if (slot < DMR_SLOT1 || slot > DMR_SLOT2) slot = DMR_SLOT2;
 		// no stream open yet, open a new one
 		// firstfind this client
 		std::shared_ptr<CClient>client = g_Reflector.GetClients()->FindClient(Ip, EProtocol::dmrmmdvm);
 		if ( client )
 		{
-			// process cmd if any
-			if ( !client->HasReflectorModule() )
+			auto *mmdvm = static_cast<CDmrmmdvmClient*>(client.get());
+			char targetMod = rpt2.GetCSModule();
+			char slotMod = mmdvm->GetSlotModule(slot);
+
+			if ( slotMod == ' ' )
 			{
-				// not linked yet
+				// slot not linked yet
 				if ( cmd == CMD_LINK )
 				{
-					if ( g_Reflector.IsValidModule(rpt2.GetCSModule()) )
+					if ( g_Reflector.IsValidModule(targetMod) )
 					{
-						std::cout << "MMDVM: " << client->GetCallsign() << " linking on module " << rpt2.GetCSModule() << std::endl;
-						// link
-						client->SetReflectorModule(rpt2.GetCSModule());
+						std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " linking on module " << targetMod << std::endl;
+						mmdvm->SetSlotModule(slot, targetMod);
 					}
 					else
 					{
-						std::cout << "MMDVM: " << rpt1 << " link attempt on non-existing module" << std::endl;
+						std::cout << "MMDVM: " << rpt1 << " TS" << (int)slot << " link attempt on non-existing module" << std::endl;
 					}
 				}
-				else if ( cmd == CMD_NONE && rpt2.GetCSModule() != ' ' && g_Reflector.IsValidModule(rpt2.GetCSModule()) )
+				else if ( cmd == CMD_NONE && targetMod != ' ' && g_Reflector.IsValidModule(targetMod) )
 				{
-					// TG mapping resolved to a valid module — auto-link
-					std::cout << "MMDVM: " << client->GetCallsign() << " auto-linking on module " << rpt2.GetCSModule() << std::endl;
-					client->SetReflectorModule(rpt2.GetCSModule());
+					// TG mapping resolved to a valid module — auto-link this slot
+					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " linking on module " << targetMod << std::endl;
+					mmdvm->SetSlotModule(slot, targetMod);
 				}
 			}
 			else
 			{
-				// already linked — switch module if TG maps to a different one
-				char targetMod = rpt2.GetCSModule();
-				if ( targetMod != ' ' && targetMod != client->GetReflectorModule() && g_Reflector.IsValidModule(targetMod) )
+				// slot already linked — switch module if TG maps to a different one
+				if ( targetMod != ' ' && targetMod != slotMod && g_Reflector.IsValidModule(targetMod) )
 				{
-					std::cout << "MMDVM: " << client->GetCallsign() << " switching to module " << targetMod << std::endl;
-					client->SetReflectorModule(targetMod);
+					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " switching to module " << targetMod << std::endl;
+					mmdvm->SetSlotModule(slot, targetMod);
 				}
 
 				if ( cmd == CMD_UNLINK )
 				{
-					std::cout << "MMDVM: " << client->GetCallsign() << " unlinking" << std::endl;
-					// unlink
-					client->SetReflectorModule(' ');
+					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " unlinking from module " << slotMod << std::endl;
+					mmdvm->SetSlotModule(slot, ' ');
 				}
 				else
 				{
-					// replace rpt2 module with currently linked module
-					auto m = client->GetReflectorModule();
+					// replace rpt2 module with this slot's linked module
+					auto m = mmdvm->GetSlotModule(slot);
 					Header->SetRpt2Module(m);
 					rpt2.SetCSModule(m);
 				}
@@ -487,7 +490,7 @@ void CDmrmmdvmProtocol::HandleQueue(void)
 			while ( (client = clients->FindNextClient(EProtocol::dmrmmdvm, it)) != nullptr )
 			{
 				// is this client busy ?
-				if ( !client->IsAMaster() && (client->GetReflectorModule() == packet->GetPacketModule()) )
+				if ( !client->IsAMaster() && client->IsLinkedTo(packet->GetPacketModule()) )
 				{
 					// no, send the packet
 					Send(buffer, client->GetIp());

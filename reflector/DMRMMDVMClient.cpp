@@ -17,6 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
+#include <fstream>
 #include "DMRMMDVMClient.h"
 
 
@@ -25,16 +26,20 @@
 
 CDmrmmdvmClient::CDmrmmdvmClient()
 {
+	m_SlotModule[0] = m_SlotModule[1] = ' ';
 }
 
 CDmrmmdvmClient::CDmrmmdvmClient(const CCallsign &callsign, const CIp &ip, char reflectorModule)
 	: CClient(callsign, ip, reflectorModule)
 {
+	m_SlotModule[0] = m_SlotModule[1] = ' ';
 }
 
 CDmrmmdvmClient::CDmrmmdvmClient(const CDmrmmdvmClient &client)
 	: CClient(client)
 {
+	m_SlotModule[0] = client.m_SlotModule[0];
+	m_SlotModule[1] = client.m_SlotModule[1];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -43,4 +48,28 @@ CDmrmmdvmClient::CDmrmmdvmClient(const CDmrmmdvmClient &client)
 bool CDmrmmdvmClient::IsAlive(void) const
 {
 	return (m_LastKeepaliveTime.time() < DMRMMDVM_KEEPALIVE_TIMEOUT);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// reporting
+
+void CDmrmmdvmClient::WriteXml(std::ofstream &xmlFile)
+{
+	xmlFile << "<NODE>" << std::endl;
+	xmlFile << "\t<Callsign>" << m_Callsign << "</Callsign>" << std::endl;
+	xmlFile << "\t<IP>" << m_Ip.GetAddress() << "</IP>" << std::endl;
+	xmlFile << "\t<LinkedModule>" << GetReflectorModule() << "</LinkedModule>" << std::endl;
+	xmlFile << "\t<LinkedModuleTS1>" << m_SlotModule[0] << "</LinkedModuleTS1>" << std::endl;
+	xmlFile << "\t<LinkedModuleTS2>" << m_SlotModule[1] << "</LinkedModuleTS2>" << std::endl;
+	xmlFile << "\t<Protocol>" << GetProtocolName() << "</Protocol>" << std::endl;
+	char mbstr[100];
+	if (std::strftime(mbstr, sizeof(mbstr), "%FT%TZ", std::gmtime(&m_ConnectTime)))
+	{
+		xmlFile << "\t<ConnectTime>" << mbstr << "</ConnectTime>" << std::endl;
+	}
+	if (std::strftime(mbstr, sizeof(mbstr), "%FT%TZ", std::gmtime(&m_LastHeardTime)))
+	{
+		xmlFile << "\t<LastHeardTime>" << mbstr << "</LastHeardTime>" << std::endl;
+	}
+	xmlFile << "</NODE>" << std::endl;
 }

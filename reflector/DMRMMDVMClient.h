@@ -39,4 +39,17 @@ public:
 
 	// status
 	bool IsAlive(void) const;
+
+	// dual-slot module linking (TS1 and TS2 independently)
+	void SetSlotModule(uint8_t slot, char mod)  { if (slot >= 1 && slot <= 2) m_SlotModule[slot-1] = mod; }
+	char GetSlotModule(uint8_t slot) const      { return (slot >= 1 && slot <= 2) ? m_SlotModule[slot-1] : ' '; }
+	bool HasReflectorModule(void) const override { return m_SlotModule[0] != ' ' || m_SlotModule[1] != ' '; }
+	char GetReflectorModule(void) const override { return (m_SlotModule[0] != ' ') ? m_SlotModule[0] : m_SlotModule[1]; }
+	bool IsLinkedTo(char mod) const override     { return m_SlotModule[0] == mod || m_SlotModule[1] == mod; }
+
+	// reporting
+	void WriteXml(std::ofstream &) override;
+
+protected:
+	char m_SlotModule[2] = {' ', ' '};  // index 0=TS1, index 1=TS2
 };

@@ -56,7 +56,19 @@ for ($i=0;$i<$Reflector->NodeCount();$i++) {
 	<td>'.date("d.m.Y H:i", $Reflector->Nodes[$i]->GetLastHeardTime()).'</td>
 	<td class="mobile-hide">'.FormatSeconds(time()-$Reflector->Nodes[$i]->GetConnectTime()).' s</td>
 	<td>'.$Reflector->Nodes[$i]->GetProtocol().'</td>
-	<td>'.$Reflector->Nodes[$i]->GetLinkedModule().'</td>';
+	<td>';
+	$ts1 = $Reflector->Nodes[$i]->GetLinkedModuleTS1();
+	$ts2 = $Reflector->Nodes[$i]->GetLinkedModuleTS2();
+	if ($ts1 != '' && $ts2 != '' && $ts1 != $ts2) {
+		echo htmlspecialchars($ts1) . '&nbsp;(TS1), ' . htmlspecialchars($ts2) . '&nbsp;(TS2)';
+	} else if ($ts1 != '' && $ts2 == '') {
+		echo htmlspecialchars($ts1) . '&nbsp;(TS1)';
+	} else if ($ts1 == '' && $ts2 != '') {
+		echo htmlspecialchars($ts2) . '&nbsp;(TS2)';
+	} else {
+		echo $Reflector->Nodes[$i]->GetLinkedModule();
+	}
+	echo '</td>';
 	if ($PageOptions['RepeatersPage']['IPModus'] != 'HideIP') {
 		echo '<td>';
 		$Bytes = explode(".", $Reflector->Nodes[$i]->GetIP());

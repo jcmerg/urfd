@@ -335,8 +335,10 @@ std::shared_ptr<CPacketStream> CReflector::OpenStream(std::unique_ptr<CDvHeaderP
 		return nullptr;
 	}
 
-	// set the packet module
-	DvHeader->SetPacketModule(client->GetReflectorModule());
+	// set the packet module from the header's target module (set by protocol handler)
+	char packetMod = DvHeader->GetRpt2Module();
+	if (packetMod == ' ') packetMod = client->GetReflectorModule();
+	DvHeader->SetPacketModule(packetMod);
 	// get the module's queue
 	module = DvHeader->GetPacketModule();
 	auto stream = GetStream(module);
@@ -728,7 +730,7 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 		CClients *modClients = GetClients();
 		for (auto cit = modClients->cbegin(); cit != modClients->cend(); cit++)
 		{
-			if ((*cit)->IsNode() && (*cit)->GetReflectorModule() == m)
+			if ((*cit)->IsNode() && (*cit)->IsLinkedTo(m))
 				nodeCount++;
 		}
 		ReleaseClients();

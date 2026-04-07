@@ -48,8 +48,9 @@ public:
 	const CIp &GetIp(void) const                        { return m_Ip; }
 	bool HasModule(void) const                          { return m_Callsign.HasModule(); }
 	char GetCSModule(void) const                        { return m_Callsign.GetCSModule(); }
-	bool HasReflectorModule(void) const                 { return m_ReflectorModule != ' '; }
-	char GetReflectorModule(void) const                 { return m_ReflectorModule; }
+	virtual bool HasReflectorModule(void) const          { return m_ReflectorModule != ' '; }
+	virtual char GetReflectorModule(void) const         { return m_ReflectorModule; }
+	virtual bool IsLinkedTo(char mod) const              { return m_ReflectorModule == mod; }
 	std::time_t GetConnectTime(void) const              { return m_ConnectTime; }
 	std::time_t GetLastHeardTime(void) const            { return m_LastHeardTime; }
 

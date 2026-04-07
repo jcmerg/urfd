@@ -89,12 +89,14 @@ if (isset($PageOptions['ModuleNames'])) {
 
 ksort($Modules);
 
-// Count live connected nodes per module
+// Count live connected nodes per module (dual-slot MMDVM clients count in both modules)
 for ($i = 0; $i < $Reflector->NodeCount(); $i++) {
-    $mod = $Reflector->Nodes[$i]->GetLinkedModule();
-    if (isset($Modules[$mod])) {
-        if (!isset($Modules[$mod]['liveNodes'])) $Modules[$mod]['liveNodes'] = array();
-        $Modules[$mod]['liveNodes'][] = $Reflector->Nodes[$i];
+    $mods = $Reflector->Nodes[$i]->GetAllLinkedModules();
+    foreach ($mods as $mod) {
+        if (isset($Modules[$mod])) {
+            if (!isset($Modules[$mod]['liveNodes'])) $Modules[$mod]['liveNodes'] = array();
+            $Modules[$mod]['liveNodes'][] = $Reflector->Nodes[$i];
+        }
     }
 }
 

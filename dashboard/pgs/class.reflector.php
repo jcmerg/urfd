@@ -61,6 +61,10 @@ class xReflector {
 
          for ($i=0;$i<count($tmpNodes);$i++) {
              $Node = new Node($XML->GetElement($tmpNodes[$i], 'Callsign'), $XML->GetElement($tmpNodes[$i], 'IP'), $XML->GetElement($tmpNodes[$i], 'LinkedModule'), $XML->GetElement($tmpNodes[$i], 'Protocol'), $XML->GetElement($tmpNodes[$i], 'ConnectTime'), $XML->GetElement($tmpNodes[$i], 'LastHeardTime'), CreateCode(16));
+             $ts1 = $XML->GetElement($tmpNodes[$i], 'LinkedModuleTS1');
+             $ts2 = $XML->GetElement($tmpNodes[$i], 'LinkedModuleTS2');
+             if ($ts1 !== null) $Node->SetLinkedModuleTS1($ts1);
+             if ($ts2 !== null) $Node->SetLinkedModuleTS2($ts2);
              $this->AddNode($Node);
          }
 
