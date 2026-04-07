@@ -201,22 +201,31 @@ void CDmrmmdvmProtocol::Task(void)
 				EncodeAckPacket(&Buffer, Callsign);
 				Send(Buffer, Ip);
 
-				// add client if needed
+				// add client, replacing any stale entry with a different port
 				CClients *clients = g_Reflector.GetClients();
 				std::shared_ptr<CClient>client = clients->FindClient(Callsign, Ip, EProtocol::dmrmmdvm);
-				// client already connected ?
 				if ( client == nullptr )
 				{
-					std::cout << "MMDVM: login " << Callsign << " at " << Ip << std::endl;
+					// remove stale client with same DMR ID but different port (NAT rebind)
+					uint32_t baseDmrId = (rawDmrId > 9999999) ? rawDmrId / 100 : rawDmrId;
+					for ( auto it = clients->begin(); it != clients->end(); it++ )
+					{
+						if ( (*it)->GetProtocol() == EProtocol::dmrmmdvm &&
+							 (*it)->GetCallsign().GetDmrid() == baseDmrId )
+						{
+							std::cout << "MMDVM: replacing stale " << (*it)->GetCallsign() << " at " << (*it)->GetIp() << " with " << Ip << std::endl;
+							clients->RemoveClient(*it);
+							break;
+						}
+					}
 
-					// create the client and append
+					std::cout << "MMDVM: login " << Callsign << " at " << Ip << std::endl;
 					clients->AddClient(std::make_shared<CDmrmmdvmClient>(Callsign, Ip));
 				}
 				else
 				{
 					client->Alive();
 				}
-				// and done
 				g_Reflector.ReleaseClients();
 			}
 			else
