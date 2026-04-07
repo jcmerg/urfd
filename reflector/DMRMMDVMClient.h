@@ -51,10 +51,15 @@ public:
 	char GetReflectorModule(void) const override { return (m_SlotModule[0] != ' ') ? m_SlotModule[0] : m_SlotModule[1]; }
 	bool IsLinkedTo(char mod) const override     { return m_SlotModule[0] == mod || m_SlotModule[1] == mod; }
 
+	// per-slot linked TG (the TG the client used to link, for outbound DstId)
+	void SetSlotTG(uint8_t slot, uint32_t tg)   { if (slot >= 1 && slot <= 2) m_SlotTG[slot-1] = tg; }
+	uint32_t GetSlotTG(uint8_t slot) const       { return (slot >= 1 && slot <= 2) ? m_SlotTG[slot-1] : 0; }
+
 	// reporting
 	void WriteXml(std::ofstream &) override;
 
 protected:
 	uint32_t m_uiRawDmrId = 0;
 	char m_SlotModule[2] = {' ', ' '};  // index 0=TS1, index 1=TS2
+	uint32_t m_SlotTG[2] = {0, 0};     // index 0=TS1, index 1=TS2
 };

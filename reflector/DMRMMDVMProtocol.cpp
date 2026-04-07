@@ -208,8 +208,9 @@ void CDmrmmdvmProtocol::Task(void)
 				if ( client == nullptr )
 				{
 					// find and remove stale client with same raw DMR ID but different port (NAT rebind)
-					// preserve slot module links across reconnect
+					// preserve slot module links and TGs across reconnect
 					char savedSlot1 = ' ', savedSlot2 = ' ';
+					uint32_t savedTG1 = 0, savedTG2 = 0;
 					for ( auto it = clients->begin(); it != clients->end(); it++ )
 					{
 						if ( (*it)->GetProtocol() == EProtocol::dmrmmdvm )
@@ -219,6 +220,8 @@ void CDmrmmdvmProtocol::Task(void)
 							{
 								savedSlot1 = mmdvm->GetSlotModule(1);
 								savedSlot2 = mmdvm->GetSlotModule(2);
+								savedTG1 = mmdvm->GetSlotTG(1);
+								savedTG2 = mmdvm->GetSlotTG(2);
 								std::cout << "MMDVM: replacing stale " << (*it)->GetCallsign() << " at " << (*it)->GetIp() << " with " << Ip << std::endl;
 								clients->RemoveClient(*it);
 								break;
@@ -231,6 +234,8 @@ void CDmrmmdvmProtocol::Task(void)
 					newClient->SetRawDmrId(rawDmrId);
 					newClient->SetSlotModule(1, savedSlot1);
 					newClient->SetSlotModule(2, savedSlot2);
+					newClient->SetSlotTG(1, savedTG1);
+					newClient->SetSlotTG(2, savedTG2);
 					clients->AddClient(newClient);
 				}
 				else
@@ -372,8 +377,9 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 				{
 					if ( g_Reflector.IsValidModule(targetMod) )
 					{
-						std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " linking on module " << targetMod << std::endl;
+						std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " linking on module " << targetMod << " (TG" << sourceTG << ")" << std::endl;
 						mmdvm->SetSlotModule(slot, targetMod);
+						mmdvm->SetSlotTG(slot, sourceTG);
 					}
 					else
 					{
@@ -383,8 +389,9 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 				else if ( cmd == CMD_NONE && targetMod != ' ' && g_Reflector.IsValidModule(targetMod) )
 				{
 					// TG mapping resolved to a valid module — auto-link this slot
-					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " linking on module " << targetMod << std::endl;
+					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " linking on module " << targetMod << " (TG" << sourceTG << ")" << std::endl;
 					mmdvm->SetSlotModule(slot, targetMod);
+					mmdvm->SetSlotTG(slot, sourceTG);
 				}
 			}
 			else
@@ -392,14 +399,21 @@ void CDmrmmdvmProtocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Hea
 				// slot already linked — switch module if TG maps to a different one
 				if ( targetMod != ' ' && targetMod != slotMod && g_Reflector.IsValidModule(targetMod) )
 				{
-					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " switching to module " << targetMod << std::endl;
+					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " switching to module " << targetMod << " (TG" << sourceTG << ")" << std::endl;
 					mmdvm->SetSlotModule(slot, targetMod);
+					mmdvm->SetSlotTG(slot, sourceTG);
+				}
+				else if ( sourceTG != 0 && sourceTG != mmdvm->GetSlotTG(slot) )
+				{
+					// same module but different TG — update the linked TG
+					mmdvm->SetSlotTG(slot, sourceTG);
 				}
 
 				if ( cmd == CMD_UNLINK )
 				{
 					std::cout << "MMDVM: " << client->GetCallsign() << " TS" << (int)slot << " unlinking from module " << slotMod << std::endl;
 					mmdvm->SetSlotModule(slot, ' ');
+					mmdvm->SetSlotTG(slot, 0);
 				}
 				else
 				{
@@ -462,29 +476,25 @@ void CDmrmmdvmProtocol::HandleQueue(void)
 		// encode
 		CBuffer buffer;
 
-		// check if it's header
-		if ( packet->IsDvHeader() )
+		// header and terminator are built per-client (LC payload contains DstId)
+		// voice frames are built once and patched per-client (only DMRD header bytes)
+		bool isHeader = packet->IsDvHeader();
+		bool isTerminator = !isHeader && packet->IsLastPacket();
+		bool isVoice = !isHeader && !isTerminator;
+
+		if ( isHeader )
 		{
 			// update local stream cache
-			// this relies on queue feeder setting valid module id
 			m_StreamsCache[cacheKey].m_dvHeader = CDvHeaderPacket((const CDvHeaderPacket &)*packet.get());
 			m_StreamsCache[cacheKey].m_uiSeqId = 0;
-
-			// encode it
-			EncodeMMDVMHeaderPacket((CDvHeaderPacket &)*packet.get(), m_StreamsCache[cacheKey].m_uiSeqId, &buffer);
-			m_StreamsCache[cacheKey].m_uiSeqId = 1;
 		}
-		// check if it's a last frame
-		else if ( packet->IsLastPacket() )
+		else if ( isTerminator )
 		{
-			// encode it
-			EncodeLastMMDVMPacket(m_StreamsCache[cacheKey].m_dvHeader, m_StreamsCache[cacheKey].m_uiSeqId, &buffer);
-			m_StreamsCache[cacheKey].m_uiSeqId = (m_StreamsCache[cacheKey].m_uiSeqId + 1) & 0xFF;
+			// seqId will be incremented after per-client send
 		}
-		// otherwise, just a regular DV frame
 		else
 		{
-			// update local stream cache or send triplet when needed
+			// voice frame — update local stream cache or encode triplet
 			switch ( packet->GetDmrPacketSubid() )
 			{
 			case 1:
@@ -494,28 +504,71 @@ void CDmrmmdvmProtocol::HandleQueue(void)
 				m_StreamsCache[cacheKey].m_dvFrame1 = CDvFramePacket((const CDvFramePacket &)*packet.get());
 				break;
 			case 3:
+			{
+				CBuffer buffer;
 				EncodeMMDVMPacket(m_StreamsCache[cacheKey].m_dvHeader, m_StreamsCache[cacheKey].m_dvFrame0, m_StreamsCache[cacheKey].m_dvFrame1, (const CDvFramePacket &)*packet.get(), m_StreamsCache[cacheKey].m_uiSeqId, &buffer);
 				m_StreamsCache[cacheKey].m_uiSeqId = (m_StreamsCache[cacheKey].m_uiSeqId + 1) & 0xFF;
+
+				// send voice to all linked clients, patching DstId and rptrId per-client
+				CClients *clients = g_Reflector.GetClients();
+				auto it = clients->begin();
+				std::shared_ptr<CClient>client = nullptr;
+				while ( (client = clients->FindNextClient(EProtocol::dmrmmdvm, it)) != nullptr )
+				{
+					if ( !client->IsAMaster() && client->IsLinkedTo(mod) )
+					{
+						auto *mmdvm = static_cast<CDmrmmdvmClient*>(client.get());
+						uint32_t clientTG = GetClientTGForModule(mmdvm, mod);
+						buffer.data()[8]  = (uint8_t)(clientTG >> 16);
+						buffer.data()[9]  = (uint8_t)(clientTG >> 8);
+						buffer.data()[10] = (uint8_t)(clientTG);
+						uint32_t rptrId = mmdvm->GetRawDmrId();
+						buffer.data()[11] = (uint8_t)(rptrId >> 24);
+						buffer.data()[12] = (uint8_t)(rptrId >> 16);
+						buffer.data()[13] = (uint8_t)(rptrId >> 8);
+						buffer.data()[14] = (uint8_t)(rptrId);
+						Send(buffer, client->GetIp());
+					}
+				}
+				g_Reflector.ReleaseClients();
 				break;
+			}
 			default:
 				break;
 			}
 		}
 
-		// send it
-		if ( buffer.size() > 0 )
+		// header and terminator: build per-client with correct DstId in LC payload
+		if ( isHeader || isTerminator )
 		{
-			// and push it to all our clients linked to the module and who are not streaming in
 			CClients *clients = g_Reflector.GetClients();
 			auto it = clients->begin();
 			std::shared_ptr<CClient>client = nullptr;
 			while ( (client = clients->FindNextClient(EProtocol::dmrmmdvm, it)) != nullptr )
 			{
-				// is this client busy ?
-				if ( !client->IsAMaster() && client->IsLinkedTo(packet->GetPacketModule()) )
+				if ( !client->IsAMaster() && client->IsLinkedTo(mod) )
 				{
-					// patch repeater ID (bytes 11-14) with destination client's DMR ID
 					auto *mmdvm = static_cast<CDmrmmdvmClient*>(client.get());
+					uint32_t clientTG = GetClientTGForModule(mmdvm, mod);
+
+					// temporarily patch the header's DstId for this client
+					CDvHeaderPacket &hdr = isHeader
+						? (CDvHeaderPacket &)*packet.get()
+						: m_StreamsCache[cacheKey].m_dvHeader;
+
+					// save and override Rpt2 module's DstId via TG map isn't enough —
+					// we need to pass the actual TG to the encoder
+					CBuffer buffer;
+					if ( isHeader )
+					{
+						EncodeMMDVMHeaderPacket(hdr, m_StreamsCache[cacheKey].m_uiSeqId, &buffer, clientTG);
+					}
+					else
+					{
+						EncodeLastMMDVMPacket(hdr, m_StreamsCache[cacheKey].m_uiSeqId, &buffer, clientTG);
+					}
+
+					// patch rptrId
 					uint32_t rptrId = mmdvm->GetRawDmrId();
 					buffer.data()[11] = (uint8_t)(rptrId >> 24);
 					buffer.data()[12] = (uint8_t)(rptrId >> 16);
@@ -525,6 +578,11 @@ void CDmrmmdvmProtocol::HandleQueue(void)
 				}
 			}
 			g_Reflector.ReleaseClients();
+
+			if ( isHeader )
+				m_StreamsCache[cacheKey].m_uiSeqId = 1;
+			else
+				m_StreamsCache[cacheKey].m_uiSeqId = (m_StreamsCache[cacheKey].m_uiSeqId + 1) & 0xFF;
 		}
 	}
 }
@@ -1019,7 +1077,7 @@ void CDmrmmdvmProtocol::EncodeClosePacket(CBuffer *Buffer, std::shared_ptr<CClie
 }
 
 
-bool CDmrmmdvmProtocol::EncodeMMDVMHeaderPacket(const CDvHeaderPacket &Packet, uint8_t seqid, CBuffer *Buffer) const
+bool CDmrmmdvmProtocol::EncodeMMDVMHeaderPacket(const CDvHeaderPacket &Packet, uint8_t seqid, CBuffer *Buffer, uint32_t overrideDstId) const
 {
 	uint8_t tag[] = { 'D','M','R','D' };
 
@@ -1031,8 +1089,8 @@ bool CDmrmmdvmProtocol::EncodeMMDVMHeaderPacket(const CDvHeaderPacket &Packet, u
 	// uiSrcId
 	uint32_t uiSrcId = Packet.GetMyCallsign().GetDmrid();
 	AppendDmrIdToBuffer(Buffer, uiSrcId);
-	// uiDstId from TG map
-	uint32_t uiDstId = ModuleToDmrDestId(Packet.GetRpt2Module());
+	// uiDstId — use override if provided, else from TG map
+	uint32_t uiDstId = (overrideDstId != 0) ? overrideDstId : ModuleToDmrDestId(Packet.GetRpt2Module());
 	AppendDmrIdToBuffer(Buffer, uiDstId);
 	// uiRptrId
 	uint32_t uiRptrId = Packet.GetRpt1Callsign().GetDmrid();
@@ -1140,7 +1198,7 @@ void CDmrmmdvmProtocol::EncodeMMDVMPacket(const CDvHeaderPacket &Header, const C
 }
 
 
-void CDmrmmdvmProtocol::EncodeLastMMDVMPacket(const CDvHeaderPacket &Packet, uint8_t seqid, CBuffer *Buffer) const
+void CDmrmmdvmProtocol::EncodeLastMMDVMPacket(const CDvHeaderPacket &Packet, uint8_t seqid, CBuffer *Buffer, uint32_t overrideDstId) const
 {
 	uint8_t tag[] = { 'D','M','R','D' };
 
@@ -1152,8 +1210,8 @@ void CDmrmmdvmProtocol::EncodeLastMMDVMPacket(const CDvHeaderPacket &Packet, uin
 	// uiSrcId
 	uint32_t uiSrcId = Packet.GetMyCallsign().GetDmrid();
 	AppendDmrIdToBuffer(Buffer, uiSrcId);
-	// uiDstId from TG map
-	uint32_t uiDstId = ModuleToDmrDestId(Packet.GetRpt2Module());
+	// uiDstId — use override if provided, else from TG map
+	uint32_t uiDstId = (overrideDstId != 0) ? overrideDstId : ModuleToDmrDestId(Packet.GetRpt2Module());
 	AppendDmrIdToBuffer(Buffer, uiDstId);
 	// uiRptrId
 	uint32_t uiRptrId = Packet.GetRpt1Callsign().GetDmrid();
@@ -1207,6 +1265,20 @@ uint32_t CDmrmmdvmProtocol::ModuleToDmrDestId(char m) const
 		return tg;
 	// fallback: legacy
 	return (uint32_t)(m - 'A') + 4001;
+}
+
+uint32_t CDmrmmdvmProtocol::GetClientTGForModule(const CDmrmmdvmClient *client, char mod) const
+{
+	for (uint8_t s = 1; s <= 2; s++)
+	{
+		if (client->GetSlotModule(s) == mod)
+		{
+			uint32_t tg = client->GetSlotTG(s);
+			if (tg != 0)
+				return tg;
+		}
+	}
+	return ModuleToDmrDestId(mod);  // fallback to primary TG
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

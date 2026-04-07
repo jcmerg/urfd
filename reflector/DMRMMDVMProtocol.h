@@ -123,13 +123,16 @@ protected:
 	void EncodeConnectAckPacket(CBuffer *, const CCallsign &, uint32_t);
 	void EncodeNackPacket(CBuffer *, const CCallsign &);
 	void EncodeClosePacket(CBuffer *, std::shared_ptr<CClient>);
-	bool EncodeMMDVMHeaderPacket(const CDvHeaderPacket &, uint8_t, CBuffer *) const;
+	bool EncodeMMDVMHeaderPacket(const CDvHeaderPacket &, uint8_t, CBuffer *, uint32_t overrideDstId = 0) const;
 	void EncodeMMDVMPacket(const CDvHeaderPacket &, const CDvFramePacket &, const CDvFramePacket &, const CDvFramePacket &, uint8_t, CBuffer *) const;
-	void EncodeLastMMDVMPacket(const CDvHeaderPacket &, uint8_t, CBuffer *) const;
+	void EncodeLastMMDVMPacket(const CDvHeaderPacket &, uint8_t, CBuffer *, uint32_t overrideDstId = 0) const;
 
 	// dmr DstId to Module helper
 	char DmrDstIdToModule(uint32_t) const;
 	uint32_t ModuleToDmrDestId(char) const;
+
+	// per-client TG lookup for outbound DstId
+	uint32_t GetClientTGForModule(const CDmrmmdvmClient *client, char mod) const;
 
 	// Buffer & LC helpers
 	void AppendVoiceLCToBuffer(CBuffer *, uint32_t uiSrcId, uint32_t uiDstId) const;
