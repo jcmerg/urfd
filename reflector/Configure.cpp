@@ -268,9 +268,9 @@ bool CConfigure::ReadData(const std::string &path)
 		ltrim(tokens[1]);
 		const std::string key(tokens[0]);
 		const std::string value(tokens[1]);
-		if (key.empty() || value.empty())
+		if (key.empty())
 		{
-			std::cout << "WARNING: line #" << counter << ": missing key or value: '" << line << "'" << std::endl;
+			std::cout << "WARNING: line #" << counter << ": missing key: '" << line << "'" << std::endl;
 			continue;
 		}
 		switch (section)
