@@ -511,9 +511,14 @@ void CDmrmmdvmProtocol::HandleQueue(void)
 				// is this client busy ?
 				if ( !client->IsAMaster() && client->IsLinkedTo(packet->GetPacketModule()) )
 				{
-					// no, send the packet
+					// patch repeater ID (bytes 11-14) with destination client's DMR ID
+					auto *mmdvm = static_cast<CDmrmmdvmClient*>(client.get());
+					uint32_t rptrId = mmdvm->GetRawDmrId();
+					buffer.data()[11] = (uint8_t)(rptrId >> 24);
+					buffer.data()[12] = (uint8_t)(rptrId >> 16);
+					buffer.data()[13] = (uint8_t)(rptrId >> 8);
+					buffer.data()[14] = (uint8_t)(rptrId);
 					Send(buffer, client->GetIp());
-
 				}
 			}
 			g_Reflector.ReleaseClients();
