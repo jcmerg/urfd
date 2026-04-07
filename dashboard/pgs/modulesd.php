@@ -121,7 +121,7 @@ $colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan 
         <tr class="table-center">
             <th>Module</th>
             <th>Name</th>
-            <?php if ($showDmrPlus) { ?><th>DMR+</th><?php } ?>
+            <?php if ($showDmrPlus) { ?><th>DMR TG</th><?php } ?>
             <?php if ($showYsfDgid) { ?><th>YSF DG-ID</th><?php } ?>
             <?php if ($showNxdnRan) { ?><th>NXDN RAN</th><?php } ?>
             <th>Nodes</th>

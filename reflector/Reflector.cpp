@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "Global.h"
+#include "DMRMMDVMProtocol.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
 #include "SvxProtocol.h"
@@ -783,6 +784,29 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 			if (g_Configure.Contains(g_Keys.usrp.callsign))
 				xmlFile << "<RemoteName>" << g_Configure.GetString(g_Keys.usrp.callsign) << "</RemoteName>";
 			xmlFile << "</Mapping>" << std::endl;
+		}
+		// MMDVM Server TG mappings for this module (static + dynamic)
+		if (g_Configure.Contains(g_Keys.mmdvm.enable) && g_Configure.GetBoolean(g_Keys.mmdvm.enable))
+		{
+			auto *proto = m_Protocols.FindByType(EProtocol::dmrmmdvm);
+			if (proto)
+			{
+				auto *mmdvm = static_cast<CDmrmmdvmProtocol *>(proto);
+				auto mappings = mmdvm->GetTGMap().GetAllMappings();
+				for (const auto &mi : mappings)
+				{
+					if (mi.module != m) continue;
+					xmlFile << "\t<Mapping><Protocol>MMDVM</Protocol><Type>TG</Type>";
+					xmlFile << "<ID>" << mi.tg << "</ID>";
+					xmlFile << "<Timeslot>TS" << (int)mi.timeslot << "</Timeslot>";
+					if (!mi.is_static)
+					{
+						xmlFile << "<Dynamic>true</Dynamic>";
+						xmlFile << "<Remaining>" << mi.remainingSeconds << "</Remaining>";
+					}
+					xmlFile << "</Mapping>" << std::endl;
+				}
+			}
 		}
 		// MMDVMClient TG mappings for this module (static + dynamic)
 		if (g_Configure.Contains(g_Keys.mmdvmclient.enable) && g_Configure.GetBoolean(g_Keys.mmdvmclient.enable))
