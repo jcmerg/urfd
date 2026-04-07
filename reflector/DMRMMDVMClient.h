@@ -40,6 +40,10 @@ public:
 	// status
 	bool IsAlive(void) const;
 
+	// raw DMR ID (base or with extension, as received in RPTL/RPTK)
+	void SetRawDmrId(uint32_t id)               { m_uiRawDmrId = id; }
+	uint32_t GetRawDmrId(void) const             { return m_uiRawDmrId; }
+
 	// dual-slot module linking (TS1 and TS2 independently)
 	void SetSlotModule(uint8_t slot, char mod)  { if (slot >= 1 && slot <= 2) m_SlotModule[slot-1] = mod; }
 	char GetSlotModule(uint8_t slot) const      { return (slot >= 1 && slot <= 2) ? m_SlotModule[slot-1] : ' '; }
@@ -51,5 +55,6 @@ public:
 	void WriteXml(std::ofstream &) override;
 
 protected:
+	uint32_t m_uiRawDmrId = 0;
 	char m_SlotModule[2] = {' ', ' '};  // index 0=TS1, index 1=TS2
 };

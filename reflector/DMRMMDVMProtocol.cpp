@@ -206,21 +206,25 @@ void CDmrmmdvmProtocol::Task(void)
 				std::shared_ptr<CClient>client = clients->FindClient(Callsign, Ip, EProtocol::dmrmmdvm);
 				if ( client == nullptr )
 				{
-					// remove stale client with same DMR ID but different port (NAT rebind)
-					uint32_t baseDmrId = (rawDmrId > 9999999) ? rawDmrId / 100 : rawDmrId;
+					// remove stale client with same raw DMR ID but different port (NAT rebind)
 					for ( auto it = clients->begin(); it != clients->end(); it++ )
 					{
-						if ( (*it)->GetProtocol() == EProtocol::dmrmmdvm &&
-							 (*it)->GetCallsign().GetDmrid() == baseDmrId )
+						if ( (*it)->GetProtocol() == EProtocol::dmrmmdvm )
 						{
-							std::cout << "MMDVM: replacing stale " << (*it)->GetCallsign() << " at " << (*it)->GetIp() << " with " << Ip << std::endl;
-							clients->RemoveClient(*it);
-							break;
+							auto *mmdvm = static_cast<CDmrmmdvmClient*>((*it).get());
+							if ( mmdvm->GetRawDmrId() == rawDmrId )
+							{
+								std::cout << "MMDVM: replacing stale " << (*it)->GetCallsign() << " at " << (*it)->GetIp() << " with " << Ip << std::endl;
+								clients->RemoveClient(*it);
+								break;
+							}
 						}
 					}
 
 					std::cout << "MMDVM: login " << Callsign << " at " << Ip << std::endl;
-					clients->AddClient(std::make_shared<CDmrmmdvmClient>(Callsign, Ip));
+					auto newClient = std::make_shared<CDmrmmdvmClient>(Callsign, Ip);
+					newClient->SetRawDmrId(rawDmrId);
+					clients->AddClient(newClient);
 				}
 				else
 				{
