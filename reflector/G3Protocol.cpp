@@ -44,9 +44,6 @@ bool CG3Protocol::Initialize(const char */*type*/, const EProtocol /*type*/, con
 	// reset stop flag
 	keep_running = true;
 
-	// update the reflector callsign
-	//m_ReflectorCallsign.PatchCallsign(0, "XLX", 3);
-
 	// create our sockets
 	CIp ip(AF_INET, G3_DV_PORT, ipv4address.c_str());
 	if ( ip.IsSet() )
@@ -254,9 +251,7 @@ void CG3Protocol::ConfigTask(void)
 
 			isRepeaterCall = ((Buffer.data()[2] & 0x10) == 0x10);
 
-			std::cout << "Config request from " << Ip << " for " << Call << " (" << ((char *)(isRepeaterCall)?"repeater":"routed") << ")" << std::endl;
-
-			//std::cout << "Local address: " << inet_ntoa(*m_ConfigSocket.GetLocalAddr()) << std::endl;
+			std::cout << "Config request from " << Ip << " for " << Call << " (" << (isRepeaterCall ? "repeater" : "routed") << ")" << std::endl;
 
 			Buffer.data()[2] |= 0x80; // response
 
@@ -311,38 +306,29 @@ void CG3Protocol::ConfigTask(void)
 
 			if (Buffer.data()[3] == 0x00)
 			{
-				std::cout << "External G3 gateway address " << inet_ntoa(*(in_addr *)&m_GwAddress) << std::endl;
-
-				if (m_GwAddress == 0)
-				{
-					Buffer.Append(*(uint32_t *)m_ConfigSocket.GetLocalAddr());
-				}
-				else
-				{
-					Buffer.Append(m_GwAddress);
-				}
+				uint32_t gwAddr = (m_GwAddress != 0) ? m_GwAddress : *(uint32_t *)m_ConfigSocket.GetLocalAddr();
+				std::cout << "External G3 gateway address " << inet_ntoa(*(in_addr *)&gwAddr) << std::endl;
+				Buffer.Append(gwAddr);
 
 				// Bind the G3 client (identified by source IP) to the requested module so
 				// inbound traffic flows before the terminal has transmitted for the first time.
-				if (isRepeaterCall)
+				// Reached only when isRepeaterCall was accepted above.
+				CClients *clients = g_Reflector.GetClients();
+				auto it = clients->begin();
+				std::shared_ptr<CClient>client = nullptr;
+				while ( (client = clients->FindNextClient(EProtocol::g3, it)) != nullptr )
 				{
-					CClients *clients = g_Reflector.GetClients();
-					auto it = clients->begin();
-					std::shared_ptr<CClient>client = nullptr;
-					while ( (client = clients->FindNextClient(EProtocol::g3, it)) != nullptr )
+					if (client->GetIp().GetAddr() == Ip.GetAddr())
 					{
-						if (client->GetIp().GetAddr() == Ip.GetAddr())
+						if (!client->IsAMaster() && client->GetReflectorModule() != module)
 						{
-							if (client->GetReflectorModule() != module)
-							{
-								client->SetReflectorModule(module);
-								std::cout << "G3 client " << client->GetCallsign() << " bound to module " << module << std::endl;
-							}
-							break;
+							client->SetReflectorModule(module);
+							std::cout << "G3 client " << client->GetCallsign() << " bound to module " << module << std::endl;
 						}
+						break;
 					}
-					g_Reflector.ReleaseClients();
 				}
+				g_Reflector.ReleaseClients();
 			}
 			else
 			{
