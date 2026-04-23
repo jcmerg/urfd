@@ -262,7 +262,7 @@ void CG3Protocol::ConfigTask(void)
 
 			if (isRepeaterCall)
 			{
-				if ((Call.HasSameCallsign(GetReflectorCallsign())) && (g_Reflector.IsValidModule(Call.GetCSModule())))
+				if (MatchesReflectorOrAlias(Call) && (g_Reflector.IsValidModule(Call.GetCSModule())))
 				{
 					Buffer.data()[3] = 0x00; // ok
 				}
@@ -292,12 +292,12 @@ void CG3Protocol::ConfigTask(void)
 			Buffer.Append((uint8_t *)(const char *)Call, CALLSIGN_LEN - 1);
 			Buffer.Append((uint8_t)module);
 
-			// RPT1
-			Buffer.Append((uint8_t *)(const char *)GetReflectorCallsign(), CALLSIGN_LEN - 1);
+			// RPT1 (echo the requested callsign so device uses it in stream headers)
+			Buffer.Append((uint8_t *)(const char *)Call, CALLSIGN_LEN - 1);
 			Buffer.Append((uint8_t)'G');
 
 			// RPT2
-			Buffer.Append((uint8_t *)(const char *)GetReflectorCallsign(), CALLSIGN_LEN - 1);
+			Buffer.Append((uint8_t *)(const char *)Call, CALLSIGN_LEN - 1);
 
 			if (isRepeaterCall)
 			{
@@ -320,6 +320,28 @@ void CG3Protocol::ConfigTask(void)
 				else
 				{
 					Buffer.Append(m_GwAddress);
+				}
+
+				// Bind the G3 client (identified by source IP) to the requested module so
+				// inbound traffic flows before the terminal has transmitted for the first time.
+				if (isRepeaterCall)
+				{
+					CClients *clients = g_Reflector.GetClients();
+					auto it = clients->begin();
+					std::shared_ptr<CClient>client = nullptr;
+					while ( (client = clients->FindNextClient(EProtocol::g3, it)) != nullptr )
+					{
+						if (client->GetIp().GetAddr() == Ip.GetAddr())
+						{
+							if (client->GetReflectorModule() != module)
+							{
+								client->SetReflectorModule(module);
+								std::cout << "G3 client " << client->GetCallsign() << " bound to module " << module << std::endl;
+							}
+							break;
+						}
+					}
+					g_Reflector.ReleaseClients();
 				}
 			}
 			else
@@ -543,7 +565,7 @@ void CG3Protocol::OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &Header, c
 		{
 
 			// move it to the proper module
-			if (m_ReflectorCallsign.HasSameCallsign(rpt2))
+			if (MatchesReflectorOrAlias(rpt2))
 			{
 				if (client->GetReflectorModule() != rpt2.GetCSModule())
 				{
@@ -668,6 +690,18 @@ char *CG3Protocol::TrimWhiteSpaces(char *str)
 }
 
 
+bool CG3Protocol::MatchesReflectorOrAlias(const CCallsign &cs) const
+{
+	if (m_ReflectorCallsign.HasSameCallsign(cs))
+		return true;
+	for (const auto &alias : m_Aliases)
+	{
+		if (alias.HasSameCallsign(cs))
+			return true;
+	}
+	return false;
+}
+
 void CG3Protocol::NeedReload(void)
 {
 	struct stat fileStat;
@@ -706,6 +740,7 @@ void CG3Protocol::ReadOptions(void)
 	{
 		m_GwAddress = 0u;
 		m_Modules = "*";
+		m_Aliases.clear();
 
 		while (file.getline(sz, sizeof(sz)).good())
 		{
@@ -732,6 +767,14 @@ void CG3Protocol::ReadOptions(void)
 						{
 							std::cout << "G3 handler module list set to " << szval << std::endl;
 							m_Modules = szval;
+							opts++;
+						}
+						else if (strncmp(szt, "alias", 5) == 0)
+						{
+							CCallsign alias;
+							alias.SetCallsign(std::string(szval), false);
+							m_Aliases.push_back(alias);
+							std::cout << "G3 handler alias callsign added: " << alias << std::endl;
 							opts++;
 						}
 						else

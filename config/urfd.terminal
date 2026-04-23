@@ -10,11 +10,15 @@
 #                        Set to public IP if behind NAT/router.
 #    modules <modules>  Modules that accept terminal connections.
 #                        Default: * (all modules)
+#    alias <callsign>   Additional reflector callsign accepted from terminals
+#                        (e.g. to accept both URFxxx and XLXxxx). Repeatable.
 #
 #  Examples:
 #    address 203.0.113.1
 #    modules BCD
+#    alias XLX363
 #
 ##############################################################################
 #address 203.0.113.1
 #modules BCD
+#alias XLX363

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "Defines.h"
 #include "Timer.h"
@@ -86,6 +87,7 @@ protected:
 	// helper
 	char *TrimWhiteSpaces(char *);
 	void NeedReload(void);
+	bool MatchesReflectorOrAlias(const CCallsign &) const;
 
 	// queue helper
 	void HandleQueue(void);
@@ -118,6 +120,7 @@ protected:
 	// optional params
 	uint32_t              m_GwAddress;
 	std::string         m_Modules;
+	std::vector<CCallsign> m_Aliases;
 	time_t              m_LastModTime;
 	std::string         m_TerminalPath;
 };

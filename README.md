@@ -499,7 +499,7 @@ All configuration is in `/opt/urfd/config/` (mounted as volume):
 - `urfd.ini` - Main reflector configuration (supports SIGHUP reload)
 - `urfd.interlink` - Peer linking (URF, XLX, DCS peers with DNS support)
 - `urfd.blacklist` / `urfd.whitelist` - Access control (reloaded on SIGHUP)
-- `urfd.terminal` - G3 terminal configuration
+- `urfd.terminal` - G3 (Icom Terminal/AP mode) configuration. Options: `address <public-ip>` (required behind NAT), `modules <letters>` (allowed reflector modules), `alias <callsign>` (additional reflector callsign accepted from terminals, e.g. to accept both `URFxxx` and `XLXxxx`; repeatable). Hot-reloaded via `stat()` on file change.
 
 Dashboard config at `/opt/urfd/dashboard/config.inc.php` (mounted into container):
 - `$PageOptions['MOTD']` - Maintenance banner (shown on all pages)
