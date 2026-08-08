@@ -77,36 +77,26 @@ void CLookupNxdn::UpdateContent(std::stringstream &ss, Eaction action)
 		if (0 < l && l < 0x10000)
 		{
 			auto id = uint32_t(l);
-			auto p1 = line.find(',');
-			if (std::string::npos != p1)
+			const auto fields = LookupSplitFields(line, LookupDelimiter(line));
+			if (fields.size() >= 2)
 			{
-				auto p2 = line.find(',', ++p1);
-				if (std::string::npos != p2)
+				const auto &cs_str = fields[1];
+				CCallsign cs;
+				cs.SetCallsign(cs_str, false);
+				if (cs.IsValid())
 				{
-					const auto cs_str = line.substr(p1, p2-p1);
-					CCallsign cs;
-					cs.SetCallsign(cs_str, false);
-					if (cs.IsValid())
+					failed = false;
+					if (Eaction::normal == action)
 					{
-						failed = false;
-						if (Eaction::normal == action)
-						{
-							auto key = cs.GetKey();
-							m_NxdnidMap[key] = id;
-							m_CallsignMap[id] = key;
-							auto p3 = line.find(',', p2 + 1);
-							std::string name = line.substr(p2 + 1, (p3 != std::string::npos) ? p3 - p2 - 1 : std::string::npos);
-							while (!name.empty() && (unsigned char)name.back() <= ' ')
-								name.pop_back();
-							while (!name.empty() && (unsigned char)name.front() <= ' ')
-								name.erase(0, 1);
-							if (!name.empty())
-								m_NameMap[id] = name;
-						}
-						else if (Eaction::parse == action)
-						{
-							std::cout << id << ',' << cs_str << ",\n";
-						}
+						auto key = cs.GetKey();
+						m_NxdnidMap[key] = id;
+						m_CallsignMap[id] = key;
+						if (fields.size() >= 3 && !fields[2].empty())
+							m_NameMap[id] = fields[2];
+					}
+					else if (Eaction::parse == action)
+					{
+						std::cout << id << ',' << cs_str << ",\n";
 					}
 				}
 			}
