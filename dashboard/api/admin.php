@@ -94,6 +94,11 @@ if (!isset($_SESSION['admin_token'])) {
 
 $token = $_SESSION['admin_token'];
 
+// Release the session file lock before talking to the admin socket. The admin page
+// fires ~9 of these requests in parallel every 10s; holding the lock would serialize
+// them all behind the slowest one and make the whole interface appear frozen.
+session_write_close();
+
 // Map actions to admin socket commands
 switch ($action) {
     case 'tg_list':
@@ -355,7 +360,10 @@ $result = adminSocketSend($cmd);
 
 // If token was rejected, clear session
 if ($result && isset($result['message']) && $result['message'] === 'authentication required') {
+    // Session was closed above — reopen it to drop the stale token.
+    session_start();
     unset($_SESSION['admin_token']);
+    session_write_close();
     http_response_code(401);
 }
 

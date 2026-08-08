@@ -12,6 +12,7 @@ class xReflector {
    private $CallingHomeHash         = null;
    private $CallingHomeDashboardURL = null;
    private $CallingHomeServerURL    = null;
+   private $CallingHomeTimeout      = 5;
    private $ReflectorName           = null;
    private $ServiceUptime           = null;
    private $ProcessIDFile           = null;
@@ -366,6 +367,7 @@ class xReflector {
       $this->CallingHomeHash            = $Hash;
       $this->CallingHomeDashboardURL    = $CallingHomeVariables['MyDashBoardURL'];
       $this->CallingHomeServerURL       = $CallingHomeVariables['ServerURL'];
+      $this->CallingHomeTimeout         = isset($CallingHomeVariables['Timeout']) ? (int)$CallingHomeVariables['Timeout'] : 5;
       $this->CallingHomeCountry         = $CallingHomeVariables['Country'];
       $this->CallingHomeComment         = $CallingHomeVariables['Comment'];
       $this->CallingHomeOverrideIP      = $CallingHomeVariables['OverrideIPAddress'];
@@ -373,7 +375,17 @@ class xReflector {
    }
 
    public function PushCallingHome() {
-      $CallingHome = @fopen($this->CallingHomeServerURL."?ReflectorName=".$this->ReflectorName."&ReflectorUptime=".$this->ServiceUptime."&ReflectorHash=".$this->CallingHomeHash."&DashboardURL=".$this->CallingHomeDashboardURL."&Country=".urlencode($this->CallingHomeCountry)."&Comment=".urlencode($this->CallingHomeComment)."&OverrideIP=".$this->CallingHomeOverrideIP, "r");
+      // Same reasoning as CallHome(): bound the wait, never inherit default_socket_timeout.
+      $p = @stream_context_create(array('http' => array('method'        => 'GET',
+                                                        'timeout'       => $this->CallingHomeTimeout,
+                                                        'ignore_errors' => true)));
+      $CallingHome = @fopen($this->CallingHomeServerURL."?ReflectorName=".$this->ReflectorName."&ReflectorUptime=".$this->ServiceUptime."&ReflectorHash=".$this->CallingHomeHash."&DashboardURL=".$this->CallingHomeDashboardURL."&Country=".urlencode($this->CallingHomeCountry)."&Comment=".urlencode($this->CallingHomeComment)."&OverrideIP=".$this->CallingHomeOverrideIP, "r", false, $p);
+      if ($CallingHome === false) {
+         error_log("CallingHome: push failed for ".$this->CallingHomeServerURL);
+         return false;
+      }
+      @fclose($CallingHome);
+      return true;
    }
 
    public function ReadInterlinkFile() {
@@ -433,13 +445,21 @@ class xReflector {
    public function CallHome() {
       $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <query>CallingHome</query>'.$this->ReflectorXML.$this->InterlinkXML;
+      // 'timeout' is mandatory: without it PHP falls back to default_socket_timeout
+      // (60s), and an unreachable directory server blocks a php-fpm worker for the
+      // full duration on every page load.
       $p = @stream_context_create(array('http' => array('header'  => "Content-type: application/x-www-form-urlencoded\r\n",
                                                        'method'  => 'POST',
+                                                       'timeout' => $this->CallingHomeTimeout,
+                                                       'ignore_errors' => true,
                                                        'content' => http_build_query(array('xml' => $xml)) )));
       $result = @file_get_contents($this->CallingHomeServerURL, false, $p);
       if ($result === false) {
-         die("CONNECTION FAILED!");
+         // Directory registration is optional — never abort the dashboard for it.
+         error_log("CallingHome: no response from ".$this->CallingHomeServerURL);
+         return false;
       }
+      return true;
    }
 
    public function InterlinkCount() {

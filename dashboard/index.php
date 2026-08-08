@@ -40,7 +40,7 @@ if ($CallingHome['Active']) {
         $Ressource = @fopen($CallingHome['HashFile'], "w");
         if ($Ressource) {
             @fwrite($Ressource, "<?php\n");
-            @fwrite($Ressource, "\n" . '$LastSync = 0;');
+            @fwrite($Ressource, "\n" . '$LastSync = ' . time() . ';');
             @fwrite($Ressource, "\n" . '$Hash     = "' . $Hash . '";');
             @fwrite($Ressource, "\n\n" . '?>');
             @fclose($Ressource);
@@ -62,7 +62,12 @@ if ($CallingHome['Active']) {
         }
     }
 
-    if ($CallHomeNow || isset($_GET['callhome'])) {
+    // The ?callhome override is for the local supervisor job only — otherwise any
+    // visitor could force an outbound request per page view and tie up fpm workers.
+    $CallHomeForced = isset($_GET['callhome'])
+                   && in_array($_SERVER['REMOTE_ADDR'] ?? '', array('127.0.0.1', '::1'), true);
+
+    if ($CallHomeNow || $CallHomeForced) {
         $Reflector->SetCallingHome($CallingHome, $Hash);
         $Reflector->ReadInterlinkFile();
         $Reflector->PrepareInterlinkXML();

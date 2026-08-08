@@ -38,6 +38,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/run/php /var/log/supervisor /var/lib/xlxd-ch /usr/local/etc/urfd
 
+# The stock pool allows 5 workers, so a handful of slow requests starves the whole
+# dashboard — including the admin API. Cap outbound waits too, so a dead upstream
+# can never hold a worker for the 60s default.
+RUN set -eux; \
+    pool="$(ls /etc/php/*/fpm/pool.d/www.conf)"; \
+    sed -i 's/^pm.max_children = .*/pm.max_children = 25/; \
+            s/^pm.start_servers = .*/pm.start_servers = 4/; \
+            s/^pm.min_spare_servers = .*/pm.min_spare_servers = 2/; \
+            s/^pm.max_spare_servers = .*/pm.max_spare_servers = 8/' "$pool"; \
+    ini="$(ls /etc/php/*/fpm/php.ini)"; \
+    sed -i 's/^;\?default_socket_timeout = .*/default_socket_timeout = 10/' "$ini"
+
 # Copy urfd binary and tools
 COPY --from=builder /build/reflector/urfd /usr/local/bin/urfd
 COPY --from=builder /build/reflector/inicheck /usr/local/bin/inicheck
