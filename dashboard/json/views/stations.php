@@ -1,6 +1,9 @@
 <?php
 
 /*** Add stations to payload ***/
+// Initialise so no recent traffic encodes as {"stations":[]} rather than null.
+$payload['stations'] = array();
+
 for ($i=0;$i<$Reflector->StationCount();$i++) {
 
     $tmp = preg_split('/\s+/', $Reflector->Stations[$i]->GetCallSign(), -1, PREG_SPLIT_NO_EMPTY);

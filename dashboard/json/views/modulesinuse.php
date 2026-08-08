@@ -5,6 +5,9 @@ sort($Modules, SORT_STRING);
 
 
 /*** Add modules to payload ***/
+// Initialise so a reflector with no modules encodes as [] rather than null.
+$payload = array();
+
 for ($i=0;$i<count($Modules);$i++) {
 
     $payload[$i] = array(

@@ -1,6 +1,9 @@
 <?php
 
-/*** Add links to payload ***/
+/*** Add peers to payload ***/
+// Initialise so an empty reflector encodes as [] rather than null.
+$payload = array();
+
 for ($i=0;$i<$Reflector->PeerCount();$i++) {
 
     $payload[$i] = array(
