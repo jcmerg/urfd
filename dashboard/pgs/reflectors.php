@@ -1,18 +1,14 @@
 <?php
 
-$Result = @fopen($CallingHome['ServerURL']."?do=GetReflectorList", "r");
+$Reflectors = FetchReflectorList($CallingHome['ServerURL'],
+                                 isset($CallingHome['Timeout']) ? (int)$CallingHome['Timeout'] : 5);
 
-if (!$Result) die("HEUTE GIBTS KEIN BROT");
-
-$INPUT = "";
-while (!feof ($Result)) {
-    $INPUT .= fgets ($Result, 1024);
+if ($Reflectors === false) {
+   echo DirectoryUnavailableNotice();
+   return;
 }
-fclose($Result);
 
 $XML = new ParseXML();
-$Reflectorlist = $XML->GetElement($INPUT, "reflectorlist");
-$Reflectors    = $XML->GetAllElements($Reflectorlist, "reflector");
 
 ?>
 

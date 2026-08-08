@@ -1,21 +1,14 @@
 <?php
 
-$Result = @fopen($CallingHome['ServerURL']."?do=GetReflectorList", "r");
+$Reflectors = FetchReflectorList($CallingHome['ServerURL'],
+                                 isset($CallingHome['Timeout']) ? (int)$CallingHome['Timeout'] : 5);
 
-$INPUT = "";
-
-if ($Result) {
-
-	while (!feof ($Result)) {
-		$INPUT .= fgets ($Result, 1024);
-	}
-
-	$XML = new ParseXML();
-	$Reflectorlist = $XML->GetElement($INPUT, "reflectorlist");
-	$Reflectors    = $XML->GetAllElements($Reflectorlist, "reflector");
+if ($Reflectors === false) {
+	echo DirectoryUnavailableNotice();
+	return;
 }
 
-fclose($Result);
+$XML = new ParseXML();
 ?>
 
 <div class="table-responsive">

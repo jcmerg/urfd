@@ -54,7 +54,41 @@ function FormatSeconds($seconds) {
   return sprintf("%d days %02d:%02d:%02d", $seconds/60/60/24,($seconds/60/60)%24,($seconds/60)%60,$seconds%60);
 } 
 
-function CreateCode ($laenge) {   
+// Fetch the XLX directory reflector list. Returns an array of <reflector> elements,
+// or false if the directory server could not be reached. The explicit timeout matters:
+// without it PHP waits default_socket_timeout on an unreachable host and ties up an
+// fpm worker for the whole page load.
+function FetchReflectorList($ServerURL, $Timeout = 5) {
+	$ctx = @stream_context_create(array('http' => array('method'        => 'GET',
+	                                                    'timeout'       => $Timeout,
+	                                                    'ignore_errors' => true)));
+	$Input = @file_get_contents($ServerURL."?do=GetReflectorList", false, $ctx);
+	if ($Input === false) {
+		error_log("Reflector list: no response from ".$ServerURL);
+		return false;
+	}
+
+	$XML           = new ParseXML();
+	$Reflectorlist = $XML->GetElement($Input, "reflectorlist");
+	$Reflectors    = $XML->GetAllElements($Reflectorlist, "reflector");
+
+	// A reachable-but-broken server (error page, maintenance notice) yields no
+	// elements; treat that like an outage rather than letting count() fatal.
+	if (!is_array($Reflectors)) {
+		error_log("Reflector list: unparseable response from ".$ServerURL);
+		return false;
+	}
+	return $Reflectors;
+}
+
+// Inline notice for pages whose remote data source is unavailable.
+function DirectoryUnavailableNotice() {
+	return '<div class="alert alert-warning">The XLX directory server is currently '
+	     . 'unreachable, so this list cannot be shown. The reflector itself is '
+	     . 'unaffected and keeps running normally.</div>';
+}
+
+function CreateCode ($laenge) {
 	$zeichen = "1234567890abcdefghijklmnopqrstuvwyxzABCDEFGHIJKLMNAOPQRSTUVWYXZ";   
 	mt_srand( (double) microtime() * 1000000); 
 	$out = "";
