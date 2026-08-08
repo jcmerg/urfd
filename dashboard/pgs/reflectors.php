@@ -1,7 +1,6 @@
 <?php
 
-$Reflectors = FetchReflectorList($CallingHome['ServerURL'],
-                                 isset($CallingHome['Timeout']) ? (int)$CallingHome['Timeout'] : 5);
+$Reflectors = GetReflectorList($CallingHome);
 
 if ($Reflectors === false) {
    echo DirectoryUnavailableNotice();

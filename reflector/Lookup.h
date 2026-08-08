@@ -21,8 +21,16 @@
 #include <atomic>
 #include <future>
 #include <iostream>
+#include <string>
+#include <vector>
 #include "Callsign.h"
 #include "Configure.h"
+
+// Databases are published with different field separators depending on the source
+// (xlxapi uses ';', radioid.net ',', Pi-Star a tab). Field order is the same, so
+// detecting the separator per line is enough to consume any of them.
+char LookupDelimiter(const std::string &line);
+std::vector<std::string> LookupSplitFields(const std::string &line, char delim);
 
 enum class Eaction { normal, parse, error_only };
 enum class Esource { http, file };
@@ -52,13 +60,20 @@ protected:
 	// refresh
 	bool LoadContentHttp(std::stringstream &ss);
 	bool LoadContentFile(std::stringstream &ss);
+	bool LoadContentFile(const std::string &path, std::stringstream &ss);
+	// The download is mirrored to m_CachePath so a database outage does not leave
+	// the map empty. m_Path is not usable for this: in ERefreshType::both it holds
+	// the operator's own additional entries and must never be overwritten.
+	bool SaveHttpCache(const std::stringstream &ss);
+	std::vector<std::string> SplitUrls() const;
 	virtual void UpdateContent(std::stringstream &ss, Eaction action) = 0;
 
 	std::mutex        m_Mutex;
 	ERefreshType      m_Type;
 	unsigned          m_Refresh;
-	std::string       m_Path, m_Url;
+	std::string       m_Path, m_Url, m_CachePath;
 	std::time_t       m_LastLoadTime;
+	bool              m_ContentLoaded = false;
 
 	std::atomic<bool> keep_running;
 	std::future<void> m_Future;

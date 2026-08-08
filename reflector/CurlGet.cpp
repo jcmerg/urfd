@@ -18,12 +18,23 @@
 
 #include "CurlGet.h"
 
+// curl_global_init() and curl_global_cleanup() are explicitly not thread safe.
+// Doing them per instance meant every lookup thread tore down libcurl's global
+// state (resolver, TLS) while sibling threads were inside curl_easy_perform(),
+// which shows up as spurious transfer timeouts. Initialise exactly once instead,
+// and leave cleanup to an explicit call once all threads have been joined.
+static std::once_flag s_CurlInitOnce;
+
 CCurlGet::CCurlGet()
 {
-	curl_global_init(CURL_GLOBAL_ALL);
+	std::call_once(s_CurlInitOnce, []() { curl_global_init(CURL_GLOBAL_ALL); });
 }
 
 CCurlGet::~CCurlGet()
+{
+}
+
+void CCurlGet::GlobalCleanup()
 {
 	curl_global_cleanup();
 }
@@ -42,7 +53,7 @@ size_t CCurlGet::data_write(void* buf, size_t size, size_t nmemb, void* userp)
 	return 0;
 }
 
-CURLcode CCurlGet::GetURL(const std::string &url, std::stringstream &ss, long timeout)
+CURLcode CCurlGet::GetURL(const std::string &url, std::stringstream &ss, long timeout, long connecttimeout)
 {
 	CURLcode code(CURLE_FAILED_INIT);
 	CURL* curl = curl_easy_init();
@@ -54,6 +65,7 @@ CURLcode CCurlGet::GetURL(const std::string &url, std::stringstream &ss, long ti
 		&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L))
 		&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FILE, &ss))
 		&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout))
+		&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, connecttimeout))
 		&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str())))
 		{
 			code = curl_easy_perform(curl);

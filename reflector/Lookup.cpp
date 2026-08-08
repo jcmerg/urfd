@@ -16,12 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <cstdio>
 #include <fstream>
 #include <unordered_map>
 #include <thread>
 #include <sys/stat.h>
 #include "CurlGet.h"
 #include "Lookup.h"
+
+char LookupDelimiter(const std::string &line)
+{
+	// Order matters: a semicolon separated record may legitimately contain a comma
+	// inside a name field, so ';' has to win when both are present.
+	for (const char c : { ';', '\t', ',' })
+	{
+		if (std::string::npos != line.find(c))
+			return c;
+	}
+	return ';';
+}
+
+std::vector<std::string> LookupSplitFields(const std::string &line, char delim)
+{
+	std::vector<std::string> fields;
+	std::string field;
+	std::istringstream iss(line);
+	while (std::getline(iss, field, delim))
+	{
+		// Strip whitespace and stray CR from CRLF sources.
+		while (!field.empty() && (unsigned char)field.back() <= ' ')
+			field.pop_back();
+		while (!field.empty() && (unsigned char)field.front() <= ' ')
+			field.erase(0, 1);
+		fields.push_back(field);
+	}
+	return fields;
+}
 
 void CLookup::LookupClose()
 {
@@ -44,6 +74,8 @@ void CLookup::LookupInit()
 {
 	LoadParameters();
 	m_LastLoadTime = 0;
+	m_ContentLoaded = false;
+	m_CachePath = m_Path.empty() ? std::string() : m_Path + ".cache";
 
 	m_Future = std::async(std::launch::async, &CLookup::Thread, this);
 }
@@ -66,9 +98,19 @@ void CLookup::Thread()
 			// in might take a bit more than 10 seconds to soft close
 			http_loaded = LoadContentHttp(ss);
 			if (http_loaded)
+			{
+				SaveHttpCache(ss);	// keep a copy for the next outage
 				count++;	// only advance on success, so failed loads retry in 10s
+			}
 			else
+			{
 				count = 0;	// reset to keep retrying every 10s until first success
+				// Fall back to the last good download, but only while we have no
+				// content at all — once the map is populated, later failures just
+				// leave it in place.
+				if (! m_ContentLoaded)
+					http_loaded = LoadContentFile(m_CachePath, ss);
+			}
 		}
 		else
 		{
@@ -96,6 +138,7 @@ void CLookup::Thread()
 				ClearContents();
 			UpdateContent(ss, Eaction::normal);
 			Unlock();
+			m_ContentLoaded = true;
 		}
 
 		// now wait for 10 seconds
@@ -103,17 +146,58 @@ void CLookup::Thread()
 	}
 }
 
+// The configured URL may be a comma separated list. The first entry is the primary
+// source; the rest are tried in order when it cannot be reached, so one directory
+// going down no longer empties the database.
+std::vector<std::string> CLookup::SplitUrls() const
+{
+	std::vector<std::string> urls;
+	std::string item;
+	std::istringstream iss(m_Url);
+	while (std::getline(iss, item, ','))
+	{
+		item.erase(0, item.find_first_not_of(" \t"));
+		const auto end = item.find_last_not_of(" \t\r");
+		if (std::string::npos != end)
+			item.erase(end + 1);
+		if (! item.empty())
+			urls.push_back(item);
+	}
+	return urls;
+}
+
 bool CLookup::LoadContentHttp(std::stringstream &ss)
 {
+	const auto urls = SplitUrls();
 	CCurlGet get;
-	auto code = get.GetURL(m_Url, ss);
-	return CURLE_OK == code;
+
+	for (std::size_t i = 0; i < urls.size(); i++)
+	{
+		if (CURLE_OK == get.GetURL(urls[i], ss))
+		{
+			if (i > 0)
+				std::cout << "Loaded database from fallback source '" << urls[i] << "'" << std::endl;
+			return true;
+		}
+		// A transfer that failed part way through leaves partial data behind.
+		ss.str(std::string());
+		ss.clear();
+	}
+	return false;
 }
 
 bool CLookup::LoadContentFile(std::stringstream &ss)
 {
+	return LoadContentFile(m_Path, ss);
+}
+
+bool CLookup::LoadContentFile(const std::string &path, std::stringstream &ss)
+{
+	if (path.empty())
+		return false;
+
 	bool rval = false;
-    std::ifstream file(m_Path);
+    std::ifstream file(path);
     if ( file )
     {
         ss << file.rdbuf();
@@ -122,6 +206,37 @@ bool CLookup::LoadContentFile(std::stringstream &ss)
 		rval = true;
     }
 	return rval;
+}
+
+bool CLookup::SaveHttpCache(const std::stringstream &ss)
+{
+	if (m_CachePath.empty())
+		return false;
+
+	// Write via a temporary and rename, so a crash mid-write cannot leave a
+	// truncated cache that would silently shrink the database on next start.
+	const std::string tmp(m_CachePath + ".tmp");
+	{
+		std::ofstream file(tmp, std::ofstream::out | std::ofstream::trunc);
+		if (! file)
+		{
+			std::cerr << "WARNING: could not write database cache '" << tmp << "'" << std::endl;
+			return false;
+		}
+		file << ss.str();
+		if (! file)
+		{
+			std::cerr << "WARNING: failed writing database cache '" << tmp << "'" << std::endl;
+			return false;
+		}
+	}
+	if (std::rename(tmp.c_str(), m_CachePath.c_str()))
+	{
+		std::cerr << "WARNING: could not replace database cache '" << m_CachePath << "'" << std::endl;
+		std::remove(tmp.c_str());
+		return false;
+	}
+	return true;
 }
 
 bool CLookup::Utility(Eaction action, Esource source)

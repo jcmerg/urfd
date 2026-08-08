@@ -54,31 +54,71 @@ function FormatSeconds($seconds) {
   return sprintf("%d days %02d:%02d:%02d", $seconds/60/60/24,($seconds/60/60)%24,($seconds/60)%60,$seconds%60);
 } 
 
-// Fetch the XLX directory reflector list. Returns an array of <reflector> elements,
-// or false if the directory server could not be reached. The explicit timeout matters:
-// without it PHP waits default_socket_timeout on an unreachable host and ties up an
-// fpm worker for the whole page load.
-function FetchReflectorList($ServerURL, $Timeout = 5) {
-	$ctx = @stream_context_create(array('http' => array('method'        => 'GET',
-	                                                    'timeout'       => $Timeout,
-	                                                    'ignore_errors' => true)));
-	$Input = @file_get_contents($ServerURL."?do=GetReflectorList", false, $ctx);
-	if ($Input === false) {
-		error_log("Reflector list: no response from ".$ServerURL);
-		return false;
-	}
+// Parse a reflector list payload into an array of <reflector> elements, or false if
+// the payload is not usable. A reachable-but-broken server (error page, maintenance
+// notice) yields no elements; treat that like an outage rather than letting a later
+// count() fatal on a non-array.
+function ParseReflectorList($Input) {
+	if ($Input === false || $Input === '') return false;
 
 	$XML           = new ParseXML();
 	$Reflectorlist = $XML->GetElement($Input, "reflectorlist");
 	$Reflectors    = $XML->GetAllElements($Reflectorlist, "reflector");
 
-	// A reachable-but-broken server (error page, maintenance notice) yields no
-	// elements; treat that like an outage rather than letting count() fatal.
-	if (!is_array($Reflectors)) {
-		error_log("Reflector list: unparseable response from ".$ServerURL);
-		return false;
+	return is_array($Reflectors) ? $Reflectors : false;
+}
+
+// Fetch the XLX directory reflector list, backed by an on-disk cache. Returns an
+// array of <reflector> elements, or false if neither the server nor the cache can
+// supply one.
+//
+// The cache does double duty: a fresh entry serves the page without touching the
+// network at all, and a stale one keeps the list working while the directory is
+// down. The explicit timeout matters on a miss -- without it PHP waits
+// default_socket_timeout on an unreachable host and ties up an fpm worker for the
+// whole page load.
+function FetchReflectorList($ServerURL, $Timeout = 5, $CacheFile = null, $CacheTTL = 300) {
+	if ($CacheFile === null) $CacheFile = sys_get_temp_dir().'/urfd-reflectorlist.cache';
+
+	// Fresh cache: serve it and skip the network entirely.
+	if (is_readable($CacheFile) && (time() - @filemtime($CacheFile)) < $CacheTTL) {
+		$Cached = ParseReflectorList(@file_get_contents($CacheFile));
+		if ($Cached !== false) return $Cached;
 	}
-	return $Reflectors;
+
+	$ctx = @stream_context_create(array('http' => array('method'        => 'GET',
+	                                                    'timeout'       => $Timeout,
+	                                                    'ignore_errors' => true)));
+	$Input      = @file_get_contents($ServerURL."?do=GetReflectorList", false, $ctx);
+	$Reflectors = ParseReflectorList($Input);
+
+	if ($Reflectors !== false) {
+		// Write via a temporary and rename so a concurrent reader never sees a
+		// half-written cache.
+		$tmp = $CacheFile.'.'.getmypid().'.tmp';
+		if (@file_put_contents($tmp, $Input) !== false) {
+			if (!@rename($tmp, $CacheFile)) @unlink($tmp);
+		}
+		return $Reflectors;
+	}
+
+	// Server unusable -- fall back to the cache at any age.
+	error_log("Reflector list: no usable response from ".$ServerURL.", trying stale cache");
+	if (is_readable($CacheFile)) {
+		$Stale = ParseReflectorList(@file_get_contents($CacheFile));
+		if ($Stale !== false) return $Stale;
+	}
+	return false;
+}
+
+// Convenience wrapper for the pages: derives timeout and cache location from the
+// CallingHome config. The cache lives beside the hash file, which is already a
+// writable, persistent directory.
+function GetReflectorList($CallingHome) {
+	$dir = isset($CallingHome['HashFile']) ? dirname($CallingHome['HashFile']) : sys_get_temp_dir();
+	return FetchReflectorList($CallingHome['ServerURL'],
+	                          isset($CallingHome['Timeout']) ? (int)$CallingHome['Timeout'] : 5,
+	                          $dir.'/reflectorlist.cache');
 }
 
 // Inline notice for pages whose remote data source is unavailable.

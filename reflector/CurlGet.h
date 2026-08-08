@@ -20,6 +20,7 @@
 
 #include <curl/curl.h>
 #include <iostream>
+#include <mutex>
 #include <string>
 
 class CCurlGet
@@ -28,7 +29,10 @@ public:
 	CCurlGet();
 	~CCurlGet();
 	// the contents of the URL will be appended to the stringstream.
-	CURLcode GetURL(const std::string &url, std::stringstream &ss, long timeout = 30);
+	CURLcode GetURL(const std::string &url, std::stringstream &ss, long timeout = 30, long connecttimeout = 10);
+	// Call once at shutdown, after every thread that may use CCurlGet has been
+	// joined. Never call it while transfers can still be running.
+	static void GlobalCleanup();
 private:
 	static size_t data_write(void* buf, size_t size, size_t nmemb, void* userp);
 };

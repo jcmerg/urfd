@@ -22,6 +22,7 @@
 
 #include "Global.h"
 #include "LogBuffer.h"
+#include "CurlGet.h"
 
 #ifndef UTILITY
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -114,6 +115,10 @@ int main(int argc, char *argv[])
 	g_Reflector.Stop();
 	std::cout << "Reflector stopped" << std::endl;
 	g_LogBuffer.Uninstall();
+
+	// Safe here: Stop() has joined the lookup threads, so nothing can still be
+	// inside libcurl.
+	CCurlGet::GlobalCleanup();
 
 	// done
 	return EXIT_SUCCESS;

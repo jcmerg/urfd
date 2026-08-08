@@ -45,11 +45,10 @@ void CLookupYsf::UpdateContent(std::stringstream &ss, Eaction action)
 	while (std::getline(ss, line))
 	{
 		CCallsign cs;
-		std::string cs_str, tx_str, rx_str;
-		std::istringstream iss(line);
-		std::getline(iss, cs_str, ';');
-		std::getline(iss, tx_str, ';');
-		std::getline(iss, rx_str, ';');
+		const auto fields = LookupSplitFields(line, LookupDelimiter(line));
+		const std::string cs_str = (fields.size() > 0) ? fields[0] : std::string();
+		const std::string tx_str = (fields.size() > 1) ? fields[1] : std::string();
+		const std::string rx_str = (fields.size() > 2) ? fields[2] : std::string();
 		cs.SetCallsign(cs_str, false);
 		auto ltx = atoll(tx_str.c_str());
 		auto lrx = atoll(rx_str.c_str());

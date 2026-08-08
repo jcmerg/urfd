@@ -396,6 +396,34 @@ Enable = false
 Port = 41000
 ```
 
+### Resilient ID Database Loading
+The DMR ID and YSF TX/RX databases survive an outage of their publisher.
+
+```ini
+[DMR ID DB]
+Mode = http
+FilePath = /usr/local/etc/urfd/dmrid.dat
+# Comma separated: first entry is primary, the rest are tried in order
+URL = http://xlxapi.rlx.lu/api/exportdmr.php, https://radioid.net/static/user.csv, http://www.pistar.uk/downloads/DMRIds.dat
+```
+
+**Multiple sources**: `URL` accepts a comma separated list. Sources are tried in
+order until one answers, and a message is logged whenever a fallback is used.
+
+**Separator tolerance**: fields may be separated by `;`, `,` or a tab, so the common
+publishers work unchanged — xlxapi (`id;call;name`), radioid.net CSV
+(`id,call,first,last,…`) and Pi-Star `DMRIds.dat` (tab separated) all parse. Field
+order is the same everywhere; lines not starting with an ID, such as a CSV header,
+are skipped.
+
+**Download cache**: every successful download is mirrored to `<FilePath>.cache`. If
+no source answers at startup, the cache is loaded instead, so the database is never
+empty just because a directory is down. This is separate from `FilePath`, which in
+`Mode = both` holds the operator's own additional entries and is never overwritten.
+
+Note that no second publisher of the YSF TX/RX data is known, so there the cache is
+the only fallback. Missing YSF frequencies only affect Wires-X frequency reporting.
+
 ### Extended XML Output
 The XML status file now includes:
 
