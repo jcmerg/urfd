@@ -477,6 +477,39 @@ the refresh interval, practically every page load triggers a CallingHome, and wi
 unresponsive directory that is enough to exhaust the php-fpm worker pool and make the
 whole dashboard — including the admin panel — appear to hang.
 
+### JSON API
+Read-only HTTP endpoints under `/json/`, served by the dashboard:
+
+| Endpoint | Returns |
+|---|---|
+| `/json/metadata` | Dashboard version, reflector callsign and version, public IPv4/IPv6, sysop email |
+| `/json/status` | Reflector up/down, uptime, last update timestamps |
+| `/json/reflector` | Full reflector record including modules and metadata |
+| `/json/links` | Connected nodes with callsign, IP, module, protocol, connect and last-heard time |
+| `/json/peers` | Linked peer reflectors |
+| `/json/stations` | Last-heard stations with country lookup |
+| `/json/modulesinuse` | Modules with the callsigns currently on them |
+
+Collection endpoints return `[]` when empty (`/json/stations` returns
+`{"stations":[]}`); an unknown path returns 404.
+
+**Web server requirements**: the endpoints are clean paths dispatched inside
+`json/index.php`, so the web server has to route `/json/<name>` there.
+
+- **nginx** — handled by the shipped `nginx-dashboard.conf`, which has a `location
+  /json/` block. Without it the generic `try_files` falls through to the dashboard's
+  own `index.php` and every endpoint answers `200` with an HTML page.
+- **Apache** — relies on `json/.htaccess`, which a stock Debian install ignores:
+  `apache2.conf` ships `AllowOverride None` for `/var/www/`, and `mod_rewrite` is not
+  enabled. Without both of the following the endpoints return 404:
+
+```bash
+sudo a2enmod rewrite
+# and in /etc/apache2/apache2.conf, for the <Directory /var/www/> block:
+#   AllowOverride FileInfo
+sudo systemctl restart apache2
+```
+
 ### D-Star Slow Data for Transcoded Streams
 Transcoded streams (DMR, YSF, SVX, M17, P25, USRP, client protocols -> D-Star) now include proper D-Star slow data:
 - **Header**: Caller callsign (MY), reflector callsign (RPT1/RPT2)
