@@ -2,7 +2,7 @@
 
 Fork of [urfd](https://github.com/nostar/urfd) with extended features for the URF363 reflector project.
 
-**Version 3.2.2-dht** | Dashboard v2.6.0
+**Version 3.2.2-dht** | Dashboard v2.6.1
 
 ## What's New in This Fork
 
@@ -438,8 +438,8 @@ Module names are configured once in `urfd.ini` and automatically available in th
 
 The JSON report also includes a `DynamicTGs` array with protocol, TG, module, and remaining seconds for all active dynamic mappings.
 
-### Dashboard v2.6.0
-Complete redesign with dark mode theme.
+### Dashboard v2.6.1
+Complete redesign with dark mode theme (v2.6.0), hardened against directory outages (v2.6.1).
 
 **New pages:**
 - **Active Users** - Connected nodes per module in card layout
@@ -714,6 +714,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 ### Dashboard & Output
 - **Protocol naming**: Consistent UI names — `MMDVM` = direct hotspot connections, `MMDVMClient` = BrandMeister/master server connection (previously both showed as "MMDVM" in different contexts)
 - **Dashboard v2.6.0**: Dark mode redesign, admin panel, module overview with TG mappings and NXDN RAN, protocol-specific columns hidden when disabled, protocol list, QuadNet Live proxy, reflector list with search/pagination
+- **Dashboard v2.6.1**: Survives an outage of the XLX directory. Explicit timeouts on every outbound request, CallingHome failures logged instead of aborting the page render, reflector and peer lists served from an on-disk cache, admin API no longer serialized behind the PHP session lock
 - **Extended XML/JSON**: Module mappings (static + dynamic with TTL), reflector metadata, protocol list, per-user protocol info, dynamic TG array
 - **Protocol blocking display**: Active blocks shown as clickable labels in admin panel
 
@@ -722,6 +723,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **M17 LSTN support**: Listen-only M17 clients for monitoring services
 - **Transcoder resilience**: TCP keepalive, non-blocking poll, queue drain on disconnect, automatic reconnect after network outages
 - **Database HTTP retry**: Retry with backoff on failed initial load (prevents empty databases after transient errors)
+- **Database fallback sources**: `URL` accepts a comma separated list, tried in order; field separator (`;`, `,`, tab) is detected per line so the common publishers work unchanged; every successful download is mirrored to `<FilePath>.cache` and loaded when no source answers
 - **Service optimizations**: Realtime scheduling and voice CPU priority
 - **Thread-safe logging**: Atomic cout via ostringstream
 - **Thread-safe DB lookups**: DMR/NXDN ID database lookups in CodecStream hold proper mutex locks during access, preventing race conditions with background DB refresh

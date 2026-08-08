@@ -11,7 +11,7 @@ $PageOptions = array();
 //  Dashboard Settings
 //############################################################################
 
-$PageOptions['DashboardVersion'] = '2.6.0';
+$PageOptions['DashboardVersion'] = '2.6.1';
 
 // Contact email shown in the footer (obfuscated against bots via JS)
 $PageOptions['ContactEmail']     = 'your_email@example.com';
