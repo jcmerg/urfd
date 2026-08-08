@@ -459,6 +459,24 @@ Complete redesign with dark mode theme.
 - QRZ links use callsign without module suffix
 - **Admin panel** (hidden): dynamic TG management with kerchunk button, transcoder stats, live log, protocol controls. Access via pi symbol or `?show=admin`.
 
+**Resilience against a directory outage**: the dashboard no longer depends on
+`xlxapi.rlx.lu` being reachable. Every outbound request has an explicit timeout, a
+failed CallingHome is logged instead of aborting the page, and the reflector list is
+cached on disk (`<HashFile dir>/reflectorlist.cache`) so a fresh entry serves the page
+with no network call at all and a stale one keeps the list working while the directory
+is down.
+
+```php
+// pgs/config.inc.php
+$CallingHome['PushDelay'] = 300;   // Seconds between pushes
+$CallingHome['Timeout']   = 5;     // Seconds before giving up on the directory server
+```
+
+`PushDelay` must stay well above `$PageOptions['PageRefreshDelay']`. If it drops to
+the refresh interval, practically every page load triggers a CallingHome, and with an
+unresponsive directory that is enough to exhaust the php-fpm worker pool and make the
+whole dashboard — including the admin panel — appear to hang.
+
 ### D-Star Slow Data for Transcoded Streams
 Transcoded streams (DMR, YSF, SVX, M17, P25, USRP, client protocols -> D-Star) now include proper D-Star slow data:
 - **Header**: Caller callsign (MY), reflector callsign (RPT1/RPT2)
@@ -573,7 +591,7 @@ Edit `urfd.ini` to set:
 - MMDVMClient TG mappings (multi-TG per module supported)
 - SvxReflector connection and TG mappings
 - Admin interface (port, password, bind address)
-- Database URLs for DMR ID, NXDN ID, YSF TX/RX lookups
+- Database URLs for DMR ID, NXDN ID, YSF TX/RX lookups (comma separated for fallback sources, see [Resilient ID Database Loading](#resilient-id-database-loading))
 
 ### Dashboard
 

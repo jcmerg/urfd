@@ -19,6 +19,18 @@ docker compose -f docker-compose.yml up -d
 
 Mount your config directory to `/usr/local/etc/urfd`. Must contain at least `urfd.ini`. See the main [urfd documentation](../docs/) for details.
 
+### PHP tuning
+
+The image raises two stock PHP settings that are too tight for the dashboard:
+
+| Setting | Stock | Here | Why |
+|---|---|---|---|
+| `pm.max_children` | 5 | 25 | Five workers are exhausted by a handful of slow requests, which stalls every other PHP request including the admin API |
+| `default_socket_timeout` | 60 | 10 | Caps how long an unreachable upstream can hold a worker |
+
+Note that `supervisorctl` is not usable inside the container — `supervisord.conf`
+defines no `unix_http_server` socket. Restart with `docker restart urfd`.
+
 ## Files
 
 | File | Purpose |
