@@ -7,10 +7,14 @@ $payload['stations'] = array();
 for ($i=0;$i<$Reflector->StationCount();$i++) {
 
     $tmp = preg_split('/\s+/', $Reflector->Stations[$i]->GetCallSign(), -1, PREG_SPLIT_NO_EMPTY);
-    $Callsign = $tmp[0];
+    $Callsign = $tmp[0] ?? '';
 
+    // The via node is formatted by CCallsign::GetLogString(), which appends the
+    // module only when one is set and an optional " / <suffix>" after it. So the
+    // second field is absent for a module-less node, and is the "/" separator when
+    // there is a suffix but no module -- neither is a module letter.
     $tmp = preg_split('/\s+/', $Reflector->Stations[$i]->GetVia(), -1, PREG_SPLIT_NO_EMPTY);
-    $CallsignSuffix = $tmp[1];
+    $CallsignSuffix = (isset($tmp[1]) && $tmp[1] !== '/') ? $tmp[1] : '';
 	
     // craft payload array
     $payload['stations'][$i] = array(
