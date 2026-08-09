@@ -40,6 +40,10 @@ const int dvsi_interleave[49] = {
 	2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38
 };
 
+char     CNXDNProtocol::s_AutolinkModule  = ' ';
+uint16_t CNXDNProtocol::s_ModuleDstIdBase = 0;
+bool     CNXDNProtocol::s_UseDstIdRouting = false;
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // constructor
 CNXDNProtocol::CNXDNProtocol()
@@ -59,8 +63,19 @@ bool CNXDNProtocol::Initialize(const char *type, const EProtocol ptype, const ui
 	if (g_Configure.Contains(g_Keys.nxdn.fallbacknxdnid))
 		m_FallbackNxdnId = (uint16_t)g_Configure.GetUnsigned(g_Keys.nxdn.fallbacknxdnid);
 
-	std::cout << "NXDN: RAN-based module routing (RAN 1-26 = A-Z, RAN 0 = "
-	          << (m_AutolinkModule != ' ' ? std::string(1, m_AutolinkModule) : "none") << ")" << std::endl;
+	// publish the routing configuration to the static mapping helpers
+	s_AutolinkModule = m_AutolinkModule;
+	s_UseDstIdRouting = g_Configure.Contains(g_Keys.nxdn.moduledstidbase);
+	s_ModuleDstIdBase = s_UseDstIdRouting ? (uint16_t)g_Configure.GetUnsigned(g_Keys.nxdn.moduledstidbase) : 0;
+
+	if (' ' != m_AutolinkModule)
+		std::cout << "NXDN: RAN-based module routing (RAN 0 and RAN 1 = " << m_AutolinkModule
+		          << ", RAN " << (int)ModuleToRAN('A') << " = A, RAN 2-26 = B-Z)" << std::endl;
+	else
+		std::cout << "NXDN: RAN-based module routing (RAN 1-26 = A-Z, no autolink module)" << std::endl;
+	if (s_UseDstIdRouting)
+		std::cout << "NXDN: dstId-based module routing (" << (s_ModuleDstIdBase + 1) << " = A ... "
+		          << (s_ModuleDstIdBase + 26) << " = Z)" << std::endl;
 
 	// base class
 	if (! CProtocol::Initialize(type, ptype, port, has_ipv4, has_ipv6))
@@ -72,18 +87,57 @@ bool CNXDNProtocol::Initialize(const char *type, const EProtocol ptype, const ui
 	return true;
 }
 
+// RAN 1 is the only RAN most clients ever send: DroidStar hardcodes it, and MMDVMHost
+// replaces the radio's RAN with the hotspot's configured one, which defaults to 1. So
+// RAN 1 has to reach the autolink module, and module A takes the autolink module's own
+// RAN in exchange. Swapping the two keeps the mapping a bijection and leaves every other
+// module on its natural RAN.
 char CNXDNProtocol::RANToModule(uint8_t ran)
 {
-	if (ran >= 1 && ran <= 26)
-		return 'A' + (ran - 1);
-	return ' ';  // RAN 0 or out of range
+	if (ran < 1 || ran > 26)
+		return ' ';  // RAN 0 or out of range
+	const char module = 'A' + (ran - 1);
+	if (s_AutolinkModule >= 'A' && s_AutolinkModule <= 'Z')
+	{
+		if (1 == ran)
+			return s_AutolinkModule;
+		if (module == s_AutolinkModule)
+			return 'A';
+	}
+	return module;
 }
 
 uint8_t CNXDNProtocol::ModuleToRAN(char module)
 {
-	if (module >= 'A' && module <= 'Z')
-		return (module - 'A') + 1;
-	return 0;
+	if (module < 'A' || module > 'Z')
+		return 0;
+	if (s_AutolinkModule >= 'A' && s_AutolinkModule <= 'Z')
+	{
+		if (module == s_AutolinkModule)
+			return 1;
+		if ('A' == module)
+			return (s_AutolinkModule - 'A') + 1;
+	}
+	return (module - 'A') + 1;
+}
+
+// Clients that cannot set the RAN -- DroidStar in particular -- can still pick the
+// destination ID, both in the connect poll and in every voice frame.
+char CNXDNProtocol::DstIdToModule(uint16_t dstid)
+{
+	if (! s_UseDstIdRouting || dstid <= s_ModuleDstIdBase)
+		return ' ';
+	const uint16_t offset = dstid - s_ModuleDstIdBase;
+	if (offset > 26)
+		return ' ';
+	return 'A' + (offset - 1);
+}
+
+uint16_t CNXDNProtocol::ModuleToDstId(char module)
+{
+	if (! s_UseDstIdRouting || module < 'A' || module > 'Z')
+		return 0;
+	return s_ModuleDstIdBase + (module - 'A') + 1;
 }
 
 void CNXDNProtocol::Close(void)
@@ -100,6 +154,7 @@ void CNXDNProtocol::Task(void)
 	CBuffer    Buffer;
 	CIp        Ip;
 	CCallsign  Callsign;
+	char       ConnectModule = ' ';
 
 	std::unique_ptr<CDvHeaderPacket>               Header;
 	std::array<std::unique_ptr<CDvFramePacket>, 4> Frames;
@@ -136,7 +191,7 @@ void CNXDNProtocol::Task(void)
 		{
 			m_uiStreamId = 0;
 		}
-		else if ( IsValidConnectPacket(Buffer, &Callsign) )
+		else if ( IsValidConnectPacket(Buffer, &Callsign, &ConnectModule) )
 		{
 			// callsign authorized?
 			if ( g_GateKeeper.MayLink(Callsign, Ip, EProtocol::nxdn) )
@@ -147,14 +202,19 @@ void CNXDNProtocol::Task(void)
 				// client already connected ?
 				if ( client == nullptr )
 				{
-					std::cout << "NXDN connect from " << Callsign << " at " << Ip << std::endl;
+					std::cout << "NXDN connect from " << Callsign << " at " << Ip;
+					if (' ' != ConnectModule)
+						std::cout << " on module " << ConnectModule << " (dstId)";
+					std::cout << std::endl;
 
 					// create the client
 					auto newclient = std::make_shared<CNXDNClient>(Callsign, Ip);
 
-					// autolink module for initial connect; voice RAN overrides per-transmission
-					if (' ' != m_AutolinkModule)
-						newclient->SetReflectorModule(m_AutolinkModule);
+					// the dstId of the poll wins over the autolink module; the voice
+					// frames override both per-transmission
+					const char mod = (' ' != ConnectModule) ? ConnectModule : m_AutolinkModule;
+					if (' ' != mod)
+						newclient->SetReflectorModule(mod);
 
 					// and append
 					clients->AddClient(newclient);
@@ -390,7 +450,7 @@ void CNXDNProtocol::HandleKeepalives(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // DV packet decoding helpers
 
-bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *callsign)
+bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *callsign, char *module)
 {
 	uint8_t tag[] = { 'N','X','D','N','P' };
 
@@ -400,6 +460,9 @@ bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *calls
 	{
 		callsign->SetCallsign(Buffer.data()+5, 8);
 		valid = (callsign->IsValid());
+		// the poll carries the destination ID the client selected (bytes 15/16)
+		const uint16_t dstId = ((Buffer.data()[15] << 8) & 0xff00) | (Buffer.data()[16] & 0xff);
+		*module = DstIdToModule(dstId);
 	}
 	return valid;
 }
@@ -439,9 +502,11 @@ bool CNXDNProtocol::IsValidDvHeaderPacket(const CIp &Ip, const CBuffer &Buffer, 
 					return false;
 				}
 			}
-			// extract RAN from SACCH byte 0 (lower 6 bits)
-			uint8_t ran = Buffer.data()[11] & 0x3F;
-			char mod = RANToModule(ran);
+			// dstId (bytes 7/8) first -- it is the only selector clients without a
+			// RAN setting can reach -- then the RAN from SACCH byte 0 (lower 6 bits)
+			uint16_t uiDstId = ((Buffer.data()[7] << 8) & 0xff00) | (Buffer.data()[8] & 0xff);
+			char mod = DstIdToModule(uiDstId);
+			if (mod == ' ') mod = RANToModule(Buffer.data()[11] & 0x3F);
 			if (mod == ' ') mod = m_AutolinkModule;
 			m_uiStreamId = static_cast<uint32_t>(::rand());
 			CCallsign rpt1(csMY);
@@ -479,9 +544,11 @@ bool CNXDNProtocol::IsValidDvFramePacket(const CIp &Ip, const CBuffer &Buffer, s
 					return false;
 				}
 			}
-			// extract RAN from SACCH byte 0 (lower 6 bits)
-			uint8_t ran = Buffer.data()[11] & 0x3F;
-			char mod = RANToModule(ran);
+			// dstId (bytes 7/8) first -- it is the only selector clients without a
+			// RAN setting can reach -- then the RAN from SACCH byte 0 (lower 6 bits)
+			uint16_t uiDstId = ((Buffer.data()[7] << 8) & 0xff00) | (Buffer.data()[8] & 0xff);
+			char mod = DstIdToModule(uiDstId);
+			if (mod == ' ') mod = RANToModule(Buffer.data()[11] & 0x3F);
 			if (mod == ' ') mod = m_AutolinkModule;
 			m_uiStreamId = static_cast<uint32_t>(::rand());
 			CCallsign rpt1(csMY);
@@ -563,7 +630,10 @@ bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffe
 	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
 	if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
 	if (srcId == 0) srcId = m_ReflectorId;
-	uint16_t dstId = m_ReflectorId;
+	// echo back the dstId that selects this module, so the client sees the same
+	// destination it transmits on
+	uint16_t dstId = ModuleToDstId(Header.GetPacketModule());
+	if (0 == dstId) dstId = m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
 
 	memcpy(Buffer.data(), "NXDND", 5);
@@ -623,7 +693,10 @@ bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq
 	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
 	if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
 	if (srcId == 0) srcId = m_ReflectorId;
-	uint16_t dstId = m_ReflectorId;
+	// echo back the dstId that selects this module, so the client sees the same
+	// destination it transmits on
+	uint16_t dstId = ModuleToDstId(Header.GetPacketModule());
+	if (0 == dstId) dstId = m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
 
 	memcpy(Buffer.data(), "NXDND", 5);

@@ -45,6 +45,7 @@ if ($Reflector->GetXMLContent() !== null) {
                 'dmrplus'     => $XML->GetElement($tmpModules[$i], 'DMRplus'),
                 'ysfdgid'     => $XML->GetElement($tmpModules[$i], 'YSFDGID'),
                 'nxdnran'     => $XML->GetElement($tmpModules[$i], 'NXDNRAN'),
+                'nxdndstid'   => $XML->GetElement($tmpModules[$i], 'NXDNDstId'),
             );
         }
     }
@@ -75,6 +76,7 @@ foreach ($xmlModules as $mod => $data) {
         'dmrplus'     => $data['dmrplus'],
         'ysfdgid'     => $data['ysfdgid'],
         'nxdnran'     => $data['nxdnran'],
+        'nxdndstid'   => $data['nxdndstid'],
     );
 }
 
@@ -82,7 +84,7 @@ foreach ($xmlModules as $mod => $data) {
 if (isset($PageOptions['ModuleNames'])) {
     foreach ($PageOptions['ModuleNames'] as $mod => $name) {
         if (!isset($Modules[$mod]) && trim($name) != '') {
-            $Modules[$mod] = array('name' => $name, 'linkedNodes' => 0, 'transcoded' => false, 'mappings' => array(), 'dmrplus' => '', 'ysfdgid' => '', 'nxdnran' => '');
+            $Modules[$mod] = array('name' => $name, 'linkedNodes' => 0, 'transcoded' => false, 'mappings' => array(), 'dmrplus' => '', 'ysfdgid' => '', 'nxdnran' => '', 'nxdndstid' => '');
         }
     }
 }
@@ -115,6 +117,7 @@ $protoNames = array_column($xmlProtocols, 'name');
 $showDmrPlus = in_array('DMRPlus', $protoNames);
 $showYsfDgid = in_array('YSF', $protoNames);
 $showNxdnRan = in_array('NXDN', $protoNames);
+$showNxdnDstId = $showNxdnRan && count(array_filter(array_column($Modules, 'nxdndstid'), 'strlen')) > 0;
 $colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan ? 1 : 0) + 1 + 1;
 ?>
 <h2 class="sub-header">Overview Modules</h2>
@@ -125,7 +128,7 @@ $colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan 
             <th>Name</th>
             <?php if ($showDmrPlus) { ?><th>DMR TG</th><?php } ?>
             <?php if ($showYsfDgid) { ?><th>YSF DG-ID</th><?php } ?>
-            <?php if ($showNxdnRan) { ?><th>NXDN RAN</th><?php } ?>
+            <?php if ($showNxdnRan) { ?><th><?php echo $showNxdnDstId ? 'NXDN RAN / dstId' : 'NXDN RAN'; ?></th><?php } ?>
             <th>Nodes</th>
             <th>Transcoded</th>
             <th>Mappings</th>
@@ -192,6 +195,8 @@ foreach ($Modules as $mod => $info) {
     $dmrpStr = ($info['dmrplus'] != '') ? htmlspecialchars($info['dmrplus']) : '<span class="text-muted">&mdash;</span>';
     $ysfStr  = ($info['ysfdgid'] != '') ? htmlspecialchars($info['ysfdgid']) : '<span class="text-muted">&mdash;</span>';
     $nxdnStr = ($info['nxdnran'] != '') ? htmlspecialchars($info['nxdnran']) : '<span class="text-muted">&mdash;</span>';
+    if ($showNxdnDstId)
+        $nxdnStr .= ' <span class="text-muted">/ ' . (($info['nxdndstid'] != '') ? htmlspecialchars($info['nxdndstid']) : '&mdash;') . '</span>';
 
     echo '<tr class="table-center">';
     echo '<td><strong>' . htmlspecialchars($mod) . '</strong></td>';

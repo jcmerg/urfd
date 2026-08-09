@@ -212,30 +212,46 @@ Map2 = 85.215.138.68,42000,F,15          # YSF reflector -> local module F, DG-I
 {"cmd": "ysf_map_list", "token": "..."}
 ```
 
-### NXDN RAN-Based Module Routing
-Select reflector modules via NXDN RAN (Radio Access Number). RAN 1-26 maps directly to Module A-Z. RAN 0 maps to the AutoLinkModule (configurable fallback). Set the TX RAN on your NXDN radio to choose the target module — the client switches dynamically per transmission, like YSF DG-ID.
+### NXDN Module Routing
+Select reflector modules via the NXDN RAN (Radio Access Number) or via the destination ID.
 
 ```ini
 [NXDN]
 Enable = true
 Port = 41400
-AutoLinkModule = S             # Module for RAN 0 (comment out to disable)
+AutoLinkModule = S             # Module for RAN 0 and RAN 1 (comment out to disable)
 ReflectorID = 26363
 # FallbackNxdnId = 8970        # NXDN ID for unknown callers (0 or omit = drop)
+ModuleDstIdBase = 4000         # dstId 4001-4026 = A-Z (omit to disable)
 ```
 
-**RAN-to-Module mapping** (fixed, no configuration needed):
+**RAN-to-Module mapping**: RAN 1-26 maps to Module A-Z, with RAN 1 and the AutoLinkModule's own RAN swapped. RAN 1 always reaches the AutoLinkModule, and Module A takes the AutoLinkModule's RAN in exchange. RAN 0 maps to the AutoLinkModule as well. With `AutoLinkModule = S`:
+
 | RAN | Module | RAN | Module | RAN | Module |
 |-----|--------|-----|--------|-----|--------|
-| 1   | A      | 10  | J      | 19  | S      |
-| 2   | B      | 11  | K      | 20  | T      |
-| ...  | ...   | ... | ...    | 26  | Z      |
+| 0   | S      | 10  | J      | 19  | **A**  |
+| 1   | **S**  | 11  | K      | 20  | T      |
+| 2   | B      | ... | ...    | 26  | Z      |
+
+The swap exists because RAN 1 is the only RAN most clients can produce. DroidStar hardcodes `set_sacch_ran(0x01)`, and MMDVMHost overwrites the radio's RAN with the hotspot's configured `[NXDN] RAN` (default 1) before forwarding, and rejects RF whose RAN differs. Per-transmission RAN switching from the radio therefore only works on a direct connection; through a hotspot the RAN is a per-hotspot setting.
+
+**dstId-to-Module mapping** (takes precedence over the RAN): set `ModuleDstIdBase` to enable. dstId `base+1` to `base+26` maps to Module A-Z, any other dstId falls through to the RAN. Evaluated in the connect poll and in every frame, so the module is correct from the first packet on. With `ModuleDstIdBase = 4000` the NXDN destination IDs line up with the DMR+ TG mapping (4001 = A, 4002 = B, …).
+
+This is the only module selection available to clients that cannot set a RAN. DroidStar users add one custom host per module under Settings, where the number is the dstId:
+
+```
+NXDN 4001 my.reflector.org 41400     -> Module A
+NXDN 4003 my.reflector.org 41400     -> Module C
+NXDN 26363 my.reflector.org 41400    -> AutoLinkModule
+```
+
+Outgoing frames carry the dstId of the module they came from, so the client shows the destination it is transmitting on.
 
 **NXDN ID Resolution**: Incoming NXDN IDs are resolved to callsigns via the NXDN ID database. If not found, the DMR ID database is used as fallback (many operators reuse their DMR ID as NXDN ID). This enables cross-protocol callsign display and D-Star slow data name lookup. Unknown IDs are dropped unless FallbackNxdnId is configured.
 
 **D-Star Slow Data**: NXDN sources show `via NXDN RAN<n>` in the D-Star text field. Operator names are looked up from both DMR and NXDN databases.
 
-**Dashboard**: The NXDN RAN column is shown in the module overview when NXDN is enabled. DMR+ and YSF DG-ID columns are hidden when their respective protocols are disabled.
+**Dashboard**: The NXDN RAN column is shown in the module overview when NXDN is enabled, and turns into `NXDN RAN / dstId` once `ModuleDstIdBase` is set. DMR+ and YSF DG-ID columns are hidden when their respective protocols are disabled.
 
 ### Dynamic Talkgroup Timer Behavior
 
@@ -428,7 +444,7 @@ the only fallback. Missing YSF frequencies only affect Wires-X frequency reporti
 The XML status file now includes:
 
 - **Reflector metadata**: callsign, country, sponsor, dashboard URL, email
-- **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID, NXDN RAN
+- **Module configuration**: description, linked node count, transcoded status, DMR+ TG ID, YSF DG-ID, NXDN RAN, NXDN destination ID (only when `ModuleDstIdBase` is configured)
 - **Per-module mappings**: autolinks (YSF, NXDN, P25), TG mappings (MMDVMClient, SvxReflector), D-Star client mappings (DCSClient, DExtraClient, DPlusClient with connection status), YSF client mappings (YSFClient with DG-ID)
 - **Enabled protocols**: name and port for each active protocol
 - **Per-station protocol**: which protocol a user was heard on (DCS, MMDVMClient, YSF, etc.)
@@ -443,7 +459,7 @@ Complete redesign with dark mode theme (v2.6.0), hardened against directory outa
 
 **New pages:**
 - **Active Users** - Connected nodes per module in card layout
-- **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, NXDN RANs, mappings (static + dynamic), transcoder status, connected nodes. Protocol columns hidden when disabled.
+- **Overview Modules** - Module table with DMR+ IDs, YSF DG-IDs, NXDN RANs and destination IDs, mappings (static + dynamic), transcoder status, connected nodes. Protocol columns hidden when disabled.
 - **Enabled Protocols** - Server-side protocols with ports and type classification (client protocols like MMDVMClient, SvxReflector, D-Star/YSF clients are hidden as they connect outbound)
 
 **Features:**
@@ -736,7 +752,7 @@ URF acts as a YSF Master providing Wires-X rooms (one per module). YSF users con
 - **SIGHUP config reload**: Hot-reload TG mappings, whitelist/blacklist/interlink, transcoder modules without dropping sessions — thread-safe via sigwait, exception-safe with rollback
 
 ### Audio & Transcoding
-- **NXDN RAN routing**: Module selection via RAN (Radio Access Number) — RAN 1-26 = Module A-Z, RAN 0 = AutoLinkModule. Client switches module per transmission (like YSF DG-ID). NXDN ID resolution via NXDN DB with DMR DB fallback. FallbackNxdnId for unknown callers (drop if unset). Fixed uninitialized `m_uiNXDNid` in CCallsign default constructor.
+- **NXDN module routing**: Module selection via RAN (Radio Access Number) — RAN 1-26 = Module A-Z, with RAN 1 and the AutoLinkModule's RAN swapped so RAN 1 reaches the AutoLinkModule, RAN 0 = AutoLinkModule. Alternative selection via destination ID (`ModuleDstIdBase`, dstId base+1…base+26 = A-Z) for clients that cannot set a RAN, evaluated in the connect poll and per transmission, with the module's dstId echoed on outgoing frames. NXDN ID resolution via NXDN DB with DMR DB fallback. FallbackNxdnId for unknown callers (drop if unset). Fixed uninitialized `m_uiNXDNid` in CCallsign default constructor.
 - **D-Star slow data**: Transcoded streams include caller callsign, protocol/TG/RAN/module info, operator name from DMR and NXDN ID databases — rotating every ~5 seconds. TG display uses actual source TG (not primary/static) for correct multi-TG display. Client protocols show remote reflector name + module (e.g. `via DCS002 A`), YSFClient shows DG-ID
 - **SVX/USRP codec separation**: Independent codec paths (`ECodecType::svx` vs `ECodecType::usrp`) with separate gain control — SVX gain in urfd.ini, USRP gain in tcd.ini
 - **MMDVM dual-slot**: Each timeslot (TS1/TS2) independently links to its own reflector module — a hotspot can receive traffic from two modules simultaneously on separate timeslots. Dashboard shows both linked modules per client.

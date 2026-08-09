@@ -745,12 +745,15 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 			xmlFile << "\t<DMRplus>" << (4001 + modIdx) << "</DMRplus>" << std::endl;
 		if (XML_PROTO_ENABLED(g_Keys.ysf.enable))
 			xmlFile << "\t<YSFDGID>" << (10 + modIdx) << "</YSFDGID>" << std::endl;
-		// NXDN RAN for this module (RAN 1-26 = A-Z)
+		// NXDN RAN and destination ID for this module
 		if (XML_PROTO_ENABLED(g_Keys.nxdn.enable))
 		{
 			uint8_t ran = CNXDNProtocol::ModuleToRAN(m);
 			if (ran != 0)
 				xmlFile << "\t<NXDNRAN>" << (int)ran << "</NXDNRAN>" << std::endl;
+			uint16_t dstid = CNXDNProtocol::ModuleToDstId(m);
+			if (dstid != 0)
+				xmlFile << "\t<NXDNDstId>" << dstid << "</NXDNDstId>" << std::endl;
 		}
 		// per-module protocol mappings (only if protocol is enabled)
 		if (XML_PROTO_ENABLED(g_Keys.ysf.enable)

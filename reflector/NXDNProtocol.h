@@ -51,9 +51,14 @@ public:
 	// task
 	void Task(void);
 
-	// RAN-to-module: RAN 1-26 = A-Z, RAN 0 = AutoLinkModule
+	// RAN-to-module: RAN 1-26 = A-Z, RAN 0 = AutoLinkModule, with RAN 1 and the
+	// autolink module's own RAN swapped (see RANToModule for the reasoning)
 	static char RANToModule(uint8_t ran);
 	static uint8_t ModuleToRAN(char module);
+
+	// dstId-to-module: base+1 ... base+26 = A-Z, everything else falls back to the RAN
+	static char DstIdToModule(uint16_t dstid);
+	static uint16_t ModuleToDstId(char module);
 
 protected:
 	// queue helper
@@ -66,7 +71,7 @@ protected:
 	void OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &, const CIp &);
 
 	// DV packet decoding helpers
-	bool IsValidConnectPacket(const CBuffer &, CCallsign *);
+	bool IsValidConnectPacket(const CBuffer &, CCallsign *, char *module);
 	bool IsValidDisconnectPacket(const CBuffer &);
 	bool IsValidDvHeaderPacket(const CIp &, const CBuffer &, std::unique_ptr<CDvHeaderPacket> &);
 	bool IsValidDvFramePacket(const CIp &, const CBuffer &, std::unique_ptr<CDvHeaderPacket> &, std::array<std::unique_ptr<CDvFramePacket>, 4> &);
@@ -124,4 +129,10 @@ protected:
 	uint16_t m_ReflectorId;
 	uint16_t m_FallbackNxdnId;
 	char m_AutolinkModule;
+
+	// the two mappings are static because the dashboard and the D-Star slow data
+	// need them, so their configuration has to be static as well
+	static char s_AutolinkModule;
+	static uint16_t s_ModuleDstIdBase;
+	static bool s_UseDstIdRouting;
 };

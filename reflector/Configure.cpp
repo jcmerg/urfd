@@ -453,6 +453,8 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.nxdn.enable] = IS_TRUE(value[0]);
 				else if (0 == key.compare("FallbackNxdnId"))
 					data[g_Keys.nxdn.fallbacknxdnid] = getUnsigned(value, "NXDN FallbackNxdnId", 0, 65535, 0);
+				else if (0 == key.compare("ModuleDstIdBase"))
+					data[g_Keys.nxdn.moduledstidbase] = getUnsigned(value, "NXDN ModuleDstIdBase", 0, 65509, 0);
 				else
 					badParam(key);
 				break;
