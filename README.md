@@ -251,7 +251,7 @@ Outgoing frames carry the dstId of the module they came from, so the client show
 
 **D-Star Slow Data**: NXDN sources show `via NXDN RAN<n>` in the D-Star text field. Operator names are looked up from both DMR and NXDN databases.
 
-**Dashboard**: The NXDN RAN column is shown in the module overview when NXDN is enabled, and turns into `NXDN RAN / dstId` once `ModuleDstIdBase` is set. DMR+ and YSF DG-ID columns are hidden when their respective protocols are disabled.
+**Dashboard**: The NXDN RAN column is shown in the module overview when NXDN is enabled, and turns into `NXDN RAN/DST ID` once `ModuleDstIdBase` is set. DMR+ and YSF DG-ID columns are hidden when their respective protocols are disabled.
 
 ### Dynamic Talkgroup Timer Behavior
 

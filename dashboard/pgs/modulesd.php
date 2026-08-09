@@ -128,7 +128,7 @@ $colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan 
             <th>Name</th>
             <?php if ($showDmrPlus) { ?><th>DMR TG</th><?php } ?>
             <?php if ($showYsfDgid) { ?><th>YSF DG-ID</th><?php } ?>
-            <?php if ($showNxdnRan) { ?><th><?php echo $showNxdnDstId ? 'NXDN RAN / dstId' : 'NXDN RAN'; ?></th><?php } ?>
+            <?php if ($showNxdnRan) { ?><th><?php echo $showNxdnDstId ? 'NXDN RAN/DST ID' : 'NXDN RAN'; ?></th><?php } ?>
             <th>Nodes</th>
             <th>Transcoded</th>
             <th>Mappings</th>
