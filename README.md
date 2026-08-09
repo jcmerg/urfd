@@ -245,7 +245,7 @@ NXDN 4003 my.reflector.org 41400     -> Module C
 NXDN 26363 my.reflector.org 41400    -> AutoLinkModule
 ```
 
-Outgoing frames carry the dstId of the module they came from, so the client shows the destination it is transmitting on.
+Outgoing frames carry the destination ID each client polled with, encoded per distinct dstId on the module. This is required, not cosmetic: `NXDNGateway` drops every frame from the reflector whose dstId differs from the TG the hotspot is linked to, so a client linked to the plain reflector ID and one linked to a module dstId must each receive their own.
 
 **NXDN ID Resolution**: Incoming NXDN IDs are resolved to callsigns via the NXDN ID database. If not found, the DMR ID database is used as fallback (many operators reuse their DMR ID as NXDN ID). This enables cross-protocol callsign display and D-Star slow data name lookup. Unknown IDs are dropped unless FallbackNxdnId is configured.
 

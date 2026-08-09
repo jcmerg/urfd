@@ -25,16 +25,17 @@
 // constructors
 
 CNXDNClient::CNXDNClient()
+	: m_uiDstId(0)
 {
 }
 
 CNXDNClient::CNXDNClient(const CCallsign &callsign, const CIp &ip, char reflectorModule)
-	: CClient(callsign, ip, reflectorModule)
+	: CClient(callsign, ip, reflectorModule), m_uiDstId(0)
 {
 }
 
 CNXDNClient::CNXDNClient(const CNXDNClient &client)
-	: CClient(client)
+	: CClient(client), m_uiDstId(client.m_uiDstId)
 {
 }
 

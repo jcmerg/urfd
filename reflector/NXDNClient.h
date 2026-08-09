@@ -40,4 +40,12 @@ public:
 
 	// status
 	bool IsAlive(void) const;
+
+	// the destination ID this client polls with -- NXDNGateway drops any frame whose
+	// dstId differs from the TG it is linked to, so outgoing frames have to carry it
+	uint16_t GetDstId(void) const               { return m_uiDstId; }
+	void SetDstId(uint16_t dstid)               { m_uiDstId = dstid; }
+
+protected:
+	uint16_t m_uiDstId;
 };

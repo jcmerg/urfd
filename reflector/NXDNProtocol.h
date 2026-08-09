@@ -71,15 +71,16 @@ protected:
 	void OnDvHeaderPacketIn(std::unique_ptr<CDvHeaderPacket> &, const CIp &);
 
 	// DV packet decoding helpers
-	bool IsValidConnectPacket(const CBuffer &, CCallsign *, char *module);
+	bool IsValidConnectPacket(const CBuffer &, CCallsign *, uint16_t *dstid);
 	bool IsValidDisconnectPacket(const CBuffer &);
 	bool IsValidDvHeaderPacket(const CIp &, const CBuffer &, std::unique_ptr<CDvHeaderPacket> &);
 	bool IsValidDvFramePacket(const CIp &, const CBuffer &, std::unique_ptr<CDvHeaderPacket> &, std::array<std::unique_ptr<CDvFramePacket>, 4> &);
 	bool IsValidDvLastFramePacket(const CIp &, const CBuffer &);
 
-	// DV packet encoding helpers
-	bool EncodeNXDNHeaderPacket(const CDvHeaderPacket &, CBuffer &, bool islast = false);
-	bool EncodeNXDNPacket(const CDvHeaderPacket &, uint32_t, const CDvFramePacket *, CBuffer &);
+	// DV packet encoding helpers -- dstid is the destination the receiving client polls
+	// with, so every distinct dstid on a module needs its own encoded buffer
+	bool EncodeNXDNHeaderPacket(const CDvHeaderPacket &, uint16_t dstid, CBuffer &, bool islast = false);
+	bool EncodeNXDNPacket(const CDvHeaderPacket &, uint16_t dstid, uint32_t, const CDvFramePacket *, CBuffer &);
 	bool EncodeLastNXDNPacket(const CDvHeaderPacket &, CBuffer &) const;
 
 	// uiStreamId helpers

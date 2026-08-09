@@ -154,7 +154,7 @@ void CNXDNProtocol::Task(void)
 	CBuffer    Buffer;
 	CIp        Ip;
 	CCallsign  Callsign;
-	char       ConnectModule = ' ';
+	uint16_t   ConnectDstId = 0;
 
 	std::unique_ptr<CDvHeaderPacket>               Header;
 	std::array<std::unique_ptr<CDvFramePacket>, 4> Frames;
@@ -191,7 +191,7 @@ void CNXDNProtocol::Task(void)
 		{
 			m_uiStreamId = 0;
 		}
-		else if ( IsValidConnectPacket(Buffer, &Callsign, &ConnectModule) )
+		else if ( IsValidConnectPacket(Buffer, &Callsign, &ConnectDstId) )
 		{
 			// callsign authorized?
 			if ( g_GateKeeper.MayLink(Callsign, Ip, EProtocol::nxdn) )
@@ -202,9 +202,10 @@ void CNXDNProtocol::Task(void)
 				// client already connected ?
 				if ( client == nullptr )
 				{
+					const char pollmod = DstIdToModule(ConnectDstId);
 					std::cout << "NXDN connect from " << Callsign << " at " << Ip;
-					if (' ' != ConnectModule)
-						std::cout << " on module " << ConnectModule << " (dstId)";
+					if (' ' != pollmod)
+						std::cout << " on module " << pollmod << " (dstId " << ConnectDstId << ")";
 					std::cout << std::endl;
 
 					// create the client
@@ -212,9 +213,10 @@ void CNXDNProtocol::Task(void)
 
 					// the dstId of the poll wins over the autolink module; the voice
 					// frames override both per-transmission
-					const char mod = (' ' != ConnectModule) ? ConnectModule : m_AutolinkModule;
+					const char mod = (' ' != pollmod) ? pollmod : m_AutolinkModule;
 					if (' ' != mod)
 						newclient->SetReflectorModule(mod);
+					newclient->SetDstId(ConnectDstId);
 
 					// and append
 					clients->AddClient(newclient);
@@ -222,6 +224,10 @@ void CNXDNProtocol::Task(void)
 				else
 				{
 					client->Alive();
+					// the client may have re-linked to another destination
+					auto nxdnclient = std::dynamic_pointer_cast<CNXDNClient>(client);
+					if (nxdnclient)
+						nxdnclient->SetDstId(ConnectDstId);
 				}
 
 				// acknowledge the request -- NXDNReflector simply echoes the packet
@@ -342,8 +348,12 @@ void CNXDNProtocol::HandleQueue(void)
 		// get our sender's id
 		const auto mod = packet->GetPacketModule();
 
-		// encode
-		CBuffer buffer;
+		// clients on the same module can be linked to different destination IDs and
+		// NXDNGateway drops anything addressed elsewhere, so the encoding is deferred
+		// until the receiving client -- and with it the dstId -- is known
+		enum class EEncode { none, header, last, frames };
+		EEncode encode = EEncode::none;
+		uint32_t seqNo = 0;
 
 		// check if it's header
 		if ( packet->IsDvHeader() )
@@ -368,14 +378,12 @@ void CNXDNProtocol::HandleQueue(void)
 			m_StreamsCache[mod].m_dvHeader = hdr;
 			m_StreamsCache[mod].m_iSeqCounter = 0;
 
-			// encode it
-			EncodeNXDNHeaderPacket(hdr, buffer);
+			encode = EEncode::header;
 		}
 		// check if it's a last frame
 		else if ( packet->IsLastPacket() )
 		{
-			// encode it
-			EncodeNXDNHeaderPacket((CDvHeaderPacket &)*packet.get(), buffer, true);
+			encode = EEncode::last;
 		}
 		// otherwise, just a regular DV frame
 		else
@@ -387,14 +395,19 @@ void CNXDNProtocol::HandleQueue(void)
 				m_StreamsCache[mod].m_dvFrames[pid] = CDvFramePacket((CDvFramePacket &)*packet.get());
 				if ( pid == 3 )
 				{
-					EncodeNXDNPacket(m_StreamsCache[mod].m_dvHeader, m_StreamsCache[mod].m_iSeqCounter++, m_StreamsCache[mod].m_dvFrames, buffer);
+					// the sequence counter advances per packet, not per client
+					seqNo = m_StreamsCache[mod].m_iSeqCounter++;
+					encode = EEncode::frames;
 				}
 			}
 		}
 
 		// send it
-		if ( buffer.size() > 0 )
+		if ( EEncode::none != encode )
 		{
+			// one encoded buffer per distinct dstId, reused for all clients sharing it
+			std::unordered_map<uint16_t, CBuffer> buffers;
+
 			// and push it to all our clients linked to the module and who are not streaming in
 			CClients *clients = g_Reflector.GetClients();
 			auto it = clients->begin();
@@ -404,9 +417,30 @@ void CNXDNProtocol::HandleQueue(void)
 				// is this client busy ?
 				if ( !client->IsAMaster() && (client->GetReflectorModule() == packet->GetPacketModule()) )
 				{
+					auto nxdnclient = std::dynamic_pointer_cast<CNXDNClient>(client);
+					const uint16_t dstid = nxdnclient ? nxdnclient->GetDstId() : 0;
+					auto item = buffers.try_emplace(dstid);
+					if ( item.second )
+					{
+						// first client with this dstId, encode for it
+						CBuffer &buffer = item.first->second;
+						switch (encode)
+						{
+						case EEncode::header:
+							EncodeNXDNHeaderPacket((CDvHeaderPacket &)*packet.get(), dstid, buffer);
+							break;
+						case EEncode::last:
+							EncodeNXDNHeaderPacket((CDvHeaderPacket &)*packet.get(), dstid, buffer, true);
+							break;
+						case EEncode::frames:
+							EncodeNXDNPacket(m_StreamsCache[mod].m_dvHeader, dstid, seqNo, m_StreamsCache[mod].m_dvFrames, buffer);
+							break;
+						default:
+							break;
+						}
+					}
 					// no, send the packet
-					Send(buffer, client->GetIp());
-
+					Send(item.first->second, client->GetIp());
 				}
 			}
 			g_Reflector.ReleaseClients();
@@ -450,7 +484,7 @@ void CNXDNProtocol::HandleKeepalives(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // DV packet decoding helpers
 
-bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *callsign, char *module)
+bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *callsign, uint16_t *dstid)
 {
 	uint8_t tag[] = { 'N','X','D','N','P' };
 
@@ -461,8 +495,7 @@ bool CNXDNProtocol::IsValidConnectPacket(const CBuffer &Buffer, CCallsign *calls
 		callsign->SetCallsign(Buffer.data()+5, 8);
 		valid = (callsign->IsValid());
 		// the poll carries the destination ID the client selected (bytes 15/16)
-		const uint16_t dstId = ((Buffer.data()[15] << 8) & 0xff00) | (Buffer.data()[16] & 0xff);
-		*module = DstIdToModule(dstId);
+		*dstid = ((Buffer.data()[15] << 8) & 0xff00) | (Buffer.data()[16] & 0xff);
 	}
 	return valid;
 }
@@ -623,17 +656,14 @@ bool CNXDNProtocol::IsValidDvLastFramePacket(const CIp &Ip, const CBuffer &Buffe
 ////////////////////////////////////////////////////////////////////////////////////////
 // DV packet encoding helpers
 
-bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffer &Buffer, bool islast)
+bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, uint16_t dstid, CBuffer &Buffer, bool islast)
 {
 	Buffer.resize(43);
 	uint16_t srcId = Header.GetMyCallsign().GetNXDNid();
 	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
 	if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
 	if (srcId == 0) srcId = m_ReflectorId;
-	// echo back the dstId that selects this module, so the client sees the same
-	// destination it transmits on
-	uint16_t dstId = ModuleToDstId(Header.GetPacketModule());
-	if (0 == dstId) dstId = m_ReflectorId;
+	uint16_t dstId = (0 != dstid) ? dstid : m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
 
 	memcpy(Buffer.data(), "NXDND", 5);
@@ -685,7 +715,7 @@ bool CNXDNProtocol::EncodeNXDNHeaderPacket(const CDvHeaderPacket &Header, CBuffe
 	return true;
 }
 
-bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq, const CDvFramePacket *DvFrames, CBuffer &Buffer)
+bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint16_t dstid, uint32_t seq, const CDvFramePacket *DvFrames, CBuffer &Buffer)
 {
 	uint8_t ambe[28];
 	Buffer.resize(43);
@@ -693,10 +723,7 @@ bool CNXDNProtocol::EncodeNXDNPacket(const CDvHeaderPacket &Header, uint32_t seq
 	if (srcId == 0) srcId = Header.GetUrCallsign().GetNXDNid();
 	if (srcId == 0 && m_FallbackNxdnId != 0) srcId = m_FallbackNxdnId;
 	if (srcId == 0) srcId = m_ReflectorId;
-	// echo back the dstId that selects this module, so the client sees the same
-	// destination it transmits on
-	uint16_t dstId = ModuleToDstId(Header.GetPacketModule());
-	if (0 == dstId) dstId = m_ReflectorId;
+	uint16_t dstId = (0 != dstid) ? dstid : m_ReflectorId;
 	uint8_t ran = ModuleToRAN(Header.GetPacketModule());
 
 	memcpy(Buffer.data(), "NXDND", 5);
