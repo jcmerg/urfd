@@ -118,7 +118,7 @@ $showDmrPlus = in_array('DMRPlus', $protoNames);
 $showYsfDgid = in_array('YSF', $protoNames);
 $showNxdnRan = in_array('NXDN', $protoNames);
 $showNxdnDstId = $showNxdnRan && count(array_filter(array_column($Modules, 'nxdndstid'), 'strlen')) > 0;
-$colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan ? 1 : 0) + 1 + 1;
+$colCount = 6 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan ? 1 : 0) + ($showNxdnDstId ? 1 : 0);
 ?>
 <h2 class="sub-header">Overview Modules</h2>
 <div class="table-responsive">
@@ -128,7 +128,8 @@ $colCount = 5 + ($showDmrPlus ? 1 : 0) + ($showYsfDgid ? 1 : 0) + ($showNxdnRan 
             <th>Name</th>
             <?php if ($showDmrPlus) { ?><th>DMR TG</th><?php } ?>
             <?php if ($showYsfDgid) { ?><th>YSF DG-ID</th><?php } ?>
-            <?php if ($showNxdnRan) { ?><th><?php echo $showNxdnDstId ? 'NXDN RAN/DST ID' : 'NXDN RAN'; ?></th><?php } ?>
+            <?php if ($showNxdnRan) { ?><th>NXDN RAN</th><?php } ?>
+            <?php if ($showNxdnDstId) { ?><th>NXDN DST-ID</th><?php } ?>
             <th>Nodes</th>
             <th>Transcoded</th>
             <th>Mappings</th>
@@ -195,8 +196,7 @@ foreach ($Modules as $mod => $info) {
     $dmrpStr = ($info['dmrplus'] != '') ? htmlspecialchars($info['dmrplus']) : '<span class="text-muted">&mdash;</span>';
     $ysfStr  = ($info['ysfdgid'] != '') ? htmlspecialchars($info['ysfdgid']) : '<span class="text-muted">&mdash;</span>';
     $nxdnStr = ($info['nxdnran'] != '') ? htmlspecialchars($info['nxdnran']) : '<span class="text-muted">&mdash;</span>';
-    if ($showNxdnDstId)
-        $nxdnStr .= ' <span class="text-muted">/ ' . (($info['nxdndstid'] != '') ? htmlspecialchars($info['nxdndstid']) : '&mdash;') . '</span>';
+    $nxdnDstStr = ($info['nxdndstid'] != '') ? htmlspecialchars($info['nxdndstid']) : '<span class="text-muted">&mdash;</span>';
 
     echo '<tr class="table-center">';
     echo '<td><strong>' . htmlspecialchars($mod) . '</strong></td>';
@@ -204,6 +204,7 @@ foreach ($Modules as $mod => $info) {
     if ($showDmrPlus) echo '<td>' . $dmrpStr . '</td>';
     if ($showYsfDgid) echo '<td>' . $ysfStr . '</td>';
     if ($showNxdnRan) echo '<td>' . $nxdnStr . '</td>';
+    if ($showNxdnDstId) echo '<td>' . $nxdnDstStr . '</td>';
     echo '<td>' . $nodeCount . '</td>';
     echo '<td>' . $tcBadge . '</td>';
     echo '<td style="text-align:left;">' . $mappingsStr . '</td>';
