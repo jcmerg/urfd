@@ -18,6 +18,7 @@
 
 
 #include <string.h>
+#include <cctype>
 
 #include "Global.h"
 #include <curl/curl.h>
@@ -1092,11 +1093,14 @@ std::string CReflector::BuildCallingHomeXml()
 
 	// reflector block - match PHP dashboard field names/format
 	ss << "<reflector>" << std::endl;
-	// name: use XLX-styled callsign if available
+	// name: use XLX-styled callsign if available (trim trailing spaces)
 	{
 		CCallsign cs = m_Callsign;
 		cs.PatchCallsign(0, "XLX", 3);
-		ss << "   <name>" << (const char *)cs << "</name>" << std::endl;
+		std::string name = (const char *)cs;
+		while (!name.empty() && std::isspace((unsigned char)name.back()))
+			name.pop_back();
+		ss << "   <name>" << name << "</name>" << std::endl;
 	}
 
 	// uptime (seconds)
