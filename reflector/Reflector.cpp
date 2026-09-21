@@ -1097,9 +1097,7 @@ std::string CReflector::BuildCallingHomeXml()
 	{
 		CCallsign cs = m_Callsign;
 		cs.PatchCallsign(0, "XLX", 3);
-		std::string name = (const char *)cs;
-		while (!name.empty() && std::isspace((unsigned char)name.back()))
-			name.pop_back();
+		std::string name = cs.GetLogString();
 		ss << "   <name>" << name << "</name>" << std::endl;
 	}
 
