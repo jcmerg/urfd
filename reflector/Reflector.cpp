@@ -20,6 +20,8 @@
 #include <string.h>
 
 #include "Global.h"
+#include <curl/curl.h>
+#include <sstream>
 #include "DMRMMDVMProtocol.h"
 #include "MMDVMClientProtocol.h"
 #include "SvxReflectorProtocol.h"
@@ -46,6 +48,11 @@ CReflector::~CReflector()
 	if ( m_EchoFuture.valid() )
 	{
 		m_EchoFuture.get();
+	}
+
+	if ( m_CallingHomeFuture.valid() )
+	{
+		m_CallingHomeFuture.get();
 	}
 
 	for (auto it=m_Modules.cbegin(); it!=m_Modules.cend(); it++)
@@ -79,6 +86,8 @@ bool CReflector::Start(void)
 
 	// let's go!
 	keep_running = true;
+	// record start time for uptime
+	m_StartTime = std::chrono::steady_clock::now();
 
 	// init transcoder comms
 	if (port)
@@ -156,6 +165,19 @@ bool CReflector::Start(void)
 	catch(const std::exception& e)
 	{
 		std::cerr << "Cannot start the dashboard data report thread: " << e.what() << '\n';
+	}
+
+	// start calling-home thread if hash configured
+	if (g_Configure.Contains(g_Keys.callinghome.hash))
+	{
+		try
+		{
+			m_CallingHomeFuture = std::async(std::launch::async, &CReflector::CallingHomeThread, this);
+		}
+		catch(const std::exception &e)
+		{
+			std::cerr << "Cannot start CallingHome thread: " << e.what() << '\n';
+		}
 	}
 
 	// start echo thread
@@ -257,6 +279,11 @@ void CReflector::Stop(void)
 	if ( m_MaintenanceFuture.valid() )
 	{
 		m_MaintenanceFuture.get();
+	}
+
+	if ( m_CallingHomeFuture.valid() )
+	{
+		m_CallingHomeFuture.get();
 	}
 
 	// stop echo thread
@@ -1055,6 +1082,140 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 	// unlock
 	ReleaseUsers();
 	xmlFile << "</" << (const char *)cs << "heard users>" << std::endl;
+}
+
+std::string CReflector::BuildCallingHomeXml()
+{
+	std::ostringstream ss;
+	ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+	ss << "<query>CallingHome</query>" << std::endl;
+
+	// reflector block (reuse many of the same fields as WriteXmlFile)
+	ss << "<reflector>" << std::endl;
+	ss << "\t<Callsign>" << g_Configure.GetString(g_Keys.names.callsign) << "</Callsign>" << std::endl;
+	// uptime
+	auto now = std::chrono::steady_clock::now();
+	auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - m_StartTime).count();
+	ss << "\t<Uptime>" << uptime << "</Uptime>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.country))
+		ss << "\t<Country>" << g_Configure.GetString(g_Keys.names.country) << "</Country>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.sponsor))
+		ss << "\t<Sponsor>" << g_Configure.GetString(g_Keys.names.sponsor) << "</Sponsor>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.url))
+		ss << "\t<DashboardURL>" << g_Configure.GetString(g_Keys.names.url) << "</DashboardURL>" << std::endl;
+	if (g_Configure.Contains(g_Keys.names.email))
+		ss << "\t<Email>" << g_Configure.GetString(g_Keys.names.email) << "</Email>" << std::endl;
+
+	// hash if present
+	if (g_Configure.Contains(g_Keys.callinghome.hash))
+		ss << "\t<Hash>" << g_Configure.GetString(g_Keys.callinghome.hash) << "</Hash>" << std::endl;
+
+	// ip addresses
+	if (g_Configure.Contains(g_Keys.ip.ipv4address))
+		ss << "\t<IPv4>" << g_Configure.GetString(g_Keys.ip.ipv4address) << "</IPv4>" << std::endl;
+	if (g_Configure.Contains(g_Keys.ip.ipv6address))
+		ss << "\t<IPv6>" << g_Configure.GetString(g_Keys.ip.ipv6address) << "</IPv6>" << std::endl;
+
+	ss << "</reflector>" << std::endl;
+
+	// interlinks
+	ss << "<interlinks>" << std::endl;
+	CInterlinkMap *map = g_GateKeeper.GetInterlinkMap();
+	for (auto it = map->cbegin(); it != map->cend(); ++it)
+	{
+		const std::string &name = it->first;
+		const CInterlinkMapItem &item = it->second;
+		std::string addr;
+#ifndef NO_DHT
+		if (item.UsesDHT()) {
+			if (!item.GetIPv4().empty()) addr = item.GetIPv4();
+			else addr = item.GetIPv6();
+		} else
+#endif
+		{
+			addr = item.GetIp().GetAddress();
+		}
+		ss << "\t<interlink>" << std::endl;
+		ss << "\t\t<Name>" << name << "</Name>" << std::endl;
+		ss << "\t\t<Address>" << addr << "</Address>" << std::endl;
+		ss << "\t\t<Modules>" << item.GetModules() << "</Modules>" << std::endl;
+		ss << "\t\t<Protocol>" << item.GetProtocol() << "</Protocol>" << std::endl;
+		ss << "\t\t<Port>" << item.GetPort() << "</Port>" << std::endl;
+		ss << "\t</interlink>" << std::endl;
+	}
+	g_GateKeeper.ReleaseInterlinkMap();
+	ss << "</interlinks>" << std::endl;
+
+	return ss.str();
+}
+
+static size_t CHWriteCallback(void *buf, size_t size, size_t nmemb, void *userp)
+{
+	// discard response
+	return size * nmemb;
+}
+
+void CReflector::CallingHomeThread()
+{
+	const std::string server = g_Configure.Contains(g_Keys.callinghome.server) ? g_Configure.GetString(g_Keys.callinghome.server) : std::string();
+	unsigned pushdelay = g_Configure.Contains(g_Keys.callinghome.pushdelay) ? g_Configure.GetUnsigned(g_Keys.callinghome.pushdelay) : 300;
+	unsigned timeout = g_Configure.Contains(g_Keys.callinghome.timeout) ? g_Configure.GetUnsigned(g_Keys.callinghome.timeout) : 10;
+
+	if (server.empty())
+	{
+		std::cerr << "CallingHome: server not configured, aborting thread" << std::endl;
+		return;
+	}
+
+	// send immediately on startup
+	while (keep_running)
+	{
+		std::string xml = BuildCallingHomeXml();
+
+		CURL *curl = curl_easy_init();
+		if (curl)
+		{
+			std::string url = server;
+			curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CHWriteCallback);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
+			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+			// url-encode xml as form field 'xml'
+			char *esc = curl_easy_escape(curl, xml.c_str(), (int)xml.size());
+			std::string body = std::string("xml=") + (esc ? esc : "");
+			if (esc) curl_free(esc);
+			curl_easy_setopt(curl, CURLOPT_POST, 1L);
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)body.size());
+
+			CURLcode res = curl_easy_perform(curl);
+			if (res != CURLE_OK)
+			{
+				std::cerr << "CallingHome: curl error: " << curl_easy_strerror(res) << " for " << url << std::endl;
+			}
+			else
+			{
+				long httpCode = 0;
+				curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+				if (httpCode >= 200 && httpCode < 300)
+					std::cout << "CallingHome: posted successfully (HTTP " << httpCode << ")" << std::endl;
+				else
+					std::cerr << "CallingHome: post failed (HTTP " << httpCode << ")" << std::endl;
+			}
+			curl_easy_cleanup(curl);
+		}
+		else
+		{
+			std::cerr << "CallingHome: failed to initialize curl" << std::endl;
+		}
+
+		// sleep for pushdelay or exit early
+		for (unsigned i=0; i<pushdelay && keep_running; i++)
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+
+		// after first send, continue loop and repeat until stop
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

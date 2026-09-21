@@ -95,6 +95,12 @@
 #define JSVXREFLECTOR            "SvxReflector"
 #define JSVXSERVER               "SVXServer"
 #define JDCSCLIENT               "DCSClient"
+#define JCALLINGHOME             "CallingHome"
+#define JCALLINGHOMEENABLE       "Enable"
+#define JCALLINGHOMEHASH         "Hash"
+#define JCALLINGHOMESERVER       "Server"
+#define JCALLINGHOMEPUSHDELAY    "PushDelay"
+#define JCALLINGHOMETOUT         "Timeout"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
 {
@@ -214,6 +220,8 @@ bool CConfigure::ReadData(const std::string &path)
 				section = ESection::m17;
 			else if (0 == hname.compare(JUSRP))
 				section = ESection::usrp;
+			else if (0 == hname.compare(JCALLINGHOME))
+				section = ESection::callinghome;
 			else if (0 == hname.compare(JURF))
 				section = ESection::urf;
 			else if (0 == hname.compare(JDMRIDDB))
@@ -290,6 +298,20 @@ bool CConfigure::ReadData(const std::string &path)
 					data[g_Keys.names.country] = value.substr(0,2);
 				else if (0 == key.compare(JSPONSOR))
 					data[g_Keys.names.sponsor] = value;
+				else
+					badParam(key);
+				break;
+			case ESection::callinghome:
+				if (0 == key.compare(JCALLINGHOMEENABLE))
+					data[g_Keys.callinghome.enable] = IS_TRUE(value[0]);
+				else if (0 == key.compare(JCALLINGHOMEHASH))
+					data[g_Keys.callinghome.hash] = value;
+				else if (0 == key.compare(JCALLINGHOMESERVER))
+					data[g_Keys.callinghome.server] = value;
+				else if (0 == key.compare(JCALLINGHOMEPUSHDELAY))
+					data[g_Keys.callinghome.pushdelay] = getUnsigned(value, JCALLINGHOMEPUSHDELAY, 10, 86400, 300);
+				else if (0 == key.compare(JCALLINGHOMETOUT))
+					data[g_Keys.callinghome.timeout] = getUnsigned(value, JCALLINGHOMETOUT, 1, 120, 10);
 				else
 					badParam(key);
 				break;
@@ -1278,6 +1300,32 @@ bool CConfigure::ReadData(const std::string &path)
 		checkFile(JFILES, JWHITELISTPATH, data[g_Keys.files.white]);
 	if (isDefined(ErrorLevel::fatal, JFILES, JBLACKLISTPATH, g_Keys.files.black, rval))
 		checkFile(JFILES, JBLACKLISTPATH, data[g_Keys.files.black]);
+
+	// CallingHome section: if enabled, ensure hash and server are provided
+	if (data.contains(g_Keys.callinghome.enable) && data[g_Keys.callinghome.enable].is_boolean() && data[g_Keys.callinghome.enable].get<bool>())
+	{
+		if (isDefined(ErrorLevel::fatal, JCALLINGHOME, JCALLINGHOMEHASH, g_Keys.callinghome.hash, rval))
+		{
+			// Validate hash format: must match the dashboard PHP `CreateCode(16)`
+			// (exactly 16 alphanumeric characters)
+			try {
+				const auto hash = data[g_Keys.callinghome.hash].get<std::string>();
+				static const std::regex hashRe("^[A-Za-z0-9]{16}$");
+				if (! std::regex_match(hash, hashRe))
+				{
+					std::cerr << "ERROR: [" << JCALLINGHOME << "]" << JCALLINGHOMEHASH << " value '" << hash << "' is malformed" << std::endl;
+					rval = true;
+				}
+			} catch (const std::exception &e) {
+				std::cerr << "ERROR: exception while validating CallingHome hash: " << e.what() << std::endl;
+				rval = true;
+			}
+		}
+		if (isDefined(ErrorLevel::fatal, JCALLINGHOME, JCALLINGHOMESERVER, g_Keys.callinghome.server, rval))
+		{
+			// nothing extra
+		}
+	}
 	if (isDefined(ErrorLevel::fatal, JFILES, JINTERLINKPATH, g_Keys.files.interlink, rval))
 		checkFile(JFILES, JINTERLINKPATH, data[g_Keys.files.interlink]);
 	if (data.contains(g_Keys.g3.enable) && GetBoolean(g_Keys.g3.enable))

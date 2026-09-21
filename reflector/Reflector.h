@@ -109,6 +109,10 @@ protected:
 	void WriteXmlFile(std::ofstream &);
 	void JsonReport(nlohmann::json &report);
 
+	// calling home
+	void CallingHomeThread(void);
+	std::string BuildCallingHomeXml(void);
+
 	// echo module
 	void EchoThread(void);
 	char m_EchoModule;
@@ -124,6 +128,9 @@ protected:
 	std::string m_Modules, m_TCmodules;
 	std::string m_ConfigPath;
 
+	// startup time for uptime reporting
+	std::chrono::steady_clock::time_point m_StartTime;
+
 	// objects
 	CUsers     m_Users;            // sorted list of lastheard stations
 	CClients   m_Clients;          // list of linked repeaters/nodes/peers's modules
@@ -137,6 +144,7 @@ protected:
 	std::atomic<bool> keep_running;
 	std::unordered_map<char, std::future<void>> m_RouterFuture;
 	std::future<void> m_MaintenanceFuture;
+	std::future<void> m_CallingHomeFuture;
 
 #ifndef NO_DHT
 	// Distributed Hash Table
