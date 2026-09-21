@@ -1087,34 +1087,49 @@ void CReflector::WriteXmlFile(std::ofstream &xmlFile)
 std::string CReflector::BuildCallingHomeXml()
 {
 	std::ostringstream ss;
-	ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+	ss << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" << std::endl;
 	ss << "<query>CallingHome</query>" << std::endl;
 
-	// reflector block (reuse many of the same fields as WriteXmlFile)
+	// reflector block - match PHP dashboard field names/format
 	ss << "<reflector>" << std::endl;
-	ss << "\t<Callsign>" << g_Configure.GetString(g_Keys.names.callsign) << "</Callsign>" << std::endl;
-	// uptime
+	// name: use XLX-styled callsign if available
+	{
+		CCallsign cs = m_Callsign;
+		cs.PatchCallsign(0, "XLX", 3);
+		ss << "   <name>" << (const char *)cs << "</name>" << std::endl;
+	}
+
+	// uptime (seconds)
 	auto now = std::chrono::steady_clock::now();
 	auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - m_StartTime).count();
-	ss << "\t<Uptime>" << uptime << "</Uptime>" << std::endl;
-	if (g_Configure.Contains(g_Keys.names.country))
-		ss << "\t<Country>" << g_Configure.GetString(g_Keys.names.country) << "</Country>" << std::endl;
-	if (g_Configure.Contains(g_Keys.names.sponsor))
-		ss << "\t<Sponsor>" << g_Configure.GetString(g_Keys.names.sponsor) << "</Sponsor>" << std::endl;
-	if (g_Configure.Contains(g_Keys.names.url))
-		ss << "\t<DashboardURL>" << g_Configure.GetString(g_Keys.names.url) << "</DashboardURL>" << std::endl;
-	if (g_Configure.Contains(g_Keys.names.email))
-		ss << "\t<Email>" << g_Configure.GetString(g_Keys.names.email) << "</Email>" << std::endl;
+	ss << "   <uptime>" << uptime << "</uptime>" << std::endl;
 
-	// hash if present
+	// hash
 	if (g_Configure.Contains(g_Keys.callinghome.hash))
-		ss << "\t<Hash>" << g_Configure.GetString(g_Keys.callinghome.hash) << "</Hash>" << std::endl;
+		ss << "   <hash>" << g_Configure.GetString(g_Keys.callinghome.hash) << "</hash>" << std::endl;
 
-	// ip addresses
+	// url / dashboard
+	if (g_Configure.Contains(g_Keys.names.url))
+		ss << "   <url>" << g_Configure.GetString(g_Keys.names.url) << "</url>" << std::endl;
+
+	// country: use configured value (note: dashboard may map callsign->country)
+	if (g_Configure.Contains(g_Keys.names.country))
+		ss << "   <country>" << g_Configure.GetString(g_Keys.names.country) << "</country>" << std::endl;
+
+	// comment / sponsor
+	if (g_Configure.Contains(g_Keys.names.sponsor))
+		ss << "   <comment>" << g_Configure.GetString(g_Keys.names.sponsor) << "</comment>" << std::endl;
+
+	// ip (prefer IPv4)
 	if (g_Configure.Contains(g_Keys.ip.ipv4address))
-		ss << "\t<IPv4>" << g_Configure.GetString(g_Keys.ip.ipv4address) << "</IPv4>" << std::endl;
-	if (g_Configure.Contains(g_Keys.ip.ipv6address))
-		ss << "\t<IPv6>" << g_Configure.GetString(g_Keys.ip.ipv6address) << "</IPv6>" << std::endl;
+		ss << "   <ip>" << g_Configure.GetString(g_Keys.ip.ipv4address) << "</ip>" << std::endl;
+
+	// reflector version
+	{
+		std::ostringstream v;
+		v << g_Version;
+		ss << "   <reflectorversion>" << v.str() << "</reflectorversion>" << std::endl;
+	}
 
 	ss << "</reflector>" << std::endl;
 
