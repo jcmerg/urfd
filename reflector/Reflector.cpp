@@ -1168,7 +1168,12 @@ std::string CReflector::BuildCallingHomeXml()
 
 static size_t CHWriteCallback(void *buf, size_t size, size_t nmemb, void *userp)
 {
-	// discard response
+	// append response into provided std::string
+	if (userp)
+	{
+		std::string *resp = static_cast<std::string *>(userp);
+		resp->append(static_cast<char *>(buf), size * nmemb);
+	}
 	return size * nmemb;
 }
 
@@ -1205,6 +1210,13 @@ void CReflector::CallingHomeThread()
 			curl_easy_setopt(curl, CURLOPT_POST, 1L);
 			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
 			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)body.size());
+			// capture response into string
+			std::string response;
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+#ifdef DEBUG
+			std::cout << "CallingHome: debug send XML:\n" << xml << std::endl;
+#endif
 
 			CURLcode res = curl_easy_perform(curl);
 			if (res != CURLE_OK)
@@ -1215,10 +1227,34 @@ void CReflector::CallingHomeThread()
 			{
 				long httpCode = 0;
 				curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+
+#ifdef DEBUG
+				std::cout << "CallingHome: debug response:\n" << response << std::endl;
+#endif
+
 				if (httpCode >= 200 && httpCode < 300)
-					std::cout << "CallingHome: posted successfully (HTTP " << httpCode << ")" << std::endl;
+				{
+					// parse response for <answer>...</answer> and trim whitespace for concise success log
+					std::string answer;
+					std::string::size_type a = response.find("<answer>");
+					std::string::size_type b = response.find("</answer>");
+					if (a != std::string::npos && b != std::string::npos && b > a)
+					{
+						a += strlen("<answer>");
+						answer = response.substr(a, b - a);
+						// trim both ends
+						while (!answer.empty() && std::isspace((unsigned char)answer.front())) answer.erase(answer.begin());
+						while (!answer.empty() && std::isspace((unsigned char)answer.back())) answer.pop_back();
+					}
+					if (!answer.empty())
+						std::cout << "CallingHome: post successful: " << answer << " for " << url << std::endl;
+					else
+						std::cout << "CallingHome: post successful (no answer) for " << url << std::endl;
+				}
 				else
+				{
 					std::cerr << "CallingHome: post failed (HTTP " << httpCode << ")" << std::endl;
+				}
 			}
 			curl_easy_cleanup(curl);
 		}
